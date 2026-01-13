@@ -75,15 +75,17 @@ jobs:
 
   build-macos:
     name: MacOS (${{ matrix.target }})
-    runs-on: macos-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - target: x86_64-apple-darwin
             arch_name: x86_64
+            os: macos-13
           - target: aarch64-apple-darwin
             arch_name: aarch64
+            os: macos-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -97,6 +99,10 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Build
+        # We allow cross in case pkg-config gets confused by the explicit target triple on native host,
+        # but since we are on the correct hardware, the brew libraries will be correct.
+        env: 
+          PKG_CONFIG_ALLOW_CROSS: 1
         run: cargo build --release --target ${{ matrix.target }}
 
       - name: Archive
