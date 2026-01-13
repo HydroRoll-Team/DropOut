@@ -15,7 +15,38 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  promote-release:
+    name: Create Release & Changelog
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.create_release.outputs.id }}
+      release_body: ${{ steps.changelog.outputs.changes }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate CHANGELOG
+        id: changelog
+        uses: requarks/changelog-action@v1
+        with:
+          token: ${{ github.token }}
+          tag: ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}
+          changelogFilePath: CHANGELOG.md
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}
+          name: "DropOut ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}"
+          body: ${{ steps.changelog.outputs.changes }}
+          draft: true
+          prerelease: false
+
   build-tauri:
+    name: Build & Upload (${{ matrix.platform }})
+    needs: promote-release
     permissions:
       contents: write
     strategy:
@@ -24,9 +55,7 @@ jobs:
         include:
           - platform: "ubuntu-22.04"
             args: ""
-          - platform: "macos-14" # Intel
-            args: "--target x86_64-apple-darwin"
-          - platform: "macos-latest" # M1/M2/M3
+          - platform: "macos-14" # M1/M2/M3 (Apple Silicon)
             args: "--target aarch64-apple-darwin"
           - platform: "windows-latest"
             args: ""
@@ -44,16 +73,12 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-14' && 'x86_64-apple-darwin' || matrix.platform == 'macos-latest' && 'aarch64-apple-darwin' || '' }}
+          targets: ${{ matrix.platform == 'macos-14' && 'aarch64-apple-darwin' || '' }}
 
       - name: Build Tauri App
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}
-          releaseName: "DropOut v__VERSION__"
-          releaseBody: "See the assets to download this version and install."
-          releaseDraft: true
-          prerelease: false
+          releaseId: ${{ needs.promote-release.outputs.release_id }}
           args: ${{ matrix.args }}
