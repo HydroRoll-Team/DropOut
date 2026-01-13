@@ -249,6 +249,7 @@ async fn start_game(
     replacements.insert("${auth_access_token}", "null".to_string()); // Offline
     replacements.insert("${user_type}", "mojang".to_string());
     replacements.insert("${version_type}", "release".to_string());
+    replacements.insert("${user_properties}", "{}".to_string()); // Correctly pass empty JSON object for user properties
 
     if let Some(minecraft_arguments) = &version_details.minecraft_arguments {
         // Legacy string
@@ -314,6 +315,8 @@ async fn start_game(
     }
 
     println!("Launching game with {} args...", args.len());
+    // Debug: Print arguments to help diagnose issues
+    println!("Launch Args: {:?}", args);
     
     // Spawn the process
     let mut command = std::process::Command::new("java");
