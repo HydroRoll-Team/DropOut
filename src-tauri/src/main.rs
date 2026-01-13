@@ -55,7 +55,7 @@ async fn start_game(
 
     download_tasks.push(core::downloader::DownloadTask {
         url: client_jar.url,
-        path: client_path,
+        path: client_path.clone(),
         sha1: Some(client_jar.sha1),
     });
 
