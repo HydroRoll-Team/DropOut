@@ -8,7 +8,6 @@ impl Launcher {
     }
 
     pub fn launch(&self) {
-        // 启动游戏的逻辑
         println!("启动游戏，用户名: {}", self.config.username);
         println!(
             "分辨率: {}x{}",

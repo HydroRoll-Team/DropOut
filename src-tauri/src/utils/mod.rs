@@ -1,7 +1,6 @@
-// utils/mod.rs
 pub mod zip;
 
-// 文件操作相关的实用工具函数
+// File system related utility functions
 pub mod file_utils {
     use std::fs;
     use std::io::{self, Write};
@@ -16,7 +15,7 @@ pub mod file_utils {
     }
 }
 
-// 配置解析相关的实用工具函数
+// Configuration parsing utilities
 pub mod config_parser {
     use std::collections::HashMap;
 
