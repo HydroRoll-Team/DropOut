@@ -1,10 +1,11 @@
 [package]
 name = "dropout"
-version = "0.1.9"
+version = "0.1.10"
 edition = "2021"
 authors = ["HsiangNianian"]
 description = "The DropOut Minecraft Game Launcher"
 license = "MIT"
+repository = "https://github.com/HsiangNianian/DropOut"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] } 
