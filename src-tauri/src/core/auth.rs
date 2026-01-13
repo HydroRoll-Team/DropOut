@@ -74,9 +74,9 @@ pub fn generate_offline_uuid(username: &str) -> String {
     Uuid::new_v3(&namespace, username.as_bytes()).to_string()
 }
 
-// Constants
-const CLIENT_ID: &str = "fe165602-5410-4441-92f7-326e10a7cb82";
-const SCOPE: &str = "XboxLive.Signin offline_access openid profile email";
+// const CLIENT_ID: &str = "fe165602-5410-4441-92f7-326e10a7cb82";
+const CLIENT_ID: &str = "c36a9fb6-4f2a-41ff-90bd-ae7cc92031eb"; // ATLauncher's Client ID
+const SCOPE: &str = "XboxLive.SignIn XboxLive.offline_access";
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DeviceCodeResponse {
@@ -184,19 +184,25 @@ pub async fn exchange_code_for_token(device_code: &str) -> Result<TokenResponse,
 
     // Try parse success
     if let Ok(token_resp) = serde_json::from_str::<TokenResponse>(&text) {
+        println!("[Auth] Token received successfully!");
         return Ok(token_resp);
     }
 
     // Try parse error
     if let Ok(err_resp) = serde_json::from_str::<TokenError>(&text) {
+        if err_resp.error != "authorization_pending" {
+            println!("[Auth] Polling error: {}", err_resp.error);
+        }
         return Err(err_resp.error); // "authorization_pending", "expired_token", "access_denied"
     }
 
+    println!("[Auth] Unknown response body: {}", text);
     Err(format!("Unknown response: {}", text))
 }
 
 // 3. Authenticate with Xbox Live
 pub async fn method_xbox_live(ms_access_token: &str) -> Result<(String, String), String> {
+    println!("[Auth] Starting Xbox Live auth...");
     let client = get_client();
     let url = "https://user.auth.xboxlive.com/user/authenticate";
 
@@ -222,10 +228,12 @@ pub async fn method_xbox_live(ms_access_token: &str) -> Result<(String, String),
     if !resp.status().is_success() {
         let status = resp.status();
         let text = resp.text().await.unwrap_or_default();
+        println!("[Auth] Xbox Live auth failed: {} - {}", status, text);
         return Err(format!("Xbox Live auth failed: {} - {}", status, text));
     }
 
     let xbl_resp: XboxLiveResponse = resp.json().await.map_err(|e| e.to_string())?;
+    println!("[Auth] Xbox Live auth success!");
 
     // Extract UHS (User Hash)
     let uhs = xbl_resp
@@ -242,6 +250,7 @@ pub async fn method_xbox_live(ms_access_token: &str) -> Result<(String, String),
 
 // 4. Authenticate with XSTS
 pub async fn method_xsts(xbl_token: &str) -> Result<String, String> {
+    println!("[Auth] Starting XSTS auth...");
     let client = get_client();
     let url = "https://xsts.auth.xboxlive.com/xsts/authorize";
 
@@ -265,25 +274,32 @@ pub async fn method_xsts(xbl_token: &str) -> Result<String, String> {
         // Should handle specific errors like "Account not verified", "Age restriction"
         let status = resp.status();
         let text = resp.text().await.unwrap_or_default();
+        println!("[Auth] XSTS auth failed: {} - {}", status, text);
         return Err(format!("XSTS auth failed: {} - {}", status, text));
     }
 
     let xsts_resp: XboxLiveResponse = resp.json().await.map_err(|e| e.to_string())?;
+    println!("[Auth] XSTS auth success!");
     Ok(xsts_resp.token)
 }
 
 // 5. Authenticate with Minecraft
+// Using the newer /launcher/login endpoint which is what modern launchers use
 pub async fn login_minecraft(xsts_token: &str, uhs: &str) -> Result<String, String> {
+    println!("[Auth] Starting Minecraft auth...");
     let client = get_client();
-    let url = "https://api.minecraftservices.com/authentication/login_with_xbox";
+    let url = "https://api.minecraftservices.com/launcher/login";
 
     let payload = serde_json::json!({
-        "identityToken": format!("XBL3.0 x={};{}", uhs, xsts_token)
+        "xtoken": format!("XBL3.0 x={};{}", uhs, xsts_token),
+        "platform": "PC_LAUNCHER"
     });
 
     let resp = client
         .post(url)
         .json(&payload)
+        .header("Content-Type", "application/json")
+        .header("Accept", "application/json")
         .send()
         .await
         .map_err(|e| e.to_string())?;
@@ -291,6 +307,7 @@ pub async fn login_minecraft(xsts_token: &str, uhs: &str) -> Result<String, Stri
     if !resp.status().is_success() {
         let status = resp.status();
         let text = resp.text().await.unwrap_or_else(|_| "No body".to_string());
+        println!("[Auth] Minecraft auth failed: {} - {}", status, text);
         return Err(format!(
             "Minecraft auth failed: {} - Body: {}",
             status, text
@@ -298,6 +315,7 @@ pub async fn login_minecraft(xsts_token: &str, uhs: &str) -> Result<String, Stri
     }
 
     let mc_resp: MinecraftAuthResponse = resp.json().await.map_err(|e| e.to_string())?;
+    println!("[Auth] Minecraft auth success!");
     Ok(mc_resp.access_token)
 }
 

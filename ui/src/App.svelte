@@ -64,6 +64,8 @@
   let offlineUsername = "";
   let deviceCodeData: DeviceCodeResponse | null = null;
   let msLoginLoading = false;
+  let msLoginStatus = "Waiting for authorization...";
+  let isPollingRequestActive = false;
 
   onMount(async () => {
     checkAccount();
@@ -126,6 +128,7 @@
   }
 
   function closeLoginModal() {
+    stopPolling();
     isLoginModalOpen = false;
   }
 
@@ -154,6 +157,7 @@
   async function startMicrosoftLogin() {
     loginMode = "microsoft";
     msLoginLoading = true;
+    msLoginStatus = "Waiting for authorization...";
     stopPolling(); // Ensure no duplicates
 
     try {
@@ -188,6 +192,9 @@
   }
 
   async function checkLoginStatus(deviceCode: string) {
+    if (isPollingRequestActive) return;
+    isPollingRequestActive = true;
+
     console.log("Polling Microsoft API...");
     try {
       // This will fail with "authorization_pending" until user logs in
@@ -204,9 +211,12 @@
       const errStr = e.toString();
       if (errStr.includes("authorization_pending")) {
         console.log("Status: Waiting for user to authorize...");
+        // Keep checking
       } else {
         // Real error
         console.error("Polling Error:", errStr);
+        msLoginStatus = "Error: " + errStr;
+        
         // Optional: Stop polling on fatal errors?
         // expired_token should stop it.
         if (
@@ -218,17 +228,14 @@
           loginMode = "select";
         }
       }
+    } finally {
+      isPollingRequestActive = false;
     }
   }
 
   // Clean up manual button to just be a status indicator or 'Retry Now'
   async function completeMicrosoftLogin() {
     if (deviceCodeData) checkLoginStatus(deviceCodeData.device_code);
-  }
-
-  function closeLoginModal() {
-    stopPolling();
-    isLoginModalOpen = false;
   }
 
   function openLink(url: string) {
@@ -669,7 +676,7 @@
                 <div class="pt-6 space-y-3">
                      <div class="flex flex-col items-center gap-3">
                          <div class="animate-spin rounded-full h-6 w-6 border-2 border-zinc-600 border-t-indigo-500"></div>
-                         <span class="text-sm text-zinc-400 font-medium">Waiting for authorization...</span>
+                         <span class="text-sm text-zinc-400 font-medium break-all text-center">{msLoginStatus}</span>
                      </div>
                      <p class="text-xs text-zinc-600">This window will update automatically.</p>
                 </div>
