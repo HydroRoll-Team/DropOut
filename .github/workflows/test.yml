@@ -15,22 +15,53 @@ env:
 
 jobs:
   test:
-    name: Test on ${{ matrix.platform }}
+    name: Test on ${{ matrix.name }}
     runs-on: ${{ matrix.platform }}
+    container:
+      image: ${{ matrix.container }}
+      options: --user root
     strategy:
       fail-fast: false
       matrix:
         # On Push: Linux only. On PR: All platforms.
-        platform: ${{ (github.event_name == 'pull_request') && fromJson('["ubuntu-22.04", "windows-latest", "macos-14"]') || fromJson('["ubuntu-22.04"]') }}
+        include:
+          - platform: "ubuntu-22.04"
+            name: "Ubuntu 22.04"
+          - platform: "ubuntu-22.04"
+            name: "Arch Linux (Wayland)"
+            container: "archlinux:latest"
+            wayland: true
+          - platform: "windows-latest"
+            name: "Windows"
+            pr_only: true
+          - platform: "macos-14"
+            name: "macOS"
+            pr_only: true
+    # Exclude PR-only platforms on push events
+    if: (!matrix.pr_only || github.event_name == 'pull_request')
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Dependencies (Linux)
-        if: runner.os == 'Linux'
+      - name: Install Dependencies (Ubuntu)
+        if: runner.os == 'Linux' && !matrix.wayland
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: Install Dependencies (Arch Linux)
+        if: matrix.wayland
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm webkit2gtk-4.1 base-devel curl wget file openssl gtk3
+
+      - name: Setup Wayland Environment (Arch)
+        if: matrix.wayland
+        run: |
+          echo "WAYLAND_DISPLAY=wayland-1" >> $GITHUB_ENV
+          echo "GDK_BACKEND=wayland" >> $GITHUB_ENV
+          echo "XDG_SESSION_TYPE=wayland" >> $GITHUB_ENV
+          echo "Wayland test environment configured"
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
