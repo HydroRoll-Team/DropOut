@@ -595,29 +595,23 @@ async fn get_installed_versions(app_handle: tauri::AppHandle) -> Result<Vec<Stri
     
     let versions_dir = game_dir.join("versions");
     
-    if !versions_dir.exists() {
+    let Ok(entries) = std::fs::read_dir(versions_dir) else {
         return Ok(Vec::new());
-    }
+    };
     
-    let mut installed_versions = Vec::new();
-    
-    if let Ok(entries) = std::fs::read_dir(versions_dir) {
-        for entry in entries {
-            if let Ok(entry) = entry {
-                if let Ok(file_type) = entry.file_type() {
-                    if file_type.is_dir() {
-                        if let Ok(file_name) = entry.file_name().into_string() {
-                            // Optionally verify if {version_id}.json exists inside
-                            let json_path = entry.path().join(format!("{}.json", file_name));
-                            if json_path.exists() {
-                                installed_versions.push(file_name);
-                            }
-                        }
-                    }
-                }
+    let installed_versions = entries
+        .flatten()
+        .filter(|entry| entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false))
+        .filter_map(|entry| {
+            let file_name = entry.file_name().into_string().ok()?;
+            let json_path = entry.path().join(format!("{}.json", file_name));
+            if json_path.exists() {
+                Some(file_name)
+            } else {
+                None
             }
-        }
-    }
+        })
+        .collect();
     
     Ok(installed_versions)
 }
