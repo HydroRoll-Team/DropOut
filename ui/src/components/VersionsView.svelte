@@ -5,7 +5,7 @@
 
   let filteredVersions = $derived(
     gameState.versions.filter((v) =>
-      v.id.toLowerCase().includes(searchQuery.trim().toLowerCase().replace("。", "."))
+      v.id.toLowerCase().includes(searchQuery.trim().toLowerCase().replaceAll("。", "."))
     )
   );
 </script>
