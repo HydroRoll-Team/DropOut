@@ -1,7 +1,5 @@
 <script lang="ts">
-  import { invoke } from "@tauri-apps/api/core";
   import { getVersion } from "@tauri-apps/api/app";
-  import { open } from "@tauri-apps/plugin-shell";
   import { onMount } from "svelte";
   import DownloadMonitor from "./lib/DownloadMonitor.svelte";
   import GameConsole from "./lib/GameConsole.svelte";
@@ -95,22 +93,27 @@
   let msLoginLoading = false;
   let msLoginStatus = "Waiting for authorization...";
   let isPollingRequestActive = false;
+  
+  // Components
+  import Sidebar from "./components/Sidebar.svelte";
+  import HomeView from "./components/HomeView.svelte";
+  import VersionsView from "./components/VersionsView.svelte";
+  import SettingsView from "./components/SettingsView.svelte";
+  import BottomBar from "./components/BottomBar.svelte";
+  import LoginModal from "./components/LoginModal.svelte";
+  import StatusToast from "./components/StatusToast.svelte";
+
+  // Stores
+  import { uiState } from "./stores/ui.svelte";
+  import { authState } from "./stores/auth.svelte";
+  import { settingsState } from "./stores/settings.svelte";
+  import { gameState } from "./stores/game.svelte";
 
   onMount(async () => {
-    checkAccount();
-    loadSettings();
-    getVersion().then((v) => (appVersion = v));
-    try {
-      versions = await invoke("get_versions");
-      if (versions.length > 0) {
-        // Find latest release or default to first
-        const latest = versions.find((v) => v.type === "release");
-        selectedVersion = latest ? latest.id : versions[0].id;
-      }
-    } catch (e) {
-      console.error("Failed to fetch versions:", e);
-      status = "Error fetching versions: " + e;
-    }
+    authState.checkAccount();
+    settingsState.loadSettings();
+    gameState.loadVersions();
+    getVersion().then((v) => (uiState.appVersion = v));
   });
 
   async function checkAccount() {
@@ -374,69 +377,7 @@
 <div
   class="flex h-screen bg-zinc-900 text-white font-sans overflow-hidden select-none"
 >
-  <!-- Sidebar -->
-  <aside
-    class="w-20 lg:w-64 bg-zinc-950 flex flex-col items-center lg:items-start transition-all duration-300 border-r border-zinc-800 shrink-0"
-  >
-    <div
-      class="h-20 w-full flex items-center justify-center lg:justify-start lg:px-6 border-b border-zinc-800/50"
-    >
-      <!-- Icon Logo (Visible on small) -->
-      <div
-        class="lg:hidden text-2xl font-black bg-clip-text text-transparent bg-gradient-to-tr from-indigo-400 to-purple-400"
-      >
-        D
-      </div>
-      <!-- Full Logo (Visible on large) -->
-      <div
-        class="hidden lg:block font-bold text-xl tracking-wider text-indigo-400"
-      >
-        DROP<span class="text-white">OUT</span>
-      </div>
-    </div>
-
-    <nav class="flex-1 w-full flex flex-col gap-2 p-3">
-      <button
-        class="group flex items-center lg:gap-4 justify-center lg:justify-start w-full px-0 lg:px-4 py-3 rounded-lg hover:bg-zinc-800 {currentView ===
-        'home'
-          ? 'bg-zinc-800/80 text-white'
-          : 'text-zinc-400'} transition-all relative"
-        onclick={() => (currentView = "home")}
-      >
-        <span class="text-xl relative z-10">🏠</span>
-        <span
-          class="hidden lg:block font-medium relative z-10 transition-opacity"
-          >Home</span
-        >
-      </button>
-      <button
-        class="group flex items-center lg:gap-4 justify-center lg:justify-start w-full px-0 lg:px-4 py-3 rounded-lg hover:bg-zinc-800 {currentView ===
-        'versions'
-          ? 'bg-zinc-800/80 text-white'
-          : 'text-zinc-400'} transition-all"
-        onclick={() => (currentView = "versions")}
-      >
-        <span class="text-xl">📦</span>
-        <span class="hidden lg:block font-medium">Versions</span>
-      </button>
-      <button
-        class="group flex items-center lg:gap-4 justify-center lg:justify-start w-full px-0 lg:px-4 py-3 rounded-lg hover:bg-zinc-800 {currentView ===
-        'settings'
-          ? 'bg-zinc-800/80 text-white'
-          : 'text-zinc-400'} transition-all"
-        onclick={() => (currentView = "settings")}
-      >
-        <span class="text-xl">⚙️</span>
-        <span class="hidden lg:block font-medium">Settings</span>
-      </button>
-    </nav>
-
-    <div
-      class="p-4 w-full border-t border-zinc-800 flex justify-center lg:justify-start"
-    >
-      <div class="text-xs text-zinc-600 font-mono">v{appVersion}</div>
-    </div>
-  </aside>
+  <Sidebar />
 
   <!-- Main Content -->
   <main class="flex-1 flex flex-col relative min-w-0">
@@ -633,90 +574,16 @@
             </div>
           </div>
         </div>
+      {#if uiState.currentView === "home"}
+        <HomeView />
+      {:else if uiState.currentView === "versions"}
+        <VersionsView />
+      {:else if uiState.currentView === "settings"}
+        <SettingsView />
       {/if}
     </div>
 
-    <!-- Bottom Bar -->
-    <div
-      class="h-24 bg-zinc-900 border-t border-zinc-800 flex items-center px-8 justify-between z-20 shadow-2xl"
-    >
-      <div class="flex items-center gap-4">
-        <div
-          class="flex items-center gap-4 cursor-pointer hover:opacity-80 transition-opacity"
-          onclick={openLoginModal}
-          role="button"
-          tabindex="0"
-          onkeydown={(e) => e.key === "Enter" && openLoginModal()}
-        >
-          <div
-            class="w-12 h-12 rounded bg-gradient-to-tr from-indigo-500 to-purple-500 shadow-lg flex items-center justify-center text-white font-bold text-xl overflow-hidden"
-          >
-            {#if currentAccount}
-              <img
-                src={`https://minotar.net/avatar/${currentAccount.username}/48`}
-                alt={currentAccount.username}
-                class="w-full h-full"
-              />
-            {:else}
-              ?
-            {/if}
-          </div>
-          <div>
-            <div class="font-bold text-white text-lg">
-              {currentAccount ? currentAccount.username : "Click to Login"}
-            </div>
-            <div class="text-xs text-zinc-400 flex items-center gap-1">
-              <span
-                class="w-1.5 h-1.5 rounded-full {currentAccount
-                  ? 'bg-green-500'
-                  : 'bg-zinc-500'}"
-              ></span>
-              {currentAccount ? "Ready" : "Guest"}
-            </div>
-          </div>
-        </div>
-        <!-- Console Toggle -->
-        <button
-          class="ml-4 text-xs text-zinc-500 hover:text-zinc-300 transition"
-          onclick={() => (showConsole = !showConsole)}
-        >
-          {showConsole ? "Hide Logs" : "Show Logs"}
-        </button>
-      </div>
-
-      <div class="flex items-center gap-4">
-        <div class="flex flex-col items-end mr-2">
-          <label
-            class="text-xs text-zinc-500 mb-1 uppercase font-bold tracking-wider"
-            >Version</label
-          >
-          <select
-            bind:value={selectedVersion}
-            class="bg-zinc-950 text-zinc-200 border border-zinc-700 rounded px-4 py-2 hover:border-zinc-500 transition-colors cursor-pointer outline-none focus:ring-1 focus:ring-indigo-500 w-48"
-          >
-            {#if versions.length === 0}
-              <option>Loading...</option>
-            {:else}
-              {#each versions as version}
-                <option value={version.id}>{version.id} ({version.type})</option
-                >
-              {/each}
-            {/if}
-          </select>
-        </div>
-
-        <button
-          onclick={startGame}
-          class="bg-green-600 hover:bg-green-500 text-white font-bold h-14 px-12 rounded transition-all transform active:scale-95 shadow-[0_0_15px_rgba(22,163,74,0.4)] hover:shadow-[0_0_25px_rgba(22,163,74,0.6)] flex flex-col items-center justify-center uppercase tracking-wider text-lg"
-        >
-          Play
-          <span
-            class="text-[10px] font-normal opacity-80 normal-case tracking-normal"
-            >Click to launch</span
-          >
-        </button>
-      </div>
-    </div>
+    <BottomBar />
   </main>
 
   <!-- Login Modal -->
@@ -960,6 +827,8 @@
       }
     }
   </style>
+  <LoginModal />
+  <StatusToast />
 
-  <GameConsole visible={showConsole} />
+  <GameConsole visible={uiState.showConsole} />
 </div>
