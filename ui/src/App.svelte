@@ -38,13 +38,14 @@
   });
   
   $effect(() => {
-    if (settingsState.settings.theme === 'light') {
-        document.documentElement.classList.remove('dark');
-        document.documentElement.setAttribute('data-theme', 'light');
-    } else {
-        document.documentElement.classList.add('dark');
-        document.documentElement.setAttribute('data-theme', 'dark');
-    }
+    // ENFORCE DARK MODE: Always add 'dark' class and attribute
+    // This combined with the @variant dark in app.css ensures dark mode is always active
+    // regardless of system preference settings.
+    document.documentElement.classList.add('dark');
+    document.documentElement.setAttribute('data-theme', 'dark');
+    
+    // Ensure 'light' class is never present
+    document.documentElement.classList.remove('light');
   });
 
   onDestroy(() => {
