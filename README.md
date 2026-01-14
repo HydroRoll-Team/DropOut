@@ -2,6 +2,8 @@
 
 DropOut is a modern, fast, and efficient Minecraft launcher built with the latest web and system technologies. It leverages **Tauri v2** to deliever a lightweight application with a robust **Rust** backend and a reactive **Svelte 5** frontend.
 
+<img width="500" align="center" src="assets/image.jpg" />
+
 ## Features
 
 - **High Performance**: Built with Rust and Tauri for minimal resource usage.
@@ -11,32 +13,27 @@ DropOut is a modern, fast, and efficient Minecraft launcher built with the lates
 - **Game Management**:
   - Version isolation and management
   - Efficient asset and library downloading
-  - Custom Java arguments support
+  - Custom Java arguments support.
 
 ## Supported Platforms
 
-| Platform          | Architecture          | Status |
-| ----------------- | --------------------- | ------ |
-| **Linux**   | x86_64                | Done   |
-| **Linux**   | ARM64                 | Done   |
-| **macOS**   | ARM64 (Apple Silicon) | Done   |
-| **Windows** | x86_64                | Done   |
-| **Windows** | ARM64                 | Done   |
+- [X] **Linux** `x86_64`
+- [X] **macOS** `ARM64 (Apple Silicon)`
+- [X] **Windows** `x86_64`
+- [X] **Windows** `ARM64`
 
 ## Roadmap
 
-- [x] **Account Persistence** — Save login state between sessions
-- [x] **Token Refresh** — Auto-refresh expired Microsoft tokens
-- [x] **JVM Arguments Parsing** — Parse `arguments.jvm` from version.json for Mac M1/ARM support
-- [x] **Java Auto-detection** — Scan common paths for Java installations
-
+- [X] **Account Persistence** — Save login state between sessions
+- [X] **Token Refresh** — Auto-refresh expired Microsoft tokens
+- [X] **JVM Arguments Parsing** — Parse `arguments.jvm` from version.json for Mac M1/ARM support
+- [X] **Java Auto-detection** — Scan common paths for Java installations
 - [ ] **Fabric Loader Support** — Install and launch with Fabric
 - [ ] **Forge Loader Support** — Install and launch with Forge
 - [ ] **Instance/Profile System** — Multiple isolated game directories with different versions/mods
 - [ ] **Version Filtering** — Filter by release/snapshot/old_beta in UI
 - [ ] **Multi-account Support** — Switch between multiple accounts
 - [ ] **Custom Game Directory** — Allow users to choose game files location
-
 - [ ] **Launcher Auto-updater** — Self-update mechanism via Tauri updater plugin
 - [ ] **Mods Manager** — Enable/disable mods without deletion
 - [ ] **Resource Packs Manager** — Browse and manage resource packs
