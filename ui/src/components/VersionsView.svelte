@@ -3,7 +3,7 @@
 
   let searchQuery = $state("");
   let normalizedQuery = $derived(
-    searchQuery.trim().toLowerCase().replaceAll("。", ".")
+    searchQuery.trim().toLowerCase().replace(/。/g, ".")
   );
 
   let filteredVersions = $derived(
