@@ -136,7 +136,7 @@
           class="bg-zinc-950 text-white w-full p-3 rounded border border-zinc-700 focus:border-indigo-500 outline-none"
         />
         <p class="text-xs text-zinc-500 mt-2">
-          Number of files to download simultaneously. Higher values can speed up downloads but may consume more bandwidth. Recommended: 16-64
+          Number of files to download simultaneously. Higher values can speed up downloads but may consume more bandwidth and system resources. Recommended: 16-64 (max: 128 for advanced users)
         </p>
       </div>
     </div>
