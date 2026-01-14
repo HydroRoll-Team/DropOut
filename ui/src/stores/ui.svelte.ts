@@ -1,32 +1,30 @@
+import { type ViewType } from "../types";
+
 export class UIState {
-  currentView = $state("home");
+  currentView: ViewType = $state("home");
   status = $state("Ready");
   showConsole = $state(false);
   appVersion = $state("...");
   
   private statusTimeout: any;
 
-  constructor() {
-    // Watch for status changes to auto-dismiss
-    $effect(() => {
-        if (this.status !== "Ready") {
-            if (this.statusTimeout) clearTimeout(this.statusTimeout);
-            this.statusTimeout = setTimeout(() => {
-                this.status = "Ready";
-            }, 5000);
-        }
-    });
-  }
-
   setStatus(msg: string) {
+    if (this.statusTimeout) clearTimeout(this.statusTimeout);
+    
     this.status = msg;
+    
+    if (msg !== "Ready") {
+      this.statusTimeout = setTimeout(() => {
+        this.status = "Ready";
+      }, 5000);
+    }
   }
 
   toggleConsole() {
     this.showConsole = !this.showConsole;
   }
 
-  setView(view: string) {
+  setView(view: ViewType) {
     this.currentView = view;
   }
 }

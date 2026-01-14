@@ -1,3 +1,5 @@
+export type ViewType = "home" | "versions" | "settings";
+
 export interface Version {
   id: string;
   type: string;
