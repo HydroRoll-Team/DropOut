@@ -52,6 +52,7 @@ pub struct Library {
 pub struct Rule {
     pub action: String, // "allow" or "disallow"
     pub os: Option<OsRule>,
+    pub features: Option<serde_json::Value>, // Feature-based rules (e.g., is_demo_user, has_quick_plays_support)
 }
 
 #[derive(Debug, Deserialize)]

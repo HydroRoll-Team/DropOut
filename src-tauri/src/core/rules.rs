@@ -47,6 +47,13 @@ pub fn is_library_allowed(rules: &Option<Vec<Rule>>) -> bool {
 }
 
 fn rule_matches(rule: &Rule) -> bool {
+    // Feature-based rules (e.g., is_demo_user, has_quick_plays_support, is_quick_play_singleplayer)
+    // are not implemented in this launcher, so we return false for any rule that has features.
+    // This prevents adding arguments like --demo, --quickPlayPath, --quickPlaySingleplayer, etc.
+    if rule.features.is_some() {
+        return false;
+    }
+
     match &rule.os {
         None => true, // No OS condition means it applies to all
         Some(os_rule) => {
