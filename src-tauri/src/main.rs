@@ -587,48 +587,6 @@ async fn get_versions() -> Result<Vec<core::manifest::Version>, String> {
 }
 
 #[tauri::command]
-async fn get_installed_versions(app_handle: tauri::AppHandle) -> Result<Vec<String>, String> {
-    let game_dir = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
-    
-    let versions_dir = game_dir.join("versions");
-
-    let entries = match std::fs::read_dir(&versions_dir) {
-        Ok(entries) => entries,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            // No versions directory yet; treat as "no versions installed"
-            return Ok(Vec::new());
-        }
-        Err(e) => {
-            eprintln!(
-                "Failed to read versions directory {}: {}",
-                versions_dir.display(),
-                e
-            );
-            return Err(format!("Failed to read versions directory: {}", e));
-        }
-    };
-    
-    let installed_versions = entries
-        .flatten()
-        .filter(|entry| entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false))
-        .filter_map(|entry| {
-            let file_name = entry.file_name().into_string().ok()?;
-            let json_path = entry.path().join(format!("{}.json", file_name));
-            if json_path.exists() {
-                Some(file_name)
-            } else {
-                None
-            }
-        })
-        .collect();
-    
-    Ok(installed_versions)
-}
-
-#[tauri::command]
 async fn login_offline(
     window: Window,
     state: State<'_, core::auth::AccountState>,
@@ -826,7 +784,6 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             start_game,
             get_versions,
-            get_installed_versions,
             login_offline,
             get_active_account,
             logout,

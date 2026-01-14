@@ -65,13 +65,10 @@
       >
         {#if gameState.versions.length === 0}
           <option>Loading...</option>
-        {:else if gameState.installedVersionIds.length === 0}
-          <option disabled>No installed versions</option>
         {:else}
           {#each gameState.versions as version}
-            {#if gameState.installedVersionIds.includes(version.id)}
-              <option value={version.id}>{version.id} ({version.type})</option>
-            {/if}
+            <option value={version.id}>{version.id} ({version.type})</option
+            >
           {/each}
         {/if}
       </select>
