@@ -57,6 +57,16 @@
     is_64bit: boolean;
   }
 
+  interface JavaDownloadInfo {
+    version: string;
+    release_name: string;
+    download_url: string;
+    file_name: string;
+    file_size: number;
+    checksum: string | null;
+    image_type: string;
+  }
+
   let versions: Version[] = [];
   let selectedVersion = "";
   let currentAccount: Account | null = null;
@@ -69,6 +79,13 @@
   };
   let javaInstallations: JavaInstallation[] = [];
   let isDetectingJava = false;
+
+  let availableJavaVersions: number[] = [];
+  let selectedJavaVersion = 21;
+  let selectedImageType: "jre" | "jdk" = "jre";
+  let isDownloadingJava = false;
+  let javaDownloadStatus = "";
+  let showJavaDownloadModal = false;
 
   // Login UI State
   let isLoginModalOpen = false;
@@ -142,6 +159,59 @@
 
   function selectJava(path: string) {
     settings.java_path = path;
+  }
+
+  async function openJavaDownloadModal() {
+    showJavaDownloadModal = true;
+    javaDownloadStatus = "";
+    try {
+      availableJavaVersions = await invoke("fetch_available_java_versions");
+      // Default selection logic
+      if (availableJavaVersions.includes(21)) {
+        selectedJavaVersion = 21;
+      } else if (availableJavaVersions.includes(17)) {
+        selectedJavaVersion = 17;
+      } else if (availableJavaVersions.length > 0) {
+        selectedJavaVersion = availableJavaVersions[availableJavaVersions.length - 1];
+      }
+    } catch (e) {
+      console.error("Failed to fetch available Java versions:", e);
+      javaDownloadStatus = "Error fetching Java versions: " + e;
+    }
+  }
+
+  function closeJavaDownloadModal() {
+    if (!isDownloadingJava) {
+      showJavaDownloadModal = false;
+    }
+  }
+
+  async function downloadJava() {
+    isDownloadingJava = true;
+    javaDownloadStatus = `Downloading Java ${selectedJavaVersion} ${selectedImageType.toUpperCase()}...`;
+    
+    try {
+      const result: JavaInstallation = await invoke("download_adoptium_java", {
+        majorVersion: selectedJavaVersion,
+        imageType: selectedImageType,
+        customPath: null,
+      });
+      
+      javaDownloadStatus = `Java ${selectedJavaVersion} installed at ${result.path}`;
+      settings.java_path = result.path;
+      
+      await detectJava();
+      
+      setTimeout(() => {
+        showJavaDownloadModal = false;
+        status = `Java ${selectedJavaVersion} is ready to use!`;
+      }, 1500);
+    } catch (e) {
+      console.error("Failed to download Java:", e);
+      javaDownloadStatus = "Download failed: " + e;
+    } finally {
+      isDownloadingJava = false;
+    }
   }
 
   // --- Auth Functions ---
@@ -459,6 +529,12 @@
                   class="bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 text-white px-4 py-2 rounded transition-colors whitespace-nowrap"
                 >
                   {isDetectingJava ? "Detecting..." : "Auto Detect"}
+                </button>
+                <button
+                  onclick={openJavaDownloadModal}
+                  class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded transition-colors whitespace-nowrap"
+                >
+                  Download Java
                 </button>
               </div>
               
@@ -778,6 +854,98 @@
         <div
           class="h-full bg-indigo-500 animate-[progress_5s_linear_forwards] origin-left w-full"
         ></div>
+      </div>
+    </div>
+  {/if}
+
+  {#if showJavaDownloadModal}
+    <div
+      class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 backdrop-blur-sm"
+      onclick={closeJavaDownloadModal}
+    >
+      <div
+        class="bg-zinc-900 border border-zinc-700 rounded-xl p-6 w-full max-w-md shadow-2xl"
+        onclick={(e) => e.stopPropagation()}
+      >
+        <div class="flex justify-between items-center mb-6">
+          <h3 class="text-xl font-bold">Download Java (Adoptium)</h3>
+          {#if !isDownloadingJava}
+            <button
+              onclick={closeJavaDownloadModal}
+              class="text-zinc-500 hover:text-white transition text-xl"
+            >
+              ✕
+            </button>
+          {/if}
+        </div>
+        <div class="space-y-4">
+          <!-- Version Selection -->
+          <div>
+            <label class="block text-sm font-bold text-zinc-400 mb-2">Java Version</label>
+            <select
+              bind:value={selectedJavaVersion}
+              disabled={isDownloadingJava}
+              class="w-full bg-zinc-950 border border-zinc-700 rounded p-3 text-white focus:border-indigo-500 outline-none disabled:opacity-50"
+            >
+              {#each availableJavaVersions as ver}
+                <option value={ver}>
+                  Java {ver} {ver === 21 ? "(Recommended)" : ver === 17 ? "(LTS)" : ver === 8 ? "(Legacy)" : ""}
+                </option>
+              {/each}
+            </select>
+            <p class="text-xs text-zinc-500 mt-1">
+              MC 1.20.5+ requires Java 21, MC 1.17-1.20.4 requires Java 17, older versions require Java 8
+            </p>
+          </div>
+
+          <!-- Image Type Selection -->
+          <div>
+            <label class="block text-sm font-bold text-zinc-400 mb-2">Type</label>
+            <div class="flex gap-3">
+              <button
+                onclick={() => selectedImageType = "jre"}
+                disabled={isDownloadingJava}
+                class="flex-1 p-3 rounded border transition-colors disabled:opacity-50 {selectedImageType === 'jre' ? 'border-indigo-500 bg-indigo-950/30 text-white' : 'border-zinc-700 bg-zinc-950 text-zinc-400 hover:border-zinc-500'}"
+              >
+                <div class="font-bold">JRE</div>
+                <div class="text-xs opacity-70">runtime environment</div>
+              </button>
+              <button
+                onclick={() => selectedImageType = "jdk"}
+                disabled={isDownloadingJava}
+                class="flex-1 p-3 rounded border transition-colors disabled:opacity-50 {selectedImageType === 'jdk' ? 'border-indigo-500 bg-indigo-950/30 text-white' : 'border-zinc-700 bg-zinc-950 text-zinc-400 hover:border-zinc-500'}"
+              >
+                <div class="font-bold">JDK</div>
+                <div class="text-xs opacity-70">development kit</div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Status -->
+          {#if javaDownloadStatus}
+            <div class="p-3 rounded {javaDownloadStatus.startsWith('✓') ? 'bg-green-950/50 border border-green-700 text-green-400' : javaDownloadStatus.includes('failed') || javaDownloadStatus.includes('Failed') ? 'bg-red-950/50 border border-red-700 text-red-400' : 'bg-zinc-800 border border-zinc-700 text-zinc-300'}">
+              <p class="text-sm">{javaDownloadStatus}</p>
+            </div>
+          {/if}
+
+          <!-- Download Button -->
+          <button
+            onclick={downloadJava}
+            disabled={isDownloadingJava || availableJavaVersions.length === 0}
+            class="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white p-3 rounded font-bold transition-colors flex items-center justify-center gap-2"
+          >
+            {#if isDownloadingJava}
+              <div class="animate-spin rounded-full h-5 w-5 border-2 border-white/30 border-t-white"></div>
+              Downloading...
+            {:else}
+              Download Java {selectedJavaVersion} {selectedImageType.toUpperCase()}
+            {/if}
+          </button>
+
+          <p class="text-xs text-zinc-500 text-center">
+            Provided by <a href="https://adoptium.net" class="text-indigo-400 hover:underline" onclick={(e) => { e.preventDefault(); openLink("https://adoptium.net"); }}>Eclipse Adoptium</a>
+          </p>
+        </div>
       </div>
     </div>
   {/if}

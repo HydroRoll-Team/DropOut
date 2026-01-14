@@ -117,6 +117,7 @@ async fn start_game(
         url: client_jar.url,
         path: client_path.clone(),
         sha1: Some(client_jar.sha1),
+        sha256: None,
     });
 
     // --- Libraries ---
@@ -141,6 +142,7 @@ async fn start_game(
                         url: artifact.url.clone(),
                         path: lib_path,
                         sha1: Some(artifact.sha1.clone()),
+                        sha256: None,
                     });
                 }
 
@@ -174,6 +176,7 @@ async fn start_game(
                                 url: native_artifact.url,
                                 path: native_path.clone(),
                                 sha1: Some(native_artifact.sha1),
+                                sha256: None,
                             });
 
                             native_libs_paths.push(native_path);
@@ -253,6 +256,7 @@ async fn start_game(
             url,
             path,
             sha1: Some(hash),
+            sha256: None,
         });
     }
 
@@ -741,7 +745,7 @@ async fn refresh_account(
 /// Detect Java installations on the system
 #[tauri::command]
 async fn detect_java() -> Result<Vec<core::java::JavaInstallation>, String> {
-    Ok(core::java::detect_java_installations())
+    Ok(core::java::detect_all_java_installations())
 }
 
 /// Get recommended Java for a specific Minecraft version
@@ -750,6 +754,40 @@ async fn get_recommended_java(
     required_major_version: Option<u64>,
 ) -> Result<Option<core::java::JavaInstallation>, String> {
     Ok(core::java::get_recommended_java(required_major_version))
+}
+
+/// Get Adoptium Java download info
+#[tauri::command]
+async fn fetch_adoptium_java(
+    major_version: u32,
+    image_type: String,
+) -> Result<core::java::JavaDownloadInfo, String> {
+    let img_type = match image_type.to_lowercase().as_str() {
+        "jdk" => core::java::ImageType::Jdk,
+        _ => core::java::ImageType::Jre,
+    };
+    core::java::fetch_java_release(major_version, img_type).await
+}
+
+/// Download and install Adoptium Java
+#[tauri::command]
+async fn download_adoptium_java(
+    major_version: u32,
+    image_type: String,
+    custom_path: Option<String>,
+) -> Result<core::java::JavaInstallation, String> {
+    let img_type = match image_type.to_lowercase().as_str() {
+        "jdk" => core::java::ImageType::Jdk,
+        _ => core::java::ImageType::Jre,
+    };
+    let path = custom_path.map(std::path::PathBuf::from);
+    core::java::download_and_install_java(major_version, img_type, path).await
+}
+
+/// Get available Adoptium Java versions
+#[tauri::command]
+async fn fetch_available_java_versions() -> Result<Vec<u32>, String> {
+    core::java::fetch_available_versions().await
 }
 
 fn main() {
@@ -793,7 +831,10 @@ fn main() {
             complete_microsoft_login,
             refresh_account,
             detect_java,
-            get_recommended_java
+            get_recommended_java,
+            fetch_adoptium_java,
+            download_adoptium_java,
+            fetch_available_java_versions
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

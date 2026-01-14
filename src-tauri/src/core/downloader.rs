@@ -1,5 +1,6 @@
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
+use sha1::Digest as Sha1Digest;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::{Emitter, Window};
@@ -10,7 +11,10 @@ use tokio::sync::Semaphore;
 pub struct DownloadTask {
     pub url: String,
     pub path: PathBuf,
+    #[serde(default)]
     pub sha1: Option<String>,
+    #[serde(default)]
+    pub sha256: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -19,6 +23,32 @@ pub struct ProgressEvent {
     pub downloaded: u64,
     pub total: u64,
     pub status: String, // "Downloading", "Verifying", "Finished", "Error"
+}
+
+/// calculate SHA256 hash of data
+pub fn compute_sha256(data: &[u8]) -> String {
+    let mut hasher = sha2::Sha256::new();
+    hasher.update(data);
+    hex::encode(hasher.finalize())
+}
+
+/// calculate SHA1 hash of data
+pub fn compute_sha1(data: &[u8]) -> String {
+    let mut hasher = sha1::Sha1::new();
+    hasher.update(data);
+    hex::encode(hasher.finalize())
+}
+
+/// verify file checksum, prefer SHA256, fallback to SHA1
+pub fn verify_checksum(data: &[u8], sha256: Option<&str>, sha1: Option<&str>) -> bool {
+    if let Some(expected) = sha256 {
+        return compute_sha256(data) == expected;
+    }
+    if let Some(expected) = sha1 {
+        return compute_sha1(data) == expected;
+    }
+    // No checksum provided, default to true
+    true
 }
 
 pub async fn download_files(window: Window, tasks: Vec<DownloadTask>) -> Result<(), String> {
@@ -37,7 +67,7 @@ pub async fn download_files(window: Window, tasks: Vec<DownloadTask>) -> Result<
             let _permit = semaphore.acquire().await.unwrap();
             let file_name = task.path.file_name().unwrap().to_string_lossy().to_string();
 
-            // 1. Check if file exists and verify SHA1
+            // 1. Check if file exists and verify checksum
             if task.path.exists() {
                 let _ = window.emit(
                     "download-progress",
@@ -49,13 +79,13 @@ pub async fn download_files(window: Window, tasks: Vec<DownloadTask>) -> Result<
                     },
                 );
 
-                if let Some(expected_sha1) = &task.sha1 {
+                if task.sha256.is_some() || task.sha1.is_some() {
                     if let Ok(data) = tokio::fs::read(&task.path).await {
-                        let mut hasher = sha1::Sha1::new();
-                        use sha1::Digest;
-                        hasher.update(&data);
-                        let result = hex::encode(hasher.finalize());
-                        if &result == expected_sha1 {
+                        if verify_checksum(
+                            &data,
+                            task.sha256.as_deref(),
+                            task.sha1.as_deref(),
+                        ) {
                             // Already valid
                             let _ = window.emit(
                                 "download-progress",
