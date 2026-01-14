@@ -131,13 +131,17 @@ impl AccountStorage {
     pub fn get_active_account(&self) -> Option<(StoredAccount, Option<String>)> {
         let store = self.load();
         if let Some(active_id) = &store.active_account_id {
-            store.accounts.iter().find(|a| &a.id() == active_id).map(|a| {
-                let ms_token = match a {
-                    StoredAccount::Microsoft(m) => m.ms_refresh_token.clone(),
-                    _ => None,
-                };
-                (a.clone(), ms_token)
-            })
+            store
+                .accounts
+                .iter()
+                .find(|a| &a.id() == active_id)
+                .map(|a| {
+                    let ms_token = match a {
+                        StoredAccount::Microsoft(m) => m.ms_refresh_token.clone(),
+                        _ => None,
+                    };
+                    (a.clone(), ms_token)
+                })
         } else {
             None
         }

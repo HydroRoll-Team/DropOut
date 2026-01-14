@@ -69,7 +69,10 @@ impl GlobalProgress {
 
     /// Add downloaded bytes and return updated snapshot
     fn add_bytes(&self, delta: u64) -> ProgressSnapshot {
-        let total_bytes = self.total_downloaded_bytes.fetch_add(delta, Ordering::Relaxed) + delta;
+        let total_bytes = self
+            .total_downloaded_bytes
+            .fetch_add(delta, Ordering::Relaxed)
+            + delta;
         ProgressSnapshot {
             completed_files: self.completed_files.load(Ordering::Relaxed),
             total_files: self.total_files,
@@ -101,10 +104,14 @@ fn emit_progress(
     );
 }
 
-pub async fn download_files(window: Window, tasks: Vec<DownloadTask>, max_concurrent: usize) -> Result<(), String> {
+pub async fn download_files(
+    window: Window,
+    tasks: Vec<DownloadTask>,
+    max_concurrent: usize,
+) -> Result<(), String> {
     // Clamp max_concurrent to a valid range (1-128) to prevent edge cases
     let max_concurrent = max_concurrent.clamp(1, 128);
-    
+
     let client = reqwest::Client::new();
     let semaphore = Arc::new(Semaphore::new(max_concurrent));
     let progress = Arc::new(GlobalProgress::new(tasks.len()));
@@ -141,7 +148,14 @@ pub async fn download_files(window: Window, tasks: Vec<DownloadTask>, max_concur
                             if skipped_size > 0 {
                                 let _ = progress.add_bytes(skipped_size);
                             }
-                            emit_progress(&window, &file_name, "Skipped", 0, 0, &progress.inc_completed());
+                            emit_progress(
+                                &window,
+                                &file_name,
+                                "Skipped",
+                                0,
+                                0,
+                                &progress.inc_completed(),
+                            );
                             return Ok(());
                         }
                     }
@@ -170,7 +184,14 @@ pub async fn download_files(window: Window, tasks: Vec<DownloadTask>, max_concur
                                 }
                                 downloaded += chunk.len() as u64;
                                 let snapshot = progress.add_bytes(chunk.len() as u64);
-                                emit_progress(&window, &file_name, "Downloading", downloaded, total_size, &snapshot);
+                                emit_progress(
+                                    &window,
+                                    &file_name,
+                                    "Downloading",
+                                    downloaded,
+                                    total_size,
+                                    &snapshot,
+                                );
                             }
                             Ok(None) => break,
                             Err(e) => return Err(format!("Download error: {}", e)),
@@ -180,7 +201,14 @@ pub async fn download_files(window: Window, tasks: Vec<DownloadTask>, max_concur
                 Err(e) => return Err(format!("Request error: {}", e)),
             }
 
-            emit_progress(&window, &file_name, "Finished", 0, 0, &progress.inc_completed());
+            emit_progress(
+                &window,
+                &file_name,
+                "Finished",
+                0,
+                0,
+                &progress.inc_completed(),
+            );
             Ok(())
         }
     });

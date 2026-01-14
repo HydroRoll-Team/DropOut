@@ -41,7 +41,10 @@ async fn start_game(
     config_state: State<'_, core::config::ConfigState>,
     version_id: String,
 ) -> Result<String, String> {
-    emit_log!(window, format!("Starting game launch for version: {}", version_id));
+    emit_log!(
+        window,
+        format!("Starting game launch for version: {}", version_id)
+    );
 
     // Check for active account
     emit_log!(window, "Checking for active account...".to_string());
@@ -51,16 +54,22 @@ async fn start_game(
         .unwrap()
         .clone()
         .ok_or("No active account found. Please login first.")?;
-    
+
     let account_type = match &account {
         core::auth::Account::Offline(_) => "Offline",
         core::auth::Account::Microsoft(_) => "Microsoft",
     };
-    emit_log!(window, format!("Account found: {} ({})", account.username(), account_type));
+    emit_log!(
+        window,
+        format!("Account found: {} ({})", account.username(), account_type)
+    );
 
     let config = config_state.config.lock().unwrap().clone();
     emit_log!(window, format!("Java path: {}", config.java_path));
-    emit_log!(window, format!("Memory: {}MB - {}MB", config.min_memory, config.max_memory));
+    emit_log!(
+        window,
+        format!("Memory: {}MB - {}MB", config.min_memory, config.max_memory)
+    );
 
     // Get App Data Directory (e.g., ~/.local/share/com.dropout.launcher or similar)
     // The identifier is set in tauri.conf.json.
@@ -83,7 +92,10 @@ async fn start_game(
     let manifest = core::manifest::fetch_version_manifest()
         .await
         .map_err(|e| e.to_string())?;
-    emit_log!(window, format!("Found {} versions in manifest", manifest.versions.len()));
+    emit_log!(
+        window,
+        format!("Found {} versions in manifest", manifest.versions.len())
+    );
 
     // Find the version info
     let version_info = manifest
@@ -93,7 +105,10 @@ async fn start_game(
         .ok_or_else(|| format!("Version {} not found in manifest", version_id))?;
 
     // 2. Fetch specific version JSON (client.jar info)
-    emit_log!(window, format!("Fetching version details for {}...", version_id));
+    emit_log!(
+        window,
+        format!("Fetching version details for {}...", version_id)
+    );
     let version_url = &version_info.url;
     let version_details: core::game_version::GameVersion = reqwest::get(version_url)
         .await
@@ -101,7 +116,13 @@ async fn start_game(
         .json()
         .await
         .map_err(|e| e.to_string())?;
-    emit_log!(window, format!("Version details loaded: main class = {}", version_details.main_class));
+    emit_log!(
+        window,
+        format!(
+            "Version details loaded: main class = {}",
+            version_details.main_class
+        )
+    );
 
     // 3. Prepare download tasks
     emit_log!(window, "Preparing download tasks...".to_string());
@@ -256,16 +277,29 @@ async fn start_game(
         });
     }
 
-    emit_log!(window, format!(
-        "Total download tasks: {} (Client + Libraries + Assets)",
-        download_tasks.len()
-    ));
+    emit_log!(
+        window,
+        format!(
+            "Total download tasks: {} (Client + Libraries + Assets)",
+            download_tasks.len()
+        )
+    );
 
     // 4. Start Download
-    emit_log!(window, format!("Starting downloads with {} concurrent threads...", config.download_threads));
-    core::downloader::download_files(window.clone(), download_tasks, config.download_threads as usize)
-        .await
-        .map_err(|e| e.to_string())?;
+    emit_log!(
+        window,
+        format!(
+            "Starting downloads with {} concurrent threads...",
+            config.download_threads
+        )
+    );
+    core::downloader::download_files(
+        window.clone(),
+        download_tasks,
+        config.download_threads as usize,
+    )
+    .await
+    .map_err(|e| e.to_string())?;
     emit_log!(window, "All downloads completed successfully".to_string());
 
     // 5. Extract Natives
@@ -328,16 +362,16 @@ async fn start_game(
             parse_jvm_arguments(jvm_args, &mut args, &natives_path, &classpath);
         }
     }
-    
+
     // Add memory settings (these override any defaults)
     args.push(format!("-Xmx{}M", config.max_memory));
     args.push(format!("-Xms{}M", config.min_memory));
-    
+
     // Ensure natives path is set if not already in jvm args
     if !args.iter().any(|a| a.contains("-Djava.library.path")) {
         args.push(format!("-Djava.library.path={}", natives_path));
     }
-    
+
     // Ensure classpath is set if not already
     if !args.iter().any(|a| a == "-cp" || a == "-classpath") {
         args.push("-cp".to_string());
@@ -429,14 +463,20 @@ async fn start_game(
         }
     }
 
-    emit_log!(window, format!("Preparing to launch game with {} arguments...", args.len()));
+    emit_log!(
+        window,
+        format!("Preparing to launch game with {} arguments...", args.len())
+    );
     // Debug: Log arguments (only first few to avoid spam)
     if args.len() > 10 {
         emit_log!(window, format!("First 10 args: {:?}", &args[..10]));
     }
 
     // Spawn the process
-    emit_log!(window, format!("Starting Java process: {}", config.java_path));
+    emit_log!(
+        window,
+        format!("Starting Java process: {}", config.java_path)
+    );
     let mut command = Command::new(&config.java_path);
     command.args(&args);
     command.current_dir(&game_dir); // Run in game directory
@@ -448,7 +488,10 @@ async fn start_game(
     {
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         command.creation_flags(CREATE_NO_WINDOW);
-        emit_log!(window, "Applied CREATE_NO_WINDOW flag for Windows".to_string());
+        emit_log!(
+            window,
+            "Applied CREATE_NO_WINDOW flag for Windows".to_string()
+        );
     }
 
     // Spawn and handle output
@@ -468,7 +511,10 @@ async fn start_game(
         .expect("child did not have a handle to stderr");
 
     // Emit launcher log that game is running
-    emit_log!(window, "Game is now running, capturing output...".to_string());
+    emit_log!(
+        window,
+        "Game is now running, capturing output...".to_string()
+    );
 
     let window_rx = window.clone();
     tokio::spawn(async move {
@@ -537,9 +583,9 @@ fn parse_jvm_arguments(
             } else if let Some(obj) = item.as_object() {
                 // Conditional argument with rules
                 let allow = if let Some(rules_val) = obj.get("rules") {
-                    if let Ok(rules) = serde_json::from_value::<Vec<core::game_version::Rule>>(
-                        rules_val.clone(),
-                    ) {
+                    if let Ok(rules) =
+                        serde_json::from_value::<Vec<core::game_version::Rule>>(rules_val.clone())
+                    {
                         core::rules::is_library_allowed(&Some(rules))
                     } else {
                         false
@@ -596,13 +642,16 @@ async fn login_offline(
     let account = core::auth::Account::Offline(core::auth::OfflineAccount { username, uuid });
 
     *state.active_account.lock().unwrap() = Some(account.clone());
-    
+
     // Save to storage
     let app_handle = window.app_handle();
-    let app_dir = app_handle.path().app_data_dir().map_err(|e| e.to_string())?;
+    let app_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?;
     let storage = core::account_storage::AccountStorage::new(app_dir);
     storage.add_or_update_account(&account, None)?;
-    
+
     Ok(account)
 }
 
@@ -614,23 +663,28 @@ async fn get_active_account(
 }
 
 #[tauri::command]
-async fn logout(
-    window: Window,
-    state: State<'_, core::auth::AccountState>,
-) -> Result<(), String> {
+async fn logout(window: Window, state: State<'_, core::auth::AccountState>) -> Result<(), String> {
     // Get current account UUID before clearing
-    let uuid = state.active_account.lock().unwrap().as_ref().map(|a| a.uuid());
-    
+    let uuid = state
+        .active_account
+        .lock()
+        .unwrap()
+        .as_ref()
+        .map(|a| a.uuid());
+
     *state.active_account.lock().unwrap() = None;
-    
+
     // Remove from storage
     if let Some(uuid) = uuid {
         let app_handle = window.app_handle();
-        let app_dir = app_handle.path().app_data_dir().map_err(|e| e.to_string())?;
+        let app_dir = app_handle
+            .path()
+            .app_data_dir()
+            .map_err(|e| e.to_string())?;
         let storage = core::account_storage::AccountStorage::new(app_dir);
         storage.remove_account(&uuid)?;
     }
-    
+
     Ok(())
 }
 
@@ -665,23 +719,23 @@ async fn complete_microsoft_login(
 ) -> Result<core::auth::Account, String> {
     // 1. Poll (once) for token
     let token_resp = core::auth::exchange_code_for_token(&device_code).await?;
-    
+
     // Store MS refresh token
     let ms_refresh_token = token_resp.refresh_token.clone();
     *ms_refresh_state.token.lock().unwrap() = ms_refresh_token.clone();
-    
+
     // 2. Xbox Live Auth
     let (xbl_token, uhs) = core::auth::method_xbox_live(&token_resp.access_token).await?;
-    
+
     // 3. XSTS Auth
     let xsts_token = core::auth::method_xsts(&xbl_token).await?;
-    
+
     // 4. Minecraft Auth
     let mc_token = core::auth::login_minecraft(&xsts_token, &uhs).await?;
-    
+
     // 5. Get Profile
     let profile = core::auth::fetch_profile(&mc_token).await?;
-    
+
     // 6. Create Account
     let account = core::auth::Account::Microsoft(core::auth::MicrosoftAccount {
         username: profile.name,
@@ -691,18 +745,22 @@ async fn complete_microsoft_login(
         expires_at: (std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
-            .as_secs() + token_resp.expires_in) as i64,
+            .as_secs()
+            + token_resp.expires_in) as i64,
     });
-    
+
     // 7. Save to state
     *state.active_account.lock().unwrap() = Some(account.clone());
-    
+
     // 8. Save to storage
     let app_handle = window.app_handle();
-    let app_dir = app_handle.path().app_data_dir().map_err(|e| e.to_string())?;
+    let app_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?;
     let storage = core::account_storage::AccountStorage::new(app_dir);
     storage.add_or_update_account(&account, ms_refresh_token)?;
-    
+
     Ok(account)
 }
 
@@ -715,26 +773,29 @@ async fn refresh_account(
 ) -> Result<core::auth::Account, String> {
     // Get stored MS refresh token
     let app_handle = window.app_handle();
-    let app_dir = app_handle.path().app_data_dir().map_err(|e| e.to_string())?;
+    let app_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?;
     let storage = core::account_storage::AccountStorage::new(app_dir.clone());
-    
+
     let (stored_account, ms_refresh) = storage
         .get_active_account()
         .ok_or("No active account found")?;
-    
+
     let ms_refresh_token = ms_refresh.ok_or("No refresh token available")?;
-    
+
     // Perform full refresh
     let (new_account, new_ms_refresh) = core::auth::refresh_full_auth(&ms_refresh_token).await?;
     let account = core::auth::Account::Microsoft(new_account);
-    
+
     // Update state
     *state.active_account.lock().unwrap() = Some(account.clone());
     *ms_refresh_state.token.lock().unwrap() = Some(new_ms_refresh.clone());
-    
+
     // Update storage
     storage.add_or_update_account(&account, Some(new_ms_refresh))?;
-    
+
     Ok(account)
 }
 
@@ -760,25 +821,25 @@ fn main() {
         .setup(|app| {
             let config_state = core::config::ConfigState::new(app.handle());
             app.manage(config_state);
-            
+
             // Load saved account on startup
             let app_dir = app.path().app_data_dir().unwrap();
             let storage = core::account_storage::AccountStorage::new(app_dir);
-            
+
             if let Some((stored_account, ms_refresh)) = storage.get_active_account() {
                 let account = stored_account.to_account();
                 let auth_state: State<core::auth::AccountState> = app.state();
                 *auth_state.active_account.lock().unwrap() = Some(account);
-                
+
                 // Store MS refresh token
                 if let Some(token) = ms_refresh {
                     let ms_state: State<MsRefreshTokenState> = app.state();
                     *ms_state.token.lock().unwrap() = Some(token);
                 }
-                
+
                 println!("[Startup] Loaded saved account");
             }
-            
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

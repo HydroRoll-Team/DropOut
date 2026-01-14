@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use uuid::Uuid;
 
-
 // Helper to create a client with a custom User-Agent
 // This is critical because Microsoft's WAF often blocks requests without a valid UA
 fn get_client() -> reqwest::Client {
@@ -142,30 +141,32 @@ pub fn is_token_expired(expires_at: i64) -> bool {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_secs() as i64;
-    
+
     // Consider expired if less than 5 minutes remaining
     expires_at - now < 300
 }
 
 /// Full refresh flow: refresh MS token -> Xbox -> XSTS -> Minecraft
-pub async fn refresh_full_auth(ms_refresh_token: &str) -> Result<(MicrosoftAccount, String), String> {
+pub async fn refresh_full_auth(
+    ms_refresh_token: &str,
+) -> Result<(MicrosoftAccount, String), String> {
     println!("[Auth] Starting full token refresh...");
-    
+
     // 1. Refresh Microsoft token
     let token_resp = refresh_microsoft_token(ms_refresh_token).await?;
-    
+
     // 2. Xbox Live Auth
     let (xbl_token, uhs) = method_xbox_live(&token_resp.access_token).await?;
-    
+
     // 3. XSTS Auth
     let xsts_token = method_xsts(&xbl_token).await?;
-    
+
     // 4. Minecraft Auth
     let mc_token = login_minecraft(&xsts_token, &uhs).await?;
-    
+
     // 5. Get Profile
     let profile = fetch_profile(&mc_token).await?;
-    
+
     // 6. Create Account
     let account = MicrosoftAccount {
         username: profile.name,
@@ -175,12 +176,15 @@ pub async fn refresh_full_auth(ms_refresh_token: &str) -> Result<(MicrosoftAccou
         expires_at: (std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
-            .as_secs() + token_resp.expires_in) as i64,
+            .as_secs()
+            + token_resp.expires_in) as i64,
     };
-    
+
     // Return new MS refresh token for storage
-    let new_ms_refresh = token_resp.refresh_token.unwrap_or_else(|| ms_refresh_token.to_string());
-    
+    let new_ms_refresh = token_resp
+        .refresh_token
+        .unwrap_or_else(|| ms_refresh_token.to_string());
+
     Ok((account, new_ms_refresh))
 }
 

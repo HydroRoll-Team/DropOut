@@ -17,7 +17,10 @@ pub fn detect_java_installations() -> Vec<JavaInstallation> {
     for candidate in candidates {
         if let Some(java) = check_java_installation(&candidate) {
             // Avoid duplicates
-            if !installations.iter().any(|j: &JavaInstallation| j.path == java.path) {
+            if !installations
+                .iter()
+                .any(|j: &JavaInstallation| j.path == java.path)
+            {
                 installations.push(java);
             }
         }
@@ -121,7 +124,9 @@ fn get_java_candidates() -> Vec<PathBuf> {
         if homebrew_arm.exists() {
             if let Ok(entries) = std::fs::read_dir(&homebrew_arm) {
                 for entry in entries.flatten() {
-                    let java_path = entry.path().join("libexec/openjdk.jdk/Contents/Home/bin/java");
+                    let java_path = entry
+                        .path()
+                        .join("libexec/openjdk.jdk/Contents/Home/bin/java");
                     if java_path.exists() {
                         candidates.push(java_path);
                     }
@@ -133,8 +138,10 @@ fn get_java_candidates() -> Vec<PathBuf> {
     #[cfg(target_os = "windows")]
     {
         // Windows Java paths
-        let program_files = std::env::var("ProgramFiles").unwrap_or_else(|_| "C:\\Program Files".to_string());
-        let program_files_x86 = std::env::var("ProgramFiles(x86)").unwrap_or_else(|_| "C:\\Program Files (x86)".to_string());
+        let program_files =
+            std::env::var("ProgramFiles").unwrap_or_else(|_| "C:\\Program Files".to_string());
+        let program_files_x86 = std::env::var("ProgramFiles(x86)")
+            .unwrap_or_else(|_| "C:\\Program Files (x86)".to_string());
         let local_app_data = std::env::var("LOCALAPPDATA").unwrap_or_default();
 
         let win_paths = [
@@ -186,14 +193,11 @@ fn get_java_candidates() -> Vec<PathBuf> {
 
 /// Check a specific Java installation and get its version info
 fn check_java_installation(path: &PathBuf) -> Option<JavaInstallation> {
-    let output = Command::new(path)
-        .arg("-version")
-        .output()
-        .ok()?;
+    let output = Command::new(path).arg("-version").output().ok()?;
 
     // Java outputs version info to stderr
     let version_output = String::from_utf8_lossy(&output.stderr);
-    
+
     // Parse version string (e.g., "openjdk version \"17.0.1\"" or "java version \"1.8.0_301\"")
     let version = parse_version_string(&version_output)?;
     let is_64bit = version_output.contains("64-Bit");
@@ -240,7 +244,7 @@ fn parse_java_version(version: &str) -> u32 {
 /// Get the best Java for a specific Minecraft version
 pub fn get_recommended_java(required_major_version: Option<u64>) -> Option<JavaInstallation> {
     let installations = detect_java_installations();
-    
+
     if let Some(required) = required_major_version {
         // Find exact match or higher
         installations.into_iter().find(|java| {
