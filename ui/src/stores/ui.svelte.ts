@@ -5,8 +5,8 @@ export class UIState {
   status = $state("Ready");
   showConsole = $state(false);
   appVersion = $state("...");
-  
-  private statusTimeout: any;
+
+  private statusTimeout: ReturnType<typeof setTimeout> | null = null;
 
   setStatus(msg: string) {
     if (this.statusTimeout) clearTimeout(this.statusTimeout);
