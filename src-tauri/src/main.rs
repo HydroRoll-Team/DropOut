@@ -262,8 +262,8 @@ async fn start_game(
     ));
 
     // 4. Start Download
-    emit_log!(window, "Starting downloads...".to_string());
-    core::downloader::download_files(window.clone(), download_tasks)
+    emit_log!(window, format!("Starting downloads with {} concurrent threads...", config.download_threads));
+    core::downloader::download_files(window.clone(), download_tasks, config.download_threads as usize)
         .await
         .map_err(|e| e.to_string())?;
     emit_log!(window, "All downloads completed successfully".to_string());

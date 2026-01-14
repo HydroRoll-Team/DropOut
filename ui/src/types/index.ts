@@ -29,6 +29,7 @@ export interface LauncherConfig {
   java_path: string;
   width: number;
   height: number;
+  download_threads: number;
 }
 
 export interface JavaInstallation {

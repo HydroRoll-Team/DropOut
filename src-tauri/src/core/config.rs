@@ -5,12 +5,14 @@ use std::sync::Mutex;
 use tauri::{AppHandle, Manager};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct LauncherConfig {
     pub min_memory: u32, // in MB
     pub max_memory: u32, // in MB
     pub java_path: String,
     pub width: u32,
     pub height: u32,
+    pub download_threads: u32, // concurrent download threads (1-128)
 }
 
 impl Default for LauncherConfig {
@@ -21,6 +23,7 @@ impl Default for LauncherConfig {
             java_path: "java".to_string(),
             width: 854,
             height: 480,
+            download_threads: 32,
         }
     }
 }

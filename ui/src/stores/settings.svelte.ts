@@ -9,6 +9,7 @@ export class SettingsState {
     java_path: "java",
     width: 854,
     height: 480,
+    download_threads: 32,
   });
   javaInstallations = $state<JavaInstallation[]>([]);
   isDetectingJava = $state(false);
