@@ -72,7 +72,9 @@
         completedFiles = payload.completed_files;
         totalFiles = payload.total_files;
         if (totalFiles > 0) {
-          totalProgress = (completedFiles / totalFiles) * 100;
+          const currentFileFraction =
+            payload.total > 0 ? payload.downloaded / payload.total : 0;
+          totalProgress = ((completedFiles + currentFileFraction) / totalFiles) * 100;
         }
 
         // Calculate download speed (using moving average)
