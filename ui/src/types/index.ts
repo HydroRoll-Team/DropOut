@@ -1,4 +1,4 @@
-export type ViewType = "home" | "versions" | "settings";
+export type ViewType = "home" | "instances" | "versions" | "settings";
 
 export interface Version {
   id: string;
@@ -159,4 +159,28 @@ export interface InstalledForgeVersion {
 // ==================== Mod Loader Type ====================
 
 export type ModLoaderType = "vanilla" | "fabric" | "forge";
+
+// ==================== Instance Types ====================
+
+export interface Instance {
+  id: string;
+  name: string;
+  version_id: string;
+  icon?: string;
+  created_at: number;
+  last_played?: number;
+  // Instance-specific settings (override global if set)
+  java_path?: string;
+  min_memory?: number;
+  max_memory?: number;
+  width?: number;
+  height?: number;
+  jvm_args?: string;
+}
+
+export interface InstanceRef {
+  id: string;
+  name: string;
+  version_id: string;
+}
 
