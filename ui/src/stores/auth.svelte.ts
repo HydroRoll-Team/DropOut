@@ -97,7 +97,11 @@ export class AuthState {
         }
 
         open(this.deviceCodeData.verification_uri);
-        logsState.addLog("info", "Auth", "Microsoft login started, waiting for browser authorization...");
+        logsState.addLog(
+          "info",
+          "Auth",
+          "Microsoft login started, waiting for browser authorization...",
+        );
 
         console.log("Starting polling for token...");
         const intervalMs = (this.deviceCodeData.interval || 5) * 1000;
@@ -157,7 +161,11 @@ export class AuthState {
       this.stopPolling();
       this.cleanupAuthListener();
       this.isLoginModalOpen = false;
-      logsState.addLog("info", "Auth", `Login successful! Welcome, ${this.currentAccount.username}`);
+      logsState.addLog(
+        "info",
+        "Auth",
+        `Login successful! Welcome, ${this.currentAccount.username}`,
+      );
       uiState.setStatus("Welcome back, " + this.currentAccount.username);
     } catch (e: any) {
       const errStr = e.toString();
@@ -168,10 +176,7 @@ export class AuthState {
         this.msLoginStatus = "Error: " + errStr;
         logsState.addLog("error", "Auth", `Login error: ${errStr}`);
 
-        if (
-          errStr.includes("expired_token") ||
-          errStr.includes("access_denied")
-        ) {
+        if (errStr.includes("expired_token") || errStr.includes("access_denied")) {
           this.stopPolling();
           this.cleanupAuthListener();
           alert("Login failed: " + errStr);

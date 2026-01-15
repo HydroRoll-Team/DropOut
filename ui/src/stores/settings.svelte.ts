@@ -28,7 +28,7 @@ export class SettingsState {
     log_upload_service: "paste.rs",
     pastebin_api_key: undefined,
   });
-  
+
   // Convert background path to proper asset URL
   get backgroundUrl(): string | undefined {
     if (this.settings.custom_background_path) {
@@ -148,7 +148,7 @@ export class SettingsState {
       }
       // Ensure custom_background_path is reactive
       if (!this.settings.custom_background_path) {
-         this.settings.custom_background_path = undefined;
+        this.settings.custom_background_path = undefined;
       }
     } catch (e) {
       console.error("Failed to load settings:", e);
@@ -161,7 +161,7 @@ export class SettingsState {
       if (this.settings.custom_background_path === "") {
         this.settings.custom_background_path = undefined;
       }
-      
+
       await invoke("save_settings", { config: this.settings });
       uiState.setStatus("Settings saved!");
     } catch (e) {

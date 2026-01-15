@@ -127,7 +127,8 @@ export class SaturnEffect {
 
   private applyFlingVelocity() {
     // Calculate average velocity from recent samples
-    const avgVelocity = this.mouseVelocities.reduce((a, b) => a + b, 0) / this.mouseVelocities.length;
+    const avgVelocity =
+      this.mouseVelocities.reduce((a, b) => a + b, 0) / this.mouseVelocities.length;
 
     // Threshold for considering it a "fling" (pixels per millisecond)
     const flingThreshold = 0.3;
@@ -150,7 +151,7 @@ export class SaturnEffect {
       // Map velocity to speed multiplier (stronger fling = faster rotation)
       const speedMultiplier = Math.min(
         this.maxSpeedMultiplier,
-        this.minSpeedMultiplier + Math.abs(avgVelocity) * 10
+        this.minSpeedMultiplier + Math.abs(avgVelocity) * 10,
       );
 
       this.currentSpeed = this.baseSpeed * speedMultiplier;
@@ -159,7 +160,7 @@ export class SaturnEffect {
       this.isStopped = true;
       this.currentSpeed = 0;
     }
-    // If velocity is between stopThreshold and flingThreshold, 
+    // If velocity is between stopThreshold and flingThreshold,
     // keep current state (don't change isStopped)
   }
 
@@ -234,13 +235,14 @@ export class SaturnEffect {
     this.ctx.clearRect(0, 0, this.width, this.height);
 
     // Normal blending
-    this.ctx.globalCompositeOperation = 'source-over';
+    this.ctx.globalCompositeOperation = "source-over";
 
     // Update rotation speed - decay towards base speed while maintaining direction
     if (!this.isDragging && !this.isStopped) {
       if (this.currentSpeed > this.baseSpeed) {
         // Gradually decay speed back to base speed
-        this.currentSpeed = this.baseSpeed + (this.currentSpeed - this.baseSpeed) * this.speedDecayRate;
+        this.currentSpeed =
+          this.baseSpeed + (this.currentSpeed - this.baseSpeed) * this.speedDecayRate;
 
         // Snap to base speed when close enough
         if (this.currentSpeed - this.baseSpeed < 0.00001) {

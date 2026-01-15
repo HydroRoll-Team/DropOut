@@ -9,12 +9,12 @@
 
   const effectOptions = [
     { value: "saturn", label: "Saturn" },
-    { value: "constellation", label: "Network (Constellation)" }
+    { value: "constellation", label: "Network (Constellation)" },
   ];
 
   const logServiceOptions = [
     { value: "paste.rs", label: "paste.rs (Free, No Account)" },
-    { value: "pastebin.com", label: "pastebin.com (Requires API Key)" }
+    { value: "pastebin.com", label: "pastebin.com (Requires API Key)" },
   ];
 
   async function selectBackground() {
@@ -85,8 +85,12 @@
                   alt="Background Preview"
                   class="w-full h-full object-cover"
                   onerror={(e) => {
-                    console.error("Failed to load image:", settingsState.settings.custom_background_path, e);
-                    // e.currentTarget.style.display = 'none'; 
+                    console.error(
+                      "Failed to load image:",
+                      settingsState.settings.custom_background_path,
+                      e,
+                    );
+                    // e.currentTarget.style.display = 'none';
                   }}
                 />
               {:else}
@@ -161,30 +165,14 @@
             </button>
           </div>
 
-             {#if settingsState.settings.enable_visual_effects}
-                 <div class="flex items-center justify-between pl-2 border-l-2 dark:border-white/5 border-black/5 ml-1">
-                    <div>
-                       <h4 class="text-sm font-medium dark:text-white/90 text-black/80" id="theme-effect-label">Theme Effect</h4>
-                       <p class="text-xs dark:text-white/40 text-black/50 mt-1">Select the active visual theme.</p>
-                    </div>
-                    <CustomSelect
-                        options={effectOptions}
-                        bind:value={settingsState.settings.active_effect}
-                        onchange={() => settingsState.saveSettings()}
-                        class="w-52"
-                    />
-                 </div>
-             {/if}
-
-             <div class="flex items-center justify-between">
-                <div>
-                   <h4 class="text-sm font-medium dark:text-white/90 text-black/80" id="gpu-acceleration-label">GPU Acceleration</h4>
-                   <p class="text-xs dark:text-white/40 text-black/50 mt-1">Enable GPU acceleration for the interface. (Default: Off, Requires Restart)</p>
-                </div>
-                <button 
-                    aria-labelledby="gpu-acceleration-label"
-                    onclick={() => { settingsState.settings.enable_gpu_acceleration = !settingsState.settings.enable_gpu_acceleration; settingsState.saveSettings(); }}
-                    class="w-11 h-6 rounded-full transition-colors duration-200 ease-in-out relative focus:outline-none {settingsState.settings.enable_gpu_acceleration ? 'bg-indigo-500' : 'dark:bg-white/10 bg-black/10'}"
+          {#if settingsState.settings.enable_visual_effects}
+            <div
+              class="flex items-center justify-between pl-2 border-l-2 dark:border-white/5 border-black/5 ml-1"
+            >
+              <div>
+                <h4
+                  class="text-sm font-medium dark:text-white/90 text-black/80"
+                  id="theme-effect-label"
                 >
                   Theme Effect
                 </h4>
@@ -192,15 +180,12 @@
                   Select the active visual theme.
                 </p>
               </div>
-              <select
-                aria-labelledby="theme-effect-label"
+              <CustomSelect
+                options={effectOptions}
                 bind:value={settingsState.settings.active_effect}
                 onchange={() => settingsState.saveSettings()}
-                class="dark:bg-black/40 bg-white dark:text-white text-black text-xs px-3 py-2 rounded-lg border dark:border-white/10 border-black/10 outline-none focus:border-indigo-500/50 appearance-none cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-              >
-                <option value="saturn">Saturn (Saturn)</option>
-                <option value="constellation">Network (Constellation)</option>
-              </select>
+                class="w-52"
+              />
             </div>
           {/if}
 
@@ -463,36 +448,53 @@
     </div>
 
     <!-- Debug / Logs -->
-    <div class="dark:bg-[#09090b] bg-white p-6 rounded-sm border dark:border-white/10 border-gray-200 shadow-sm">
-        <h3 class="text-xs font-bold uppercase tracking-widest text-white/40 mb-6 flex items-center gap-2">
-            Debug & Logs
-        </h3>
-        <div class="space-y-4">
-            <div>
-                <label for="log-service" class="block text-sm font-medium text-white/70 mb-2">Log Upload Service</label>
-                <CustomSelect
-                    options={logServiceOptions}
-                    bind:value={settingsState.settings.log_upload_service}
-                    class="w-full"
-                />
-            </div>
-
-            {#if settingsState.settings.log_upload_service === 'pastebin.com'}
-                <div>
-                    <label for="pastebin-key" class="block text-sm font-medium text-white/70 mb-2">Pastebin Dev API Key</label>
-                    <input
-                        id="pastebin-key"
-                        type="password"
-                        bind:value={settingsState.settings.pastebin_api_key}
-                        placeholder="Enter your API Key"
-                        class="dark:bg-zinc-900 bg-white dark:text-white text-black w-full px-4 py-3 rounded-xl border dark:border-zinc-700 border-gray-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 outline-none transition-colors placeholder:text-zinc-500"
-                    />
-                    <p class="text-xs text-white/30 mt-2">
-                        Get your API key from <a href="https://pastebin.com/doc_api#1" target="_blank" class="text-indigo-400 hover:underline">Pastebin API Documentation</a>.
-                    </p>
-                </div>
-            {/if}
+    <div
+      class="dark:bg-[#09090b] bg-white p-6 rounded-sm border dark:border-white/10 border-gray-200 shadow-sm"
+    >
+      <h3
+        class="text-xs font-bold uppercase tracking-widest text-white/40 mb-6 flex items-center gap-2"
+      >
+        Debug & Logs
+      </h3>
+      <div class="space-y-4">
+        <div>
+          <label
+            for="log-service"
+            class="block text-sm font-medium text-white/70 mb-2"
+            >Log Upload Service</label
+          >
+          <CustomSelect
+            options={logServiceOptions}
+            bind:value={settingsState.settings.log_upload_service}
+            class="w-full"
+          />
         </div>
+
+        {#if settingsState.settings.log_upload_service === "pastebin.com"}
+          <div>
+            <label
+              for="pastebin-key"
+              class="block text-sm font-medium text-white/70 mb-2"
+              >Pastebin Dev API Key</label
+            >
+            <input
+              id="pastebin-key"
+              type="password"
+              bind:value={settingsState.settings.pastebin_api_key}
+              placeholder="Enter your API Key"
+              class="dark:bg-zinc-900 bg-white dark:text-white text-black w-full px-4 py-3 rounded-xl border dark:border-zinc-700 border-gray-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 outline-none transition-colors placeholder:text-zinc-500"
+            />
+            <p class="text-xs text-white/30 mt-2">
+              Get your API key from <a
+                href="https://pastebin.com/doc_api#1"
+                target="_blank"
+                class="text-indigo-400 hover:underline"
+                >Pastebin API Documentation</a
+              >.
+            </p>
+          </div>
+        {/if}
+      </div>
     </div>
 
     <div class="pt-4 flex justify-end">
