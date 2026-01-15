@@ -12,6 +12,9 @@ export interface Account {
   type: "Offline" | "Microsoft";
   username: string;
   uuid: string;
+  access_token?: string;
+  refresh_token?: string;
+  expires_at?: number; // Unix timestamp for Microsoft accounts
 }
 
 export interface DeviceCodeResponse {
@@ -35,6 +38,8 @@ export interface LauncherConfig {
   enable_visual_effects: boolean;
   active_effect: string;
   theme: string;
+  log_upload_service: "paste.rs" | "pastebin.com";
+  pastebin_api_key?: string;
 }
 
 export interface JavaInstallation {

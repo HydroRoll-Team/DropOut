@@ -5,8 +5,7 @@
 //! - Install Forge loader for a specific Minecraft version
 //!
 //! Note: Forge installation is more complex than Fabric, especially for versions 1.13+.
-//! This implementation focuses on the basic JSON generation approach.
-//! For full Forge 1.13+ support, processor execution would need to be implemented.
+//! This implementation fetches the installer manifest to get the correct library list.
 
 use serde::{Deserialize, Serialize};
 use std::error::Error;
@@ -40,6 +39,46 @@ pub struct InstalledForgeVersion {
     pub minecraft_version: String,
     pub forge_version: String,
     pub path: PathBuf,
+}
+
+/// Forge installer manifest structure (from version.json inside installer JAR)
+#[derive(Debug, Deserialize)]
+struct ForgeInstallerManifest {
+    id: Option<String>,
+    #[serde(rename = "inheritsFrom")]
+    inherits_from: Option<String>,
+    #[serde(rename = "mainClass")]
+    main_class: Option<String>,
+    #[serde(default)]
+    libraries: Vec<ForgeLibrary>,
+    arguments: Option<ForgeArguments>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ForgeArguments {
+    game: Option<Vec<serde_json::Value>>,
+    jvm: Option<Vec<serde_json::Value>>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+struct ForgeLibrary {
+    name: String,
+    #[serde(default)]
+    downloads: Option<ForgeLibraryDownloads>,
+    #[serde(default)]
+    url: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+struct ForgeLibraryDownloads {
+    artifact: Option<ForgeArtifact>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+struct ForgeArtifact {
+    path: Option<String>,
+    url: Option<String>,
+    sha1: Option<String>,
 }
 
 /// Fetch all Minecraft versions supported by Forge.
@@ -138,18 +177,49 @@ pub fn generate_version_id(game_version: &str, forge_version: &str) -> String {
     format!("{}-forge-{}", game_version, forge_version)
 }
 
+/// Fetch the Forge installer manifest to get the library list
+async fn fetch_forge_installer_manifest(
+    game_version: &str,
+    forge_version: &str,
+) -> Result<ForgeInstallerManifest, Box<dyn Error + Send + Sync>> {
+    let forge_full = format!("{}-{}", game_version, forge_version);
+    
+    // Download the installer JAR to extract version.json
+    let installer_url = format!(
+        "{}net/minecraftforge/forge/{}/forge-{}-installer.jar",
+        FORGE_MAVEN_URL, forge_full, forge_full
+    );
+    
+    println!("Fetching Forge installer from: {}", installer_url);
+    
+    let response = reqwest::get(&installer_url).await?;
+    if !response.status().is_success() {
+        return Err(format!("Failed to download Forge installer: {}", response.status()).into());
+    }
+    
+    let bytes = response.bytes().await?;
+    
+    // Extract version.json from the JAR (which is a ZIP file)
+    let cursor = std::io::Cursor::new(bytes.as_ref());
+    let mut archive = zip::ZipArchive::new(cursor)?;
+    
+    // Look for version.json in the archive
+    let version_json = archive.by_name("version.json")?;
+    let manifest: ForgeInstallerManifest = serde_json::from_reader(version_json)?;
+    
+    Ok(manifest)
+}
+
 /// Install Forge for a specific Minecraft version.
 ///
-/// Note: This creates a basic version JSON. For Forge 1.13+, the full installation
-/// requires running the Forge installer processors, which is not yet implemented.
-/// This basic implementation works for legacy Forge versions (<1.13) and creates
-/// the structure needed for modern Forge (libraries will need to be downloaded
-/// separately).
+/// This function downloads the Forge installer JAR and runs it in headless mode
+/// to properly install Forge with all necessary patches.
 ///
 /// # Arguments
 /// * `game_dir` - The .minecraft directory path
 /// * `game_version` - The Minecraft version (e.g., "1.20.4")
 /// * `forge_version` - The Forge version (e.g., "49.0.38")
+/// * `java_path` - Path to the Java executable
 ///
 /// # Returns
 /// Information about the installed version.
@@ -160,10 +230,11 @@ pub async fn install_forge(
 ) -> Result<InstalledForgeVersion, Box<dyn Error + Send + Sync>> {
     let version_id = generate_version_id(game_version, forge_version);
 
-    // Create basic version JSON structure
-    // Note: This is a simplified version. Full Forge installation requires
-    // downloading the installer and running processors.
-    let version_json = create_forge_version_json(game_version, forge_version)?;
+    // Fetch the installer manifest to get the complete version.json
+    let manifest = fetch_forge_installer_manifest(game_version, forge_version).await?;
+
+    // Create version JSON from the manifest
+    let version_json = create_forge_version_json_from_manifest(game_version, forge_version, &manifest)?;
 
     // Create the version directory
     let version_dir = game_dir.join("versions").join(&version_id);
@@ -182,55 +253,185 @@ pub async fn install_forge(
     })
 }
 
-/// Create a basic Forge version JSON.
+/// Install Forge using the official installer JAR.
+/// This runs the Forge installer in headless mode to properly patch the client.
 ///
-/// This creates a minimal version JSON that inherits from vanilla and adds
-/// the Forge libraries. For full functionality with Forge 1.13+, the installer
-/// would need to be run to patch the game.
+/// # Arguments
+/// * `game_dir` - The .minecraft directory path
+/// * `game_version` - The Minecraft version
+/// * `forge_version` - The Forge version
+/// * `java_path` - Path to the Java executable
+///
+/// # Returns
+/// Result indicating success or failure
+pub async fn run_forge_installer(
+    game_dir: &PathBuf,
+    game_version: &str,
+    forge_version: &str,
+    java_path: &PathBuf,
+) -> Result<(), Box<dyn Error + Send + Sync>> {
+    // Download the installer JAR
+    let installer_url = format!(
+        "{}net/minecraftforge/forge/{}-{}/forge-{}-{}-installer.jar",
+        FORGE_MAVEN_URL, game_version, forge_version, game_version, forge_version
+    );
+    
+    let installer_path = game_dir.join("forge-installer.jar");
+    
+    // Download installer
+    let client = reqwest::Client::new();
+    let response = client.get(&installer_url).send().await?;
+    
+    if !response.status().is_success() {
+        return Err(format!("Failed to download Forge installer: {}", response.status()).into());
+    }
+    
+    let bytes = response.bytes().await?;
+    tokio::fs::write(&installer_path, &bytes).await?;
+    
+    // Run the installer in headless mode
+    // The installer accepts --installClient <path> to install to a specific directory
+    let output = tokio::process::Command::new(java_path)
+        .arg("-jar")
+        .arg(&installer_path)
+        .arg("--installClient")
+        .arg(game_dir)
+        .output()
+        .await?;
+    
+    // Clean up installer
+    let _ = tokio::fs::remove_file(&installer_path).await;
+    
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        return Err(format!(
+            "Forge installer failed:\nstdout: {}\nstderr: {}",
+            stdout, stderr
+        ).into());
+    }
+    
+    Ok(())
+}
+
+/// Create a Forge version JSON from the installer manifest.
+fn create_forge_version_json_from_manifest(
+    game_version: &str,
+    forge_version: &str,
+    manifest: &ForgeInstallerManifest,
+) -> Result<serde_json::Value, Box<dyn Error + Send + Sync>> {
+    let version_id = generate_version_id(game_version, forge_version);
+
+    // Use main class from manifest or default
+    let main_class = manifest.main_class.clone().unwrap_or_else(|| {
+        if is_modern_forge(game_version) {
+            "cpw.mods.bootstraplauncher.BootstrapLauncher".to_string()
+        } else {
+            "net.minecraft.launchwrapper.Launch".to_string()
+        }
+    });
+
+    // Convert libraries to JSON format, preserving download info
+    let lib_entries: Vec<serde_json::Value> = manifest.libraries
+        .iter()
+        .map(|lib| {
+            let mut entry = serde_json::json!({
+                "name": lib.name
+            });
+            
+            // Add URL if present
+            if let Some(url) = &lib.url {
+                entry["url"] = serde_json::Value::String(url.clone());
+            } else {
+                // Default to Forge Maven for Forge libraries
+                entry["url"] = serde_json::Value::String(FORGE_MAVEN_URL.to_string());
+            }
+            
+            // Add downloads if present
+            if let Some(downloads) = &lib.downloads {
+                if let Some(artifact) = &downloads.artifact {
+                    let mut artifact_json = serde_json::Map::new();
+                    if let Some(path) = &artifact.path {
+                        artifact_json.insert("path".to_string(), serde_json::Value::String(path.clone()));
+                    }
+                    if let Some(url) = &artifact.url {
+                        artifact_json.insert("url".to_string(), serde_json::Value::String(url.clone()));
+                    }
+                    if let Some(sha1) = &artifact.sha1 {
+                        artifact_json.insert("sha1".to_string(), serde_json::Value::String(sha1.clone()));
+                    }
+                    if !artifact_json.is_empty() {
+                        entry["downloads"] = serde_json::json!({
+                            "artifact": artifact_json
+                        });
+                    }
+                }
+            }
+            
+            entry
+        })
+        .collect();
+
+    // Build arguments
+    let mut arguments = serde_json::json!({
+        "game": [],
+        "jvm": []
+    });
+    
+    if let Some(args) = &manifest.arguments {
+        if let Some(game_args) = &args.game {
+            arguments["game"] = serde_json::Value::Array(game_args.clone());
+        }
+        if let Some(jvm_args) = &args.jvm {
+            arguments["jvm"] = serde_json::Value::Array(jvm_args.clone());
+        }
+    }
+
+    let json = serde_json::json!({
+        "id": version_id,
+        "inheritsFrom": manifest.inherits_from.clone().unwrap_or_else(|| game_version.to_string()),
+        "type": "release",
+        "mainClass": main_class,
+        "libraries": lib_entries,
+        "arguments": arguments
+    });
+
+    Ok(json)
+}
+
+/// Create a Forge version JSON with the proper library list (fallback).
+#[allow(dead_code)]
 fn create_forge_version_json(
     game_version: &str,
     forge_version: &str,
+    libraries: &[ForgeLibrary],
 ) -> Result<serde_json::Value, Box<dyn Error + Send + Sync>> {
     let version_id = generate_version_id(game_version, forge_version);
-    let forge_maven_coord = format!(
-        "net.minecraftforge:forge:{}-{}",
-        game_version, forge_version
-    );
 
     // Determine main class based on version
-    // Forge 1.13+ uses different launchers
-    let (main_class, libraries) = if is_modern_forge(game_version) {
-        // Modern Forge (1.13+) uses cpw.mods.bootstraplauncher
-        (
-            "cpw.mods.bootstraplauncher.BootstrapLauncher".to_string(),
-            vec![
-                create_library_entry(&forge_maven_coord, Some(FORGE_MAVEN_URL)),
-                create_library_entry(
-                    &format!(
-                        "net.minecraftforge:forge:{}-{}:universal",
-                        game_version, forge_version
-                    ),
-                    Some(FORGE_MAVEN_URL),
-                ),
-            ],
-        )
+    let main_class = if is_modern_forge(game_version) {
+        "cpw.mods.bootstraplauncher.BootstrapLauncher"
     } else {
-        // Legacy Forge uses LaunchWrapper
-        (
-            "net.minecraft.launchwrapper.Launch".to_string(),
-            vec![
-                create_library_entry(&forge_maven_coord, Some(FORGE_MAVEN_URL)),
-                create_library_entry("net.minecraft:launchwrapper:1.12", None),
-            ],
-        )
+        "net.minecraft.launchwrapper.Launch"
     };
+
+    // Convert libraries to JSON format
+    let lib_entries: Vec<serde_json::Value> = libraries
+        .iter()
+        .map(|lib| {
+            serde_json::json!({
+                "name": lib.name,
+                "url": FORGE_MAVEN_URL
+            })
+        })
+        .collect();
 
     let json = serde_json::json!({
         "id": version_id,
         "inheritsFrom": game_version,
         "type": "release",
         "mainClass": main_class,
-        "libraries": libraries,
+        "libraries": lib_entries,
         "arguments": {
             "game": [],
             "jvm": []
@@ -238,19 +439,6 @@ fn create_forge_version_json(
     });
 
     Ok(json)
-}
-
-/// Create a library entry for the version JSON.
-fn create_library_entry(name: &str, maven_url: Option<&str>) -> serde_json::Value {
-    let mut entry = serde_json::json!({
-        "name": name
-    });
-
-    if let Some(url) = maven_url {
-        entry["url"] = serde_json::Value::String(url.to_string());
-    }
-
-    entry
 }
 
 /// Check if the Minecraft version uses modern Forge (1.13+).

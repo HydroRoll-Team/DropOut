@@ -8,6 +8,7 @@ export default defineConfig({
 
   // Fix for Tauri + Vite HMR
   server: {
+    host: true,
     strictPort: true,
     hmr: {
       protocol: "ws",

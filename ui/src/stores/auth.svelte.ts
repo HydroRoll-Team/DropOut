@@ -1,11 +1,14 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-shell";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { Account, DeviceCodeResponse } from "../types";
 import { uiState } from "./ui.svelte";
+import { logsState } from "./logs.svelte";
 
 export class AuthState {
   currentAccount = $state<Account | null>(null);
   isLoginModalOpen = $state(false);
+  isLogoutConfirmOpen = $state(false);
   loginMode = $state<"select" | "offline" | "microsoft">("select");
   offlineUsername = $state("");
   deviceCodeData = $state<DeviceCodeResponse | null>(null);
@@ -14,6 +17,7 @@ export class AuthState {
 
   private pollInterval: ReturnType<typeof setInterval> | null = null;
   private isPollingRequestActive = false;
+  private authProgressUnlisten: UnlistenFn | null = null;
 
   async checkAccount() {
     try {
@@ -26,13 +30,27 @@ export class AuthState {
 
   openLoginModal() {
     if (this.currentAccount) {
-      if (confirm("Logout " + this.currentAccount.username + "?")) {
-        invoke("logout").then(() => (this.currentAccount = null));
-      }
+      // Show custom logout confirmation dialog
+      this.isLogoutConfirmOpen = true;
       return;
     }
     this.resetLoginState();
     this.isLoginModalOpen = true;
+  }
+
+  cancelLogout() {
+    this.isLogoutConfirmOpen = false;
+  }
+
+  async confirmLogout() {
+    this.isLogoutConfirmOpen = false;
+    try {
+      await invoke("logout");
+      this.currentAccount = null;
+      uiState.setStatus("Logged out successfully");
+    } catch (e) {
+      console.error("Logout failed:", e);
+    }
   }
 
   closeLoginModal() {
@@ -65,6 +83,9 @@ export class AuthState {
     this.msLoginStatus = "Waiting for authorization...";
     this.stopPolling();
 
+    // Setup auth progress listener
+    this.setupAuthProgressListener();
+
     try {
       this.deviceCodeData = (await invoke("start_microsoft_login")) as DeviceCodeResponse;
 
@@ -76,6 +97,7 @@ export class AuthState {
         }
 
         open(this.deviceCodeData.verification_uri);
+        logsState.addLog("info", "Auth", "Microsoft login started, waiting for browser authorization...");
 
         console.log("Starting polling for token...");
         const intervalMs = (this.deviceCodeData.interval || 5) * 1000;
@@ -85,10 +107,32 @@ export class AuthState {
         );
       }
     } catch (e) {
+      logsState.addLog("error", "Auth", `Failed to start Microsoft login: ${e}`);
       alert("Failed to start Microsoft login: " + e);
       this.loginMode = "select";
     } finally {
       this.msLoginLoading = false;
+    }
+  }
+
+  private async setupAuthProgressListener() {
+    // Clean up previous listener if exists
+    if (this.authProgressUnlisten) {
+      this.authProgressUnlisten();
+      this.authProgressUnlisten = null;
+    }
+
+    this.authProgressUnlisten = await listen<string>("auth-progress", (event) => {
+      const message = event.payload;
+      this.msLoginStatus = message;
+      logsState.addLog("info", "Auth", message);
+    });
+  }
+
+  private cleanupAuthListener() {
+    if (this.authProgressUnlisten) {
+      this.authProgressUnlisten();
+      this.authProgressUnlisten = null;
     }
   }
 
@@ -111,7 +155,9 @@ export class AuthState {
 
       console.log("Login Successful!", this.currentAccount);
       this.stopPolling();
+      this.cleanupAuthListener();
       this.isLoginModalOpen = false;
+      logsState.addLog("info", "Auth", `Login successful! Welcome, ${this.currentAccount.username}`);
       uiState.setStatus("Welcome back, " + this.currentAccount.username);
     } catch (e: any) {
       const errStr = e.toString();
@@ -120,9 +166,14 @@ export class AuthState {
       } else {
         console.error("Polling Error:", errStr);
         this.msLoginStatus = "Error: " + errStr;
+        logsState.addLog("error", "Auth", `Login error: ${errStr}`);
 
-        if (errStr.includes("expired_token") || errStr.includes("access_denied")) {
+        if (
+          errStr.includes("expired_token") ||
+          errStr.includes("access_denied")
+        ) {
           this.stopPolling();
+          this.cleanupAuthListener();
           alert("Login failed: " + errStr);
           this.loginMode = "select";
         }

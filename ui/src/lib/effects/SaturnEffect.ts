@@ -18,6 +18,21 @@ export class SaturnEffect {
   private angle: number = 0;
   private scaleFactor: number = 1;
 
+  // Mouse interaction properties
+  private isDragging: boolean = false;
+  private lastMouseX: number = 0;
+  private lastMouseTime: number = 0;
+  private mouseVelocities: number[] = []; // Store recent velocities for averaging
+
+  // Rotation speed control
+  private readonly baseSpeed: number = 0.005; // Original rotation speed
+  private currentSpeed: number = 0.005; // Current rotation speed (can be modified by mouse)
+  private rotationDirection: number = 1; // 1 for clockwise, -1 for counter-clockwise
+  private readonly speedDecayRate: number = 0.992; // How fast speed returns to normal (closer to 1 = slower decay)
+  private readonly minSpeedMultiplier: number = 1; // Minimum speed is baseSpeed
+  private readonly maxSpeedMultiplier: number = 50; // Maximum speed is 50x baseSpeed
+  private isStopped: boolean = false; // Whether the user has stopped the rotation
+
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d", {
@@ -31,6 +46,121 @@ export class SaturnEffect {
 
     this.animate = this.animate.bind(this);
     this.animate();
+  }
+
+  // Public methods for external mouse event handling
+  // These can be called from any element that wants to control the Saturn rotation
+
+  handleMouseDown(clientX: number) {
+    this.isDragging = true;
+    this.lastMouseX = clientX;
+    this.lastMouseTime = performance.now();
+    this.mouseVelocities = [];
+  }
+
+  handleMouseMove(clientX: number) {
+    if (!this.isDragging) return;
+
+    const currentTime = performance.now();
+    const deltaTime = currentTime - this.lastMouseTime;
+
+    if (deltaTime > 0) {
+      const deltaX = clientX - this.lastMouseX;
+      const velocity = deltaX / deltaTime; // pixels per millisecond
+
+      // Store recent velocities (keep last 5 for smoothing)
+      this.mouseVelocities.push(velocity);
+      if (this.mouseVelocities.length > 5) {
+        this.mouseVelocities.shift();
+      }
+
+      // Apply direct rotation while dragging
+      this.angle += deltaX * 0.002;
+    }
+
+    this.lastMouseX = clientX;
+    this.lastMouseTime = currentTime;
+  }
+
+  handleMouseUp() {
+    if (this.isDragging && this.mouseVelocities.length > 0) {
+      this.applyFlingVelocity();
+    }
+    this.isDragging = false;
+  }
+
+  handleTouchStart(clientX: number) {
+    this.isDragging = true;
+    this.lastMouseX = clientX;
+    this.lastMouseTime = performance.now();
+    this.mouseVelocities = [];
+  }
+
+  handleTouchMove(clientX: number) {
+    if (!this.isDragging) return;
+
+    const currentTime = performance.now();
+    const deltaTime = currentTime - this.lastMouseTime;
+
+    if (deltaTime > 0) {
+      const deltaX = clientX - this.lastMouseX;
+      const velocity = deltaX / deltaTime;
+
+      this.mouseVelocities.push(velocity);
+      if (this.mouseVelocities.length > 5) {
+        this.mouseVelocities.shift();
+      }
+
+      this.angle += deltaX * 0.002;
+    }
+
+    this.lastMouseX = clientX;
+    this.lastMouseTime = currentTime;
+  }
+
+  handleTouchEnd() {
+    if (this.isDragging && this.mouseVelocities.length > 0) {
+      this.applyFlingVelocity();
+    }
+    this.isDragging = false;
+  }
+
+  private applyFlingVelocity() {
+    // Calculate average velocity from recent samples
+    const avgVelocity = this.mouseVelocities.reduce((a, b) => a + b, 0) / this.mouseVelocities.length;
+
+    // Threshold for considering it a "fling" (pixels per millisecond)
+    const flingThreshold = 0.3;
+    // Threshold for considering the rotation as "stopped" by user
+    const stopThreshold = 0.1;
+
+    if (Math.abs(avgVelocity) > flingThreshold) {
+      // User flung it - start rotating again
+      this.isStopped = false;
+
+      // Determine new direction based on fling direction
+      const newDirection = avgVelocity > 0 ? 1 : -1;
+
+      // If direction changed, update it permanently
+      if (newDirection !== this.rotationDirection) {
+        this.rotationDirection = newDirection;
+      }
+
+      // Calculate speed boost based on fling strength
+      // Map velocity to speed multiplier (stronger fling = faster rotation)
+      const speedMultiplier = Math.min(
+        this.maxSpeedMultiplier,
+        this.minSpeedMultiplier + Math.abs(avgVelocity) * 10
+      );
+
+      this.currentSpeed = this.baseSpeed * speedMultiplier;
+    } else if (Math.abs(avgVelocity) < stopThreshold) {
+      // User gently released - keep it stopped
+      this.isStopped = true;
+      this.currentSpeed = 0;
+    }
+    // If velocity is between stopThreshold and flingThreshold, 
+    // keep current state (don't change isStopped)
   }
 
   resize(width: number, height: number) {
@@ -104,10 +234,23 @@ export class SaturnEffect {
     this.ctx.clearRect(0, 0, this.width, this.height);
 
     // Normal blending
-    this.ctx.globalCompositeOperation = "source-over";
+    this.ctx.globalCompositeOperation = 'source-over';
 
-    // Slower rotation (from 0.0015 to 0.0005)
-    this.angle += 0.0005;
+    // Update rotation speed - decay towards base speed while maintaining direction
+    if (!this.isDragging && !this.isStopped) {
+      if (this.currentSpeed > this.baseSpeed) {
+        // Gradually decay speed back to base speed
+        this.currentSpeed = this.baseSpeed + (this.currentSpeed - this.baseSpeed) * this.speedDecayRate;
+
+        // Snap to base speed when close enough
+        if (this.currentSpeed - this.baseSpeed < 0.00001) {
+          this.currentSpeed = this.baseSpeed;
+        }
+      }
+
+      // Apply rotation with current speed and direction
+      this.angle += this.currentSpeed * this.rotationDirection;
+    }
 
     const cx = this.width * 0.6;
     const cy = this.height * 0.5;

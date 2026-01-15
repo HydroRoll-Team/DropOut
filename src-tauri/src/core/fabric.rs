@@ -63,10 +63,31 @@ pub struct FabricLibrary {
 }
 
 /// Main class configuration for Fabric.
+/// Can be either a struct with client/server fields or a simple string.
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct FabricMainClass {
-    pub client: String,
-    pub server: String,
+#[serde(untagged)]
+pub enum FabricMainClass {
+    Structured {
+        client: String,
+        server: String,
+    },
+    Simple(String),
+}
+
+impl FabricMainClass {
+    pub fn client(&self) -> &str {
+        match self {
+            FabricMainClass::Structured { client, .. } => client,
+            FabricMainClass::Simple(s) => s,
+        }
+    }
+    
+    pub fn server(&self) -> &str {
+        match self {
+            FabricMainClass::Structured { server, .. } => server,
+            FabricMainClass::Simple(s) => s,
+        }
+    }
 }
 
 /// Represents a Minecraft version supported by Fabric.

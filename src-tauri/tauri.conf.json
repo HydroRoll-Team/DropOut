@@ -1,6 +1,6 @@
 {
     "productName": "dropout",
-    "version": "0.1.21",
+    "version": "0.1.23",
     "identifier": "com.dropout.launcher",
     "build": {
         "beforeDevCommand": "pnpm -C ../ui dev",

@@ -18,6 +18,8 @@ pub struct LauncherConfig {
     pub enable_visual_effects: bool,
     pub active_effect: String,
     pub theme: String,
+    pub log_upload_service: String, // "paste.rs" or "pastebin.com"
+    pub pastebin_api_key: Option<String>,
 }
 
 impl Default for LauncherConfig {
@@ -34,6 +36,8 @@ impl Default for LauncherConfig {
             enable_visual_effects: true,
             active_effect: "constellation".to_string(),
             theme: "dark".to_string(),
+            log_upload_service: "paste.rs".to_string(),
+            pastebin_api_key: None,
         }
     }
 }
