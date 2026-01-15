@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
   JavaCatalog,
@@ -23,7 +24,18 @@ export class SettingsState {
     enable_visual_effects: true,
     active_effect: "constellation",
     theme: "dark",
+    custom_background_path: undefined,
+    log_upload_service: "paste.rs",
+    pastebin_api_key: undefined,
   });
+  
+  // Convert background path to proper asset URL
+  get backgroundUrl(): string | undefined {
+    if (this.settings.custom_background_path) {
+      return convertFileSrc(this.settings.custom_background_path);
+    }
+    return undefined;
+  }
   javaInstallations = $state<JavaInstallation[]>([]);
   isDetectingJava = $state(false);
 
@@ -134,6 +146,10 @@ export class SettingsState {
         this.settings.theme = "dark";
         this.saveSettings();
       }
+      // Ensure custom_background_path is reactive
+      if (!this.settings.custom_background_path) {
+         this.settings.custom_background_path = undefined;
+      }
     } catch (e) {
       console.error("Failed to load settings:", e);
     }
@@ -141,6 +157,11 @@ export class SettingsState {
 
   async saveSettings() {
     try {
+      // Ensure we clean up any invalid paths before saving
+      if (this.settings.custom_background_path === "") {
+        this.settings.custom_background_path = undefined;
+      }
+      
       await invoke("save_settings", { config: this.settings });
       uiState.setStatus("Settings saved!");
     } catch (e) {

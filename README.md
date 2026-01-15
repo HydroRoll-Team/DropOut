@@ -25,13 +25,13 @@ DropOut is a modern, minimalist, and efficient Minecraft launcher built with the
 
 ## Roadmap
 
-- [x] **Account Persistence** — Save login state between sessions
-- [x] **Token Refresh** — Auto-refresh expired Microsoft tokens
-- [x] **JVM Arguments Parsing** — Full support for `arguments.jvm` and `arguments.game` parsing
-- [x] **Java Auto-detection & Download** — Scan system and download Java runtimes
-- [x] **Fabric Loader Support** — Install and launch with Fabric
-- [x] **Forge Loader Support** — Install and launch with Forge
-- [x] **GitHub Releases Integration** — View changelogs in-app
+- [X] **Account Persistence** — Save login state between sessions
+- [X] **Token Refresh** — Auto-refresh expired Microsoft tokens
+- [X] **JVM Arguments Parsing** — Full support for `arguments.jvm` and `arguments.game` parsing
+- [X] **Java Auto-detection & Download** — Scan system and download Java runtimes
+- [X] **Fabric Loader Support** — Install and launch with Fabric
+- [X] **Forge Loader Support** — Install and launch with Forge
+- [X] **GitHub Releases Integration** — View changelogs in-app
 - [ ] **Instance/Profile System** — Multiple isolated game directories with different versions/mods
 - [ ] **Multi-account Support** — Switch between multiple accounts seamlessly
 - [ ] **Custom Game Directory** — Allow users to choose game files location
@@ -45,11 +45,11 @@ Download the latest release for your platform from the [Releases](https://github
 
 | Platform       | Files                   |
 | -------------- | ----------------------- |
-| Linux x86_64   | `.deb`, `.AppImage`     |
-| Linux ARM64    | `.deb`, `.AppImage`     |
-| macOS ARM64    | `.dmg`                  |
-| Windows x86_64 | `.msi`, `.exe`          |
-| Windows ARM64  | `.msi`, `.exe`          |
+| Linux x86_64   | `.deb`, `.AppImage` |
+| Linux ARM64    | `.deb`, `.AppImage` |
+| macOS ARM64    | `.dmg`                |
+| Windows x86_64 | `.msi`, `.exe`      |
+| Windows ARM64  | `.msi`, `.exe`      |
 
 ## Building from Source
 
@@ -67,7 +67,6 @@ Download the latest release for your platform from the [Releases](https://github
    git clone https://github.com/HsiangNianian/DropOut.git
    cd DropOut
    ```
-
 2. **Install Frontend Dependencies**
 
    ```bash
@@ -75,14 +74,12 @@ Download the latest release for your platform from the [Releases](https://github
    pnpm install
    cd ..
    ```
-
 3. **Run in Development Mode**
 
    ```bash
    # This will start the frontend server and the Tauri app window
    cargo tauri dev
    ```
-
 4. **Build Release Version**
 
    ```bash

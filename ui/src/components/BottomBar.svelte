@@ -2,7 +2,39 @@
   import { authState } from "../stores/auth.svelte";
   import { gameState } from "../stores/game.svelte";
   import { uiState } from "../stores/ui.svelte";
-  import { Terminal, ChevronDown, Play, User } from 'lucide-svelte';
+  import { Terminal, ChevronDown, Play, User, Check } from 'lucide-svelte';
+
+  let isVersionDropdownOpen = $state(false);
+  let dropdownRef: HTMLDivElement;
+
+  let versionOptions = $derived(
+    gameState.versions.length === 0 
+      ? [{ id: "loading", type: "loading", label: "Loading..." }]
+      : gameState.versions.map(v => ({
+          ...v,
+          label: `${v.id}${v.type !== 'release' ? ` (${v.type})` : ''}`
+        }))
+  );
+
+  function selectVersion(id: string) {
+    if (id !== "loading") {
+      gameState.selectedVersion = id;
+      isVersionDropdownOpen = false;
+    }
+  }
+
+  function handleClickOutside(e: MouseEvent) {
+    if (dropdownRef && !dropdownRef.contains(e.target as Node)) {
+      isVersionDropdownOpen = false;
+    }
+  }
+
+  $effect(() => {
+    if (isVersionDropdownOpen) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  });
 </script>
 
 <div
@@ -60,23 +92,56 @@
   <!-- Action Area -->
   <div class="flex items-center gap-4">
     <div class="flex flex-col items-end mr-2">
-      <div class="relative group">
-        <select
-          id="version-select"
-          bind:value={gameState.selectedVersion}
-          class="appearance-none dark:bg-zinc-900 bg-zinc-50 dark:text-white text-gray-900 border dark:border-white/10 border-black/10 rounded-sm pl-4 pr-10 py-2 dark:hover:border-white/30 hover:border-black/30 transition-all cursor-pointer outline-none focus:ring-1 focus:ring-zinc-500 w-56 text-sm font-mono"
+      <!-- Custom Version Dropdown -->
+      <div class="relative" bind:this={dropdownRef}>
+        <button
+          type="button"
+          onclick={() => isVersionDropdownOpen = !isVersionDropdownOpen}
+          class="flex items-center justify-between gap-2 w-56 px-4 py-2.5 text-left
+                 dark:bg-zinc-900 bg-zinc-50 border dark:border-zinc-700 border-zinc-300 rounded-md 
+                 text-sm font-mono dark:text-white text-gray-900
+                 dark:hover:border-zinc-600 hover:border-zinc-400 
+                 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30
+                 transition-colors cursor-pointer outline-none"
         >
-          {#if gameState.versions.length === 0}
-            <option>Loading...</option>
-          {:else}
-            {#each gameState.versions as version}
-              <option value={version.id}>{version.id} {version.type !== 'release' ? `(${version.type})` : ''}</option>
+          <span class="truncate">
+            {#if gameState.versions.length === 0}
+              Loading...
+            {:else}
+              {gameState.selectedVersion || "Select version"}
+            {/if}
+          </span>
+          <ChevronDown 
+            size={14} 
+            class="shrink-0 dark:text-zinc-500 text-zinc-400 transition-transform duration-200 {isVersionDropdownOpen ? 'rotate-180' : ''}" 
+          />
+        </button>
+
+        {#if isVersionDropdownOpen}
+          <div 
+            class="absolute z-50 w-full mt-1 py-1 dark:bg-zinc-900 bg-white border dark:border-zinc-700 border-zinc-300 rounded-md shadow-xl
+                   max-h-72 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150 bottom-full mb-1"
+          >
+            {#each versionOptions as version}
+              <button
+                type="button"
+                onclick={() => selectVersion(version.id)}
+                disabled={version.id === "loading"}
+                class="w-full flex items-center justify-between px-3 py-2 text-sm font-mono text-left
+                       transition-colors outline-none
+                       {version.id === gameState.selectedVersion 
+                         ? 'bg-indigo-600 text-white' 
+                         : 'dark:text-zinc-300 text-gray-700 dark:hover:bg-zinc-800 hover:bg-zinc-100'}
+                       {version.id === 'loading' ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}"
+              >
+                <span class="truncate">{version.label}</span>
+                {#if version.id === gameState.selectedVersion}
+                  <Check size={14} class="shrink-0 ml-2" />
+                {/if}
+              </button>
             {/each}
-          {/if}
-        </select>
-        <div class="absolute right-3 top-1/2 -translate-y-1/2 dark:text-white/20 text-black/20 pointer-events-none">
-            <ChevronDown size={14} />
-        </div>
+          </div>
+        {/if}
       </div>
     </div>
 

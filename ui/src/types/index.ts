@@ -35,6 +35,8 @@ export interface LauncherConfig {
   enable_visual_effects: boolean;
   active_effect: string;
   theme: string;
+  log_upload_service: "paste.rs" | "pastebin.com";
+  pastebin_api_key?: string;
 }
 
 export interface JavaInstallation {

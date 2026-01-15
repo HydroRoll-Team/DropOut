@@ -2,11 +2,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::process::Stdio;
-use std::ptr::null;
 use std::sync::Mutex;
 use tauri::{Emitter, Manager, State, Window}; // Added Emitter
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
+use serde::Serialize; // Added Serialize
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -291,6 +291,7 @@ async fn start_game(
     #[derive(serde::Deserialize, Debug)]
     struct AssetObject {
         hash: String,
+        #[allow(dead_code)]
         size: u64,
     }
 
@@ -826,7 +827,7 @@ async fn refresh_account(
         .map_err(|e| e.to_string())?;
     let storage = core::account_storage::AccountStorage::new(app_dir.clone());
 
-    let (stored_account, ms_refresh) = storage
+    let (_stored_account, ms_refresh) = storage
         .get_active_account()
         .ok_or("No active account found")?;
 
@@ -1124,8 +1125,84 @@ async fn get_github_releases() -> Result<Vec<GithubRelease>, String> {
     Ok(result)
 }
 
+#[derive(Serialize)]
+struct PastebinResponse {
+    url: String,
+}
+
+#[tauri::command]
+async fn upload_to_pastebin(
+    state: State<'_, core::config::ConfigState>,
+    content: String,
+) -> Result<PastebinResponse, String> {
+    // Check content length limit
+    if content.len() > 500 * 1024 {
+        return Err("Log file too large (max 500KB)".to_string());
+    }
+
+    // Extract config values before any async calls to avoid holding MutexGuard across await
+    let (service, api_key) = {
+        let config = state.config.lock().unwrap();
+        (
+            config.log_upload_service.clone(),
+            config.pastebin_api_key.clone(),
+        )
+    };
+
+    let client = reqwest::Client::new();
+
+    match service.as_str() {
+        "pastebin.com" => {
+            let api_key = api_key
+                .ok_or("Pastebin API Key not configured in settings")?;
+
+            let res = client
+                .post("https://pastebin.com/api/api_post.php")
+                .form(&[
+                    ("api_dev_key", api_key.as_str()),
+                    ("api_option", "paste"),
+                    ("api_paste_code", content.as_str()),
+                    ("api_paste_private", "1"), // Unlisted
+                    ("api_paste_name", "DropOut Launcher Log"),
+                    ("api_paste_expire_date", "1W"),
+                ])
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+
+            if !res.status().is_success() {
+                return Err(format!("Pastebin upload failed: {}", res.status()));
+            }
+
+            let url = res.text().await.map_err(|e| e.to_string())?;
+            if url.starts_with("Bad API Request") {
+                return Err(format!("Pastebin API error: {}", url));
+            }
+            Ok(PastebinResponse { url })
+        }
+        // Default to paste.rs
+        _ => {
+            let res = client
+                .post("https://paste.rs/")
+                .body(content)
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+
+            if !res.status().is_success() {
+                return Err(format!("paste.rs upload failed: {}", res.status()));
+            }
+
+            let url = res.text().await.map_err(|e| e.to_string())?;
+            let url = url.trim().to_string();
+            Ok(PastebinResponse { url })
+        }
+    }
+}
+
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .manage(core::auth::AccountState::new())
@@ -1194,7 +1271,8 @@ fn main() {
             get_forge_game_versions,
             get_forge_versions_for_game,
             install_forge,
-            get_github_releases
+            get_github_releases,
+            upload_to_pastebin
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

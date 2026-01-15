@@ -6,7 +6,7 @@
     ForgeVersion,
     ModLoaderType,
   } from "../types";
-  import { Loader2, Download, AlertCircle, Check } from 'lucide-svelte';
+  import { Loader2, Download, AlertCircle, Check, ChevronDown } from 'lucide-svelte';
 
   interface Props {
     selectedGameVersion: string;
@@ -23,10 +23,15 @@
   // Fabric state
   let fabricLoaders = $state<FabricLoaderVersion[]>([]);
   let selectedFabricLoader = $state("");
+  let isFabricDropdownOpen = $state(false);
 
   // Forge state
   let forgeVersions = $state<ForgeVersion[]>([]);
   let selectedForgeVersion = $state("");
+  let isForgeDropdownOpen = $state(false);
+
+  let fabricDropdownRef = $state<HTMLDivElement | null>(null);
+  let forgeDropdownRef = $state<HTMLDivElement | null>(null);
 
   // Load mod loader versions when game version changes
   $effect(() => {
@@ -111,6 +116,44 @@
       loadModLoaderVersions();
     }
   }
+
+  function handleFabricClickOutside(e: MouseEvent) {
+    if (fabricDropdownRef && !fabricDropdownRef.contains(e.target as Node)) {
+      isFabricDropdownOpen = false;
+    }
+  }
+
+  function handleForgeClickOutside(e: MouseEvent) {
+    if (forgeDropdownRef && !forgeDropdownRef.contains(e.target as Node)) {
+      isForgeDropdownOpen = false;
+    }
+  }
+
+  $effect(() => {
+    if (isFabricDropdownOpen) {
+      document.addEventListener('click', handleFabricClickOutside);
+      return () => document.removeEventListener('click', handleFabricClickOutside);
+    }
+  });
+
+  $effect(() => {
+    if (isForgeDropdownOpen) {
+      document.addEventListener('click', handleForgeClickOutside);
+      return () => document.removeEventListener('click', handleForgeClickOutside);
+    }
+  });
+
+  let selectedFabricLabel = $derived(
+    fabricLoaders.find(l => l.version === selectedFabricLoader)
+      ? `${selectedFabricLoader}${fabricLoaders.find(l => l.version === selectedFabricLoader)?.stable ? ' (stable)' : ''}`
+      : selectedFabricLoader || 'Select version'
+  );
+
+  let selectedForgeLabel = $derived(
+    forgeVersions.find(v => v.version === selectedForgeVersion)
+      ? `${selectedForgeVersion}${forgeVersions.find(v => v.version === selectedForgeVersion)?.recommended ? ' (Recommended)' : ''}`
+      : selectedForgeVersion || 'Select version'
+  );
 </script>
 
 <div class="space-y-4">
@@ -163,18 +206,48 @@
             <label for="fabric-loader-select" class="block text-[10px] uppercase font-bold text-zinc-500 mb-2"
             >Loader Version</label
             >
-            <div class="relative">
-                <select
-                id="fabric-loader-select"
-                class="w-full appearance-none bg-white dark:bg-black/20 border border-zinc-200 dark:border-white/10 rounded-sm px-4 py-2 text-sm focus:outline-none focus:border-black dark:focus:border-white text-gray-900 dark:text-white transition-colors"
-                bind:value={selectedFabricLoader}
+            <!-- Custom Fabric Dropdown -->
+            <div class="relative" bind:this={fabricDropdownRef}>
+                <button
+                    type="button"
+                    onclick={() => isFabricDropdownOpen = !isFabricDropdownOpen}
+                    class="w-full flex items-center justify-between gap-2 px-4 py-2.5 text-left
+                           bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-md 
+                           text-sm text-gray-900 dark:text-white
+                           hover:border-zinc-400 dark:hover:border-zinc-600 
+                           focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30
+                           transition-colors cursor-pointer outline-none"
                 >
-                {#each fabricLoaders as loader}
-                    <option value={loader.version}>
-                    {loader.version} {loader.stable ? "(stable)" : ""}
-                    </option>
-                {/each}
-                </select>
+                    <span class="truncate">{selectedFabricLabel}</span>
+                    <ChevronDown 
+                        size={14} 
+                        class="shrink-0 text-zinc-400 dark:text-zinc-500 transition-transform duration-200 {isFabricDropdownOpen ? 'rotate-180' : ''}" 
+                    />
+                </button>
+
+                {#if isFabricDropdownOpen}
+                    <div 
+                        class="absolute z-50 w-full mt-1 py-1 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-md shadow-xl
+                               max-h-48 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150"
+                    >
+                        {#each fabricLoaders as loader}
+                            <button
+                                type="button"
+                                onclick={() => { selectedFabricLoader = loader.version; isFabricDropdownOpen = false; }}
+                                class="w-full flex items-center justify-between px-3 py-2 text-sm text-left
+                                       transition-colors outline-none cursor-pointer
+                                       {loader.version === selectedFabricLoader 
+                                         ? 'bg-indigo-600 text-white' 
+                                         : 'text-gray-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'}"
+                            >
+                                <span class="truncate">{loader.version} {loader.stable ? "(stable)" : ""}</span>
+                                {#if loader.version === selectedFabricLoader}
+                                    <Check size={14} class="shrink-0 ml-2" />
+                                {/if}
+                            </button>
+                        {/each}
+                    </div>
+                {/if}
             </div>
         </div>
         
@@ -199,19 +272,48 @@
             <label for="forge-version-select" class="block text-[10px] uppercase font-bold text-zinc-500 mb-2"
                 >Forge Version</label
             >
-            <div class="relative">
-                <select
-                    id="forge-version-select"
-                    class="w-full appearance-none bg-white dark:bg-black/20 border border-zinc-200 dark:border-white/10 rounded-sm px-4 py-2 text-sm focus:outline-none focus:border-black dark:focus:border-white text-gray-900 dark:text-white transition-colors"
-                    bind:value={selectedForgeVersion}
+            <!-- Custom Forge Dropdown -->
+            <div class="relative" bind:this={forgeDropdownRef}>
+                <button
+                    type="button"
+                    onclick={() => isForgeDropdownOpen = !isForgeDropdownOpen}
+                    class="w-full flex items-center justify-between gap-2 px-4 py-2.5 text-left
+                           bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-md 
+                           text-sm text-gray-900 dark:text-white
+                           hover:border-zinc-400 dark:hover:border-zinc-600 
+                           focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30
+                           transition-colors cursor-pointer outline-none"
                 >
-                    {#each forgeVersions as version}
-                    <option value={version.version}>
-                        {version.version}
-                        {version.recommended ? " (Recommended)" : ""}
-                    </option>
-                    {/each}
-                </select>
+                    <span class="truncate">{selectedForgeLabel}</span>
+                    <ChevronDown 
+                        size={14} 
+                        class="shrink-0 text-zinc-400 dark:text-zinc-500 transition-transform duration-200 {isForgeDropdownOpen ? 'rotate-180' : ''}" 
+                    />
+                </button>
+
+                {#if isForgeDropdownOpen}
+                    <div 
+                        class="absolute z-50 w-full mt-1 py-1 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-md shadow-xl
+                               max-h-48 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150"
+                    >
+                        {#each forgeVersions as version}
+                            <button
+                                type="button"
+                                onclick={() => { selectedForgeVersion = version.version; isForgeDropdownOpen = false; }}
+                                class="w-full flex items-center justify-between px-3 py-2 text-sm text-left
+                                       transition-colors outline-none cursor-pointer
+                                       {version.version === selectedForgeVersion 
+                                         ? 'bg-indigo-600 text-white' 
+                                         : 'text-gray-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'}"
+                            >
+                                <span class="truncate">{version.version} {version.recommended ? "(Recommended)" : ""}</span>
+                                {#if version.version === selectedForgeVersion}
+                                    <Check size={14} class="shrink-0 ml-2" />
+                                {/if}
+                            </button>
+                        {/each}
+                    </div>
+                {/if}
             </div>
             </div>
             

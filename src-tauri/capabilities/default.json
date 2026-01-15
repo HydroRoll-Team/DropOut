@@ -13,6 +13,19 @@
     "core:path:default",
     "core:window:default",
     "shell:allow-open",
-    "dialog:default"
+    "dialog:default",
+    "fs:default",
+    {
+      "identifier": "fs:allow-read",
+      "allow": [{ "path": "**" }]
+    },
+    {
+        "identifier": "fs:allow-exists",
+        "allow": [{ "path": "**" }]
+    },
+    {
+        "identifier": "fs:allow-write-text-file",
+        "allow": [{ "path": "**" }]
+    }
   ]
 }

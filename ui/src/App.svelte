@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getVersion } from "@tauri-apps/api/app";
-  import { convertFileSrc } from "@tauri-apps/api/core";
+  // import { convertFileSrc } from "@tauri-apps/api/core"; // Removed duplicate, handled by import below or inline
   import { onDestroy, onMount } from "svelte";
   import DownloadMonitor from "./lib/DownloadMonitor.svelte";
   import GameConsole from "./lib/GameConsole.svelte";
@@ -18,6 +18,7 @@
   import { gameState } from "./stores/game.svelte";
   import { settingsState } from "./stores/settings.svelte";
   import { uiState } from "./stores/ui.svelte";
+  import { convertFileSrc } from "@tauri-apps/api/core";
 
   let mouseX = $state(0);
   let mouseY = $state(0);
@@ -63,6 +64,7 @@
         src={convertFileSrc(settingsState.settings.custom_background_path)}
         alt="Background"
         class="absolute inset-0 w-full h-full object-cover transition-transform duration-[20s] ease-linear hover:scale-105"
+        onerror={(e) => console.error("Failed to load main background:", e)}
       />
       <!-- Dimming Overlay for readability -->
       <div class="absolute inset-0 bg-black/50 "></div>
@@ -129,7 +131,9 @@
           </div>
           
           <!-- Bottom Bar -->
-          <BottomBar />
+          {#if uiState.currentView === "home"}
+            <BottomBar />
+          {/if}
       </div>
     </main>
   </div>
@@ -138,10 +142,8 @@
   <StatusToast />
   
   {#if uiState.showConsole}
-     <!-- Assuming GameConsole handles its own display mode or overlay -->
-    <div class="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-10">
-        <div class="w-full h-full bg-[#1e1e1e] rounded-xl overflow-hidden border border-white/10 shadow-2xl relative">
-            <button class="absolute top-4 right-4 text-white hover:text-red-400 z-10" onclick={() => uiState.toggleConsole()}>✕</button>
+    <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-8">
+        <div class="w-full h-full max-w-6xl max-h-[85vh] bg-[#1e1e1e] rounded-lg overflow-hidden border border-zinc-700 shadow-2xl relative flex flex-col">
             <GameConsole />
         </div>
     </div>
