@@ -49,7 +49,7 @@
       };
 
       // Replace emojis
-      let processed = body.replace(/:[a-z0-9_]+:/g, (match) => emojiMap[match] || match);
+      processed = processed.replace(/:[a-z0-9_]+:/g, (match) => emojiMap[match] || match);
 
       // GitHub commit hash linking (simple version for 7-40 hex chars inside backticks)
       processed = processed.replace(/`([0-9a-f]{7,40})`/g, (match, hash) => {

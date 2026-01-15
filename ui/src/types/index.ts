@@ -154,4 +154,3 @@ export interface InstalledForgeVersion {
 // ==================== Mod Loader Type ====================
 
 export type ModLoaderType = "vanilla" | "fabric" | "forge";
-

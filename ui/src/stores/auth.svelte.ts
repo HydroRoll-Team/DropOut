@@ -11,7 +11,7 @@ export class AuthState {
   deviceCodeData = $state<DeviceCodeResponse | null>(null);
   msLoginLoading = $state(false);
   msLoginStatus = $state("Waiting for authorization...");
-  
+
   private pollInterval: ReturnType<typeof setInterval> | null = null;
   private isPollingRequestActive = false;
 
@@ -66,9 +66,7 @@ export class AuthState {
     this.stopPolling();
 
     try {
-      this.deviceCodeData = (await invoke(
-        "start_microsoft_login"
-      )) as DeviceCodeResponse;
+      this.deviceCodeData = (await invoke("start_microsoft_login")) as DeviceCodeResponse;
 
       if (this.deviceCodeData) {
         try {
@@ -83,7 +81,7 @@ export class AuthState {
         const intervalMs = (this.deviceCodeData.interval || 5) * 1000;
         this.pollInterval = setInterval(
           () => this.checkLoginStatus(this.deviceCodeData!.device_code),
-          intervalMs
+          intervalMs,
         );
       }
     } catch (e) {
@@ -122,11 +120,8 @@ export class AuthState {
       } else {
         console.error("Polling Error:", errStr);
         this.msLoginStatus = "Error: " + errStr;
-        
-        if (
-          errStr.includes("expired_token") ||
-          errStr.includes("access_denied")
-        ) {
+
+        if (errStr.includes("expired_token") || errStr.includes("access_denied")) {
           this.stopPolling();
           alert("Login failed: " + errStr);
           this.loginMode = "select";
