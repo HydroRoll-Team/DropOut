@@ -68,6 +68,7 @@ async fn start_game(
     auth_state: State<'_, core::auth::AccountState>,
     config_state: State<'_, core::config::ConfigState>,
     version_id: String,
+    instance_id: Option<String>,
 ) -> Result<String, String> {
     emit_log!(
         window,
@@ -93,20 +94,56 @@ async fn start_game(
     );
 
     let config = config_state.config.lock().unwrap().clone();
-    emit_log!(window, format!("Java path: {}", config.java_path));
-    emit_log!(
-        window,
-        format!("Memory: {}MB - {}MB", config.min_memory, config.max_memory)
-    );
-
-    // Get App Data Directory (e.g., ~/.local/share/com.dropout.launcher or similar)
-    // The identifier is set in tauri.conf.json.
-    // If not accessible, use a specific logic.
+    
+    // Get App Data Directory
     let app_handle = window.app_handle();
-    let game_dir = app_handle
+    let app_data_dir = app_handle
         .path()
         .app_data_dir()
         .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+
+    // Determine game directory and settings based on instance
+    let (game_dir, java_path, min_memory, max_memory, _game_width, _game_height, jvm_args) = 
+        if let Some(ref inst_id) = instance_id {
+            let manager = core::instance::InstanceManager::new(app_data_dir.clone());
+            let instance = manager.load_instance(inst_id)?;
+            
+            // Update last played time
+            let _ = manager.update_last_played(inst_id);
+            
+            emit_log!(window, format!("Using instance: {} ({})", instance.name, inst_id));
+            
+            // Instance directory is the game directory
+            let inst_dir = manager.instance_dir(inst_id);
+            
+            // Use instance settings if set, otherwise fall back to global config
+            (
+                inst_dir,
+                instance.java_path.unwrap_or_else(|| config.java_path.clone()),
+                instance.min_memory.unwrap_or(config.min_memory),
+                instance.max_memory.unwrap_or(config.max_memory),
+                instance.width.unwrap_or(config.width),
+                instance.height.unwrap_or(config.height),
+                instance.jvm_args.clone(),
+            )
+        } else {
+            // Legacy mode: use app data dir directly
+            (
+                app_data_dir.clone(),
+                config.java_path.clone(),
+                config.min_memory,
+                config.max_memory,
+                config.width,
+                config.height,
+                None,
+            )
+        };
+
+    emit_log!(window, format!("Java path: {}", java_path));
+    emit_log!(
+        window,
+        format!("Memory: {}MB - {}MB", min_memory, max_memory)
+    );
 
     // Ensure game directory exists
     tokio::fs::create_dir_all(&game_dir)
@@ -114,6 +151,9 @@ async fn start_game(
         .map_err(|e| e.to_string())?;
 
     emit_log!(window, format!("Game directory: {:?}", game_dir));
+    
+    // Shared directories (assets, libraries, versions) are in app_data_dir
+    let shared_dir = app_data_dir;
 
     // 1. Load version (supports both vanilla and modded versions with inheritance)
     emit_log!(
@@ -123,12 +163,13 @@ async fn start_game(
 
     // First, load the local version to get the original inheritsFrom value
     // (before merge clears it)
-    let original_inherits_from = match core::manifest::load_local_version(&game_dir, &version_id).await {
+    // Version data is stored in shared_dir
+    let original_inherits_from = match core::manifest::load_local_version(&shared_dir, &version_id).await {
         Ok(local_version) => local_version.inherits_from.clone(),
         Err(_) => None,
     };
 
-    let version_details = core::manifest::load_version(&game_dir, &version_id)
+    let version_details = core::manifest::load_version(&shared_dir, &version_id)
         .await
         .map_err(|e| e.to_string())?;
 
@@ -151,12 +192,13 @@ async fn start_game(
 
     // --- Client Jar ---
     // Get downloads from version_details (may be inherited)
+    // Client jar and libraries are stored in shared_dir
     let downloads = version_details
         .downloads
         .as_ref()
         .ok_or("Version has no downloads information")?;
     let client_jar = &downloads.client;
-    let mut client_path = game_dir.join("versions");
+    let mut client_path = shared_dir.join("versions");
     client_path.push(&minecraft_version);
     client_path.push(format!("{}.jar", minecraft_version));
 
@@ -169,7 +211,7 @@ async fn start_game(
 
     // --- Libraries ---
     println!("Processing libraries...");
-    let libraries_dir = game_dir.join("libraries");
+    let libraries_dir = shared_dir.join("libraries");
     let mut native_libs_paths = Vec::new(); // Store paths to native jars for extraction
 
     for lib in &version_details.libraries {
@@ -251,8 +293,9 @@ async fn start_game(
     }
 
     // --- Assets ---
+    // Assets are stored in shared_dir
     println!("Fetching asset index...");
-    let assets_dir = game_dir.join("assets");
+    let assets_dir = shared_dir.join("assets");
     let objects_dir = assets_dir.join("objects");
     let indexes_dir = assets_dir.join("indexes");
 
@@ -353,8 +396,9 @@ async fn start_game(
     emit_log!(window, "All downloads completed successfully".to_string());
 
     // 5. Extract Natives
+    // Natives are extracted to shared_dir/versions/{version}/natives
     emit_log!(window, "Extracting native libraries...".to_string());
-    let natives_dir = game_dir.join("versions").join(&version_id).join("natives");
+    let natives_dir = shared_dir.join("versions").join(&version_id).join("natives");
 
     // Clean old natives if they exist to prevent conflicts
     if natives_dir.exists() {
@@ -420,9 +464,18 @@ async fn start_game(
         }
     }
 
-    // Add memory settings (these override any defaults)
-    args.push(format!("-Xmx{}M", config.max_memory));
-    args.push(format!("-Xms{}M", config.min_memory));
+    // Add memory settings (use instance settings if available)
+    args.push(format!("-Xmx{}M", max_memory));
+    args.push(format!("-Xms{}M", min_memory));
+    
+    // Add custom JVM args if specified for this instance
+    if let Some(ref custom_jvm_args) = jvm_args {
+        for arg in custom_jvm_args.split_whitespace() {
+            if !arg.is_empty() {
+                args.push(arg.to_string());
+            }
+        }
+    }
 
     // Ensure natives path is set if not already in jvm args
     if !args.iter().any(|a| a.contains("-Djava.library.path")) {
@@ -535,11 +588,11 @@ async fn start_game(
     // Spawn the process
     emit_log!(
         window,
-        format!("Starting Java process: {}", config.java_path)
+        format!("Starting Java process: {}", java_path)
     );
-    let mut command = Command::new(&config.java_path);
+    let mut command = Command::new(&java_path);
     command.args(&args);
-    command.current_dir(&game_dir); // Run in game directory
+    command.current_dir(&game_dir); // Run in instance/game directory
     command.stdout(Stdio::piped());
     command.stderr(Stdio::piped());
 
@@ -1640,6 +1693,160 @@ async fn upload_to_pastebin(
     }
 }
 
+// ==================== Instance Commands ====================
+
+/// Create a new game instance
+#[tauri::command]
+async fn create_instance(
+    app_handle: tauri::AppHandle,
+    name: String,
+    version_id: String,
+) -> Result<core::instance::Instance, String> {
+    let app_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+    
+    let manager = core::instance::InstanceManager::new(app_dir);
+    manager.create_instance(name, version_id)
+}
+
+/// Delete a game instance
+#[tauri::command]
+async fn delete_instance(
+    app_handle: tauri::AppHandle,
+    instance_id: String,
+) -> Result<(), String> {
+    let app_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+    
+    let manager = core::instance::InstanceManager::new(app_dir);
+    manager.delete_instance(&instance_id)
+}
+
+/// List all game instances
+#[tauri::command]
+async fn list_instances(
+    app_handle: tauri::AppHandle,
+) -> Result<Vec<core::instance::Instance>, String> {
+    let app_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+    
+    let manager = core::instance::InstanceManager::new(app_dir);
+    manager.list_instances()
+}
+
+/// Get a single instance by ID
+#[tauri::command]
+async fn get_instance(
+    app_handle: tauri::AppHandle,
+    instance_id: String,
+) -> Result<core::instance::Instance, String> {
+    let app_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+    
+    let manager = core::instance::InstanceManager::new(app_dir);
+    manager.load_instance(&instance_id)
+}
+
+/// Update an instance
+#[tauri::command]
+async fn update_instance(
+    app_handle: tauri::AppHandle,
+    instance: core::instance::Instance,
+) -> Result<core::instance::Instance, String> {
+    let app_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+    
+    let manager = core::instance::InstanceManager::new(app_dir);
+    manager.update_instance(instance)
+}
+
+/// Duplicate an instance
+#[tauri::command]
+async fn duplicate_instance(
+    app_handle: tauri::AppHandle,
+    instance_id: String,
+    new_name: String,
+) -> Result<core::instance::Instance, String> {
+    let app_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+    
+    let manager = core::instance::InstanceManager::new(app_dir);
+    manager.duplicate_instance(&instance_id, new_name)
+}
+
+/// Export an instance to a zip file
+#[tauri::command]
+async fn export_instance(
+    app_handle: tauri::AppHandle,
+    instance_id: String,
+    output_path: String,
+) -> Result<(), String> {
+    let app_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+    
+    let manager = core::instance::InstanceManager::new(app_dir);
+    manager.export_instance(&instance_id, std::path::PathBuf::from(output_path)).await
+}
+
+/// Import an instance from a zip file
+#[tauri::command]
+async fn import_instance(
+    app_handle: tauri::AppHandle,
+    zip_path: String,
+    name: Option<String>,
+) -> Result<core::instance::Instance, String> {
+    let app_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+    
+    let manager = core::instance::InstanceManager::new(app_dir);
+    manager.import_instance(std::path::PathBuf::from(zip_path), name).await
+}
+
+/// Set the active instance
+#[tauri::command]
+async fn set_active_instance(
+    app_handle: tauri::AppHandle,
+    instance_id: Option<String>,
+) -> Result<(), String> {
+    let app_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+    
+    let manager = core::instance::InstanceManager::new(app_dir);
+    manager.set_active_instance(instance_id)
+}
+
+/// Get the active instance ID
+#[tauri::command]
+async fn get_active_instance(
+    app_handle: tauri::AppHandle,
+) -> Result<Option<String>, String> {
+    let app_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+    
+    let manager = core::instance::InstanceManager::new(app_dir);
+    manager.get_active_instance_id()
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
@@ -1715,7 +1922,18 @@ fn main() {
             get_forge_versions_for_game,
             install_forge,
             get_github_releases,
-            upload_to_pastebin
+            upload_to_pastebin,
+            // Instance commands
+            create_instance,
+            delete_instance,
+            list_instances,
+            get_instance,
+            update_instance,
+            duplicate_instance,
+            export_instance,
+            import_instance,
+            set_active_instance,
+            get_active_instance
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
