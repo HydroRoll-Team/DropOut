@@ -1078,6 +1078,52 @@ async fn install_forge(
     Ok(result)
 }
 
+#[derive(serde::Serialize)]
+struct GithubRelease {
+    tag_name: String,
+    name: String,
+    published_at: String,
+    body: String,
+    html_url: String,
+}
+
+#[tauri::command]
+async fn get_github_releases() -> Result<Vec<GithubRelease>, String> {
+    let client = reqwest::Client::new();
+    let res = client
+        .get("https://api.github.com/repos/HsiangNianian/DropOut/releases")
+        .header("User-Agent", "DropOut-Launcher")
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if !res.status().is_success() {
+        return Err(format!("GitHub API returned status: {}", res.status()));
+    }
+
+    let releases: Vec<serde_json::Value> = res.json().await.map_err(|e| e.to_string())?;
+
+    let mut result = Vec::new();
+    for r in releases {
+        if let (Some(tag), Some(name), Some(date), Some(body), Some(url)) = (
+            r["tag_name"].as_str(),
+            r["name"].as_str(),
+            r["published_at"].as_str(),
+            r["body"].as_str(),
+            r["html_url"].as_str()
+        ) {
+            result.push(GithubRelease {
+                tag_name: tag.to_string(),
+                name: name.to_string(),
+                published_at: date.to_string(),
+                body: body.to_string(),
+                html_url: url.to_string(),
+            });
+        }
+    }
+    Ok(result)
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -1147,7 +1193,8 @@ fn main() {
             // Forge commands
             get_forge_game_versions,
             get_forge_versions_for_game,
-            install_forge
+            install_forge,
+            get_github_releases
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
