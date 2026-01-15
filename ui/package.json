@@ -30,6 +30,9 @@
   "dependencies": {
     "@tauri-apps/api": "^2.9.1",
     "@tauri-apps/plugin-dialog": "^2.5.0",
-    "@tauri-apps/plugin-shell": "^2.3.4"
+    "@tauri-apps/plugin-shell": "^2.3.4",
+    "lucide-svelte": "^0.562.0",
+    "marked": "^17.0.1",
+    "node-emoji": "^2.2.0"
   }
 }
