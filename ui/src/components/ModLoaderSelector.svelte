@@ -166,7 +166,7 @@
             <div class="relative">
                 <select
                 id="fabric-loader-select"
-                class="w-full appearance-none bg-white dark:bg-black/20 border border-zinc-200 dark:border-white/10 rounded-sm px-4 py-2 text-sm focus:outline-none focus:border-black dark:focus:border-white text-gray-900 dark:text-white transition-colors"
+                class="w-full bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-md px-4 py-2.5 pr-10 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 text-gray-900 dark:text-white transition-colors cursor-pointer hover:border-zinc-400 dark:hover:border-zinc-600"
                 bind:value={selectedFabricLoader}
                 >
                 {#each fabricLoaders as loader}
@@ -202,7 +202,7 @@
             <div class="relative">
                 <select
                     id="forge-version-select"
-                    class="w-full appearance-none bg-white dark:bg-black/20 border border-zinc-200 dark:border-white/10 rounded-sm px-4 py-2 text-sm focus:outline-none focus:border-black dark:focus:border-white text-gray-900 dark:text-white transition-colors"
+                    class="w-full bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-md px-4 py-2.5 pr-10 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 text-gray-900 dark:text-white transition-colors cursor-pointer hover:border-zinc-400 dark:hover:border-zinc-600"
                     bind:value={selectedForgeVersion}
                 >
                     {#each forgeVersions as version}
