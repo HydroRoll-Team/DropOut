@@ -26,8 +26,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm'
+          cache: "pnpm"
           cache-dependency-path: ui/pnpm-lock.yaml
 
       - run: pnpm check
+        working-directory: ui
+
+      - run: pnpm format
+        working-directory: ui
+
+      - run: pnpm lint
         working-directory: ui
