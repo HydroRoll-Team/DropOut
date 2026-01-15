@@ -848,8 +848,8 @@ async fn refresh_account(
 
 /// Detect Java installations on the system
 #[tauri::command]
-async fn detect_java() -> Result<Vec<core::java::JavaInstallation>, String> {
-    Ok(core::java::detect_all_java_installations())
+async fn detect_java(app_handle: tauri::AppHandle) -> Result<Vec<core::java::JavaInstallation>, String> {
+    Ok(core::java::detect_all_java_installations(&app_handle))
 }
 
 /// Get recommended Java for a specific Minecraft version
@@ -876,6 +876,7 @@ async fn fetch_adoptium_java(
 /// Download and install Adoptium Java
 #[tauri::command]
 async fn download_adoptium_java(
+    app_handle: tauri::AppHandle,
     major_version: u32,
     image_type: String,
     custom_path: Option<String>,
@@ -885,7 +886,7 @@ async fn download_adoptium_java(
         _ => core::java::ImageType::Jre,
     };
     let path = custom_path.map(std::path::PathBuf::from);
-    core::java::download_and_install_java(major_version, img_type, path).await
+    core::java::download_and_install_java(&app_handle, major_version, img_type, path).await
 }
 
 /// Get available Adoptium Java versions

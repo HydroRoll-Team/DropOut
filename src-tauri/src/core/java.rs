@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::process::Command;
+use tauri::AppHandle;
+use tauri::Manager;
 
 use crate::core::downloader;
 use crate::utils::zip;
@@ -134,11 +136,8 @@ pub fn get_adoptium_arch() -> &'static str {
 }
 
 /// Get the default Java installation directory for DropOut
-pub fn get_java_install_dir() -> PathBuf {
-    dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join(".dropout")
-        .join("java")
+pub fn get_java_install_dir(app_handle: &AppHandle) -> PathBuf {
+    app_handle.path().app_data_dir().unwrap().join("java")
 }
 
 /// Get Adoptium API download info for a specific Java version and image type
@@ -222,6 +221,7 @@ pub async fn fetch_available_versions() -> Result<Vec<u32>, String> {
 /// Download and install Java
 ///
 /// # Arguments
+/// * `app_handle` - Tauri app handle for accessing app directories
 /// * `major_version` - Java major version (e.g., 8, 11, 17)
 /// * `image_type` - JRE or JDK
 /// * `custom_path` - Optional custom installation path
@@ -229,6 +229,7 @@ pub async fn fetch_available_versions() -> Result<Vec<u32>, String> {
 /// # Returns
 /// * `Ok(JavaInstallation)` - Information about the successfully installed Java
 pub async fn download_and_install_java(
+    app_handle: &AppHandle,
     major_version: u32,
     image_type: ImageType,
     custom_path: Option<PathBuf>,
@@ -237,7 +238,7 @@ pub async fn download_and_install_java(
     let info = fetch_java_release(major_version, image_type).await?;
 
     // 2. Prepare installation directory
-    let install_base = custom_path.unwrap_or_else(get_java_install_dir);
+    let install_base = custom_path.unwrap_or_else(|| get_java_install_dir(app_handle));
     let version_dir = install_base.join(format!("temurin-{}-{}", major_version, image_type));
 
     std::fs::create_dir_all(&install_base)
@@ -597,11 +598,11 @@ pub fn get_recommended_java(required_major_version: Option<u64>) -> Option<JavaI
 }
 
 /// Detect all installed Java versions (including system installations and DropOut downloads)
-pub fn detect_all_java_installations() -> Vec<JavaInstallation> {
+pub fn detect_all_java_installations(app_handle: &AppHandle) -> Vec<JavaInstallation> {
     let mut installations = detect_java_installations();
 
     // Add DropOut downloaded Java versions
-    let dropout_java_dir = get_java_install_dir();
+    let dropout_java_dir = get_java_install_dir(app_handle);
     if dropout_java_dir.exists() {
         if let Ok(entries) = std::fs::read_dir(&dropout_java_dir) {
             for entry in entries.flatten() {
