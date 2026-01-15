@@ -895,6 +895,45 @@ async fn fetch_available_java_versions() -> Result<Vec<u32>, String> {
     core::java::fetch_available_versions().await
 }
 
+/// Fetch Java catalog with platform availability (uses cache)
+#[tauri::command]
+async fn fetch_java_catalog(
+    app_handle: tauri::AppHandle,
+) -> Result<core::java::JavaCatalog, String> {
+    core::java::fetch_java_catalog(&app_handle, false).await
+}
+
+/// Refresh Java catalog (bypass cache)
+#[tauri::command]
+async fn refresh_java_catalog(
+    app_handle: tauri::AppHandle,
+) -> Result<core::java::JavaCatalog, String> {
+    core::java::fetch_java_catalog(&app_handle, true).await
+}
+
+/// Cancel current Java download
+#[tauri::command]
+async fn cancel_java_download() -> Result<(), String> {
+    core::java::cancel_current_download();
+    Ok(())
+}
+
+/// Get pending Java downloads
+#[tauri::command]
+async fn get_pending_java_downloads(
+    app_handle: tauri::AppHandle,
+) -> Result<Vec<core::downloader::PendingJavaDownload>, String> {
+    Ok(core::java::get_pending_downloads(&app_handle))
+}
+
+/// Resume pending Java downloads
+#[tauri::command]
+async fn resume_java_downloads(
+    app_handle: tauri::AppHandle,
+) -> Result<Vec<core::java::JavaInstallation>, String> {
+    core::java::resume_pending_downloads(&app_handle).await
+}
+
 /// Get Minecraft versions supported by Fabric
 #[tauri::command]
 async fn get_fabric_game_versions() -> Result<Vec<core::fabric::FabricGameVersion>, String> {
@@ -1067,6 +1106,13 @@ fn main() {
                 println!("[Startup] Loaded saved account");
             }
 
+            // Check for pending Java downloads and notify frontend
+            let pending = core::java::get_pending_downloads(&app.app_handle());
+            if !pending.is_empty() {
+                println!("[Startup] Found {} pending Java download(s)", pending.len());
+                let _ = app.emit("pending-java-downloads", pending.len());
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -1080,11 +1126,17 @@ fn main() {
             start_microsoft_login,
             complete_microsoft_login,
             refresh_account,
+            // Java commands
             detect_java,
             get_recommended_java,
             fetch_adoptium_java,
             download_adoptium_java,
             fetch_available_java_versions,
+            fetch_java_catalog,
+            refresh_java_catalog,
+            cancel_java_download,
+            get_pending_java_downloads,
+            resume_java_downloads,
             // Fabric commands
             get_fabric_game_versions,
             get_fabric_loader_versions,

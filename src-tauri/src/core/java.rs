@@ -2,10 +2,14 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::process::Command;
 use tauri::AppHandle;
+use tauri::Emitter;
 use tauri::Manager;
 
-use crate::core::downloader;
+use crate::core::downloader::{self, JavaDownloadProgress, DownloadQueue, PendingJavaDownload};
 use crate::utils::zip;
+
+const ADOPTIUM_API_BASE: &str = "https://api.adoptium.net/v3";
+const CACHE_DURATION_SECS: u64 = 24 * 60 * 60; // 24 hours
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JavaInstallation {
@@ -37,6 +41,42 @@ impl std::fmt::Display for ImageType {
     }
 }
 
+/// Java release information for UI display
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JavaReleaseInfo {
+    pub major_version: u32,
+    pub image_type: String,
+    pub version: String,
+    pub release_name: String,
+    pub release_date: Option<String>,
+    pub file_size: u64,
+    pub checksum: Option<String>,
+    pub download_url: String,
+    pub is_lts: bool,
+    pub is_available: bool,
+    pub architecture: String,
+}
+
+/// Java catalog containing all available versions
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JavaCatalog {
+    pub releases: Vec<JavaReleaseInfo>,
+    pub available_major_versions: Vec<u32>,
+    pub lts_versions: Vec<u32>,
+    pub cached_at: u64,
+}
+
+impl Default for JavaCatalog {
+    fn default() -> Self {
+        Self {
+            releases: Vec::new(),
+            available_major_versions: Vec::new(),
+            lts_versions: Vec::new(),
+            cached_at: 0,
+        }
+    }
+}
+
 /// Adoptium `/v3/assets/latest/{version}/hotspot` API response structures
 #[derive(Debug, Clone, Deserialize)]
 pub struct AdoptiumAsset {
@@ -51,6 +91,8 @@ pub struct AdoptiumBinary {
     pub architecture: String,
     pub image_type: String,
     pub package: AdoptiumPackage,
+    #[serde(default)]
+    pub updated_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -68,6 +110,15 @@ pub struct AdoptiumVersionData {
     pub security: u32,
     pub semver: String,
     pub openjdk_version: String,
+}
+
+/// Adoptium available releases response
+#[derive(Debug, Clone, Deserialize)]
+pub struct AvailableReleases {
+    pub available_releases: Vec<u32>,
+    pub available_lts_releases: Vec<u32>,
+    pub most_recent_lts: Option<u32>,
+    pub most_recent_feature_release: Option<u32>,
 }
 
 /// Java download information from Adoptium
@@ -140,6 +191,170 @@ pub fn get_java_install_dir(app_handle: &AppHandle) -> PathBuf {
     app_handle.path().app_data_dir().unwrap().join("java")
 }
 
+/// Get the cache file path for Java catalog
+fn get_catalog_cache_path(app_handle: &AppHandle) -> PathBuf {
+    app_handle
+        .path()
+        .app_data_dir()
+        .unwrap()
+        .join("java_catalog_cache.json")
+}
+
+/// Load cached Java catalog if not expired
+pub fn load_cached_catalog(app_handle: &AppHandle) -> Option<JavaCatalog> {
+    let cache_path = get_catalog_cache_path(app_handle);
+    if !cache_path.exists() {
+        return None;
+    }
+
+    let content = std::fs::read_to_string(&cache_path).ok()?;
+    let catalog: JavaCatalog = serde_json::from_str(&content).ok()?;
+
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+
+    if now - catalog.cached_at < CACHE_DURATION_SECS {
+        Some(catalog)
+    } else {
+        None
+    }
+}
+
+/// Save Java catalog to cache
+pub fn save_catalog_cache(app_handle: &AppHandle, catalog: &JavaCatalog) -> Result<(), String> {
+    let cache_path = get_catalog_cache_path(app_handle);
+    let content = serde_json::to_string_pretty(catalog).map_err(|e| e.to_string())?;
+    std::fs::write(&cache_path, content).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Clear Java catalog cache
+pub fn clear_catalog_cache(app_handle: &AppHandle) -> Result<(), String> {
+    let cache_path = get_catalog_cache_path(app_handle);
+    if cache_path.exists() {
+        std::fs::remove_file(&cache_path).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+/// Fetch complete Java catalog from Adoptium API with platform availability check
+pub async fn fetch_java_catalog(app_handle: &AppHandle, force_refresh: bool) -> Result<JavaCatalog, String> {
+    // Check cache first unless force refresh
+    if !force_refresh {
+        if let Some(cached) = load_cached_catalog(app_handle) {
+            return Ok(cached);
+        }
+    }
+
+    let os = get_adoptium_os();
+    let arch = get_adoptium_arch();
+    let client = reqwest::Client::new();
+
+    // 1. Fetch available releases
+    let releases_url = format!("{}/info/available_releases", ADOPTIUM_API_BASE);
+    let available: AvailableReleases = client
+        .get(&releases_url)
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch available releases: {}", e))?
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse available releases: {}", e))?;
+
+    let mut releases = Vec::new();
+
+    // 2. Fetch details for each major version
+    for major_version in &available.available_releases {
+        for image_type in &["jre", "jdk"] {
+            let url = format!(
+                "{}/assets/latest/{}/hotspot?os={}&architecture={}&image_type={}",
+                ADOPTIUM_API_BASE, major_version, os, arch, image_type
+            );
+
+            match client
+                .get(&url)
+                .header("Accept", "application/json")
+                .send()
+                .await
+            {
+                Ok(response) => {
+                    if response.status().is_success() {
+                        if let Ok(assets) = response.json::<Vec<AdoptiumAsset>>().await {
+                            if let Some(asset) = assets.into_iter().next() {
+                                let release_date = asset.binary.updated_at.clone();
+                                releases.push(JavaReleaseInfo {
+                                    major_version: *major_version,
+                                    image_type: image_type.to_string(),
+                                    version: asset.version.semver.clone(),
+                                    release_name: asset.release_name.clone(),
+                                    release_date,
+                                    file_size: asset.binary.package.size,
+                                    checksum: asset.binary.package.checksum,
+                                    download_url: asset.binary.package.link,
+                                    is_lts: available.available_lts_releases.contains(major_version),
+                                    is_available: true,
+                                    architecture: asset.binary.architecture.clone(),
+                                });
+                            }
+                        }
+                    } else {
+                        // Platform not available for this version/type
+                        releases.push(JavaReleaseInfo {
+                            major_version: *major_version,
+                            image_type: image_type.to_string(),
+                            version: format!("{}.x", major_version),
+                            release_name: format!("jdk-{}", major_version),
+                            release_date: None,
+                            file_size: 0,
+                            checksum: None,
+                            download_url: String::new(),
+                            is_lts: available.available_lts_releases.contains(major_version),
+                            is_available: false,
+                            architecture: arch.to_string(),
+                        });
+                    }
+                }
+                Err(_) => {
+                    // Network error, mark as unavailable
+                    releases.push(JavaReleaseInfo {
+                        major_version: *major_version,
+                        image_type: image_type.to_string(),
+                        version: format!("{}.x", major_version),
+                        release_name: format!("jdk-{}", major_version),
+                        release_date: None,
+                        file_size: 0,
+                        checksum: None,
+                        download_url: String::new(),
+                        is_lts: available.available_lts_releases.contains(major_version),
+                        is_available: false,
+                        architecture: arch.to_string(),
+                    });
+                }
+            }
+        }
+    }
+
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+
+    let catalog = JavaCatalog {
+        releases,
+        available_major_versions: available.available_releases,
+        lts_versions: available.available_lts_releases,
+        cached_at: now,
+    };
+
+    // Save to cache
+    let _ = save_catalog_cache(app_handle, &catalog);
+
+    Ok(catalog)
+}
+
 /// Get Adoptium API download info for a specific Java version and image type
 ///
 /// # Arguments
@@ -157,8 +372,8 @@ pub async fn fetch_java_release(
     let arch = get_adoptium_arch();
 
     let url = format!(
-        "https://api.adoptium.net/v3/assets/latest/{}/hotspot?os={}&architecture={}&image_type={}",
-        major_version, os, arch, image_type
+        "{}/assets/latest/{}/hotspot?os={}&architecture={}&image_type={}",
+        ADOPTIUM_API_BASE, major_version, os, arch, image_type
     );
 
     let client = reqwest::Client::new();
@@ -199,7 +414,7 @@ pub async fn fetch_java_release(
 
 /// Fetch available Java versions from Adoptium API
 pub async fn fetch_available_versions() -> Result<Vec<u32>, String> {
-    let url = "https://api.adoptium.net/v3/info/available_releases";
+    let url = format!("{}/info/available_releases", ADOPTIUM_API_BASE);
 
     let response = reqwest::get(url)
         .await
@@ -218,7 +433,7 @@ pub async fn fetch_available_versions() -> Result<Vec<u32>, String> {
     Ok(releases.available_releases)
 }
 
-/// Download and install Java
+/// Download and install Java with resume support and progress events
 ///
 /// # Arguments
 /// * `app_handle` - Tauri app handle for accessing app directories
@@ -236,6 +451,7 @@ pub async fn download_and_install_java(
 ) -> Result<JavaInstallation, String> {
     // 1. Fetch download information
     let info = fetch_java_release(major_version, image_type).await?;
+    let file_name = info.file_name.clone();
 
     // 2. Prepare installation directory
     let install_base = custom_path.unwrap_or_else(|| get_java_install_dir(app_handle));
@@ -244,7 +460,24 @@ pub async fn download_and_install_java(
     std::fs::create_dir_all(&install_base)
         .map_err(|e| format!("Failed to create installation directory: {}", e))?;
 
-    // 3. Download the archive
+    // 3. Add to download queue for persistence
+    let mut queue = DownloadQueue::load(app_handle);
+    queue.add(PendingJavaDownload {
+        major_version,
+        image_type: image_type.to_string(),
+        download_url: info.download_url.clone(),
+        file_name: info.file_name.clone(),
+        file_size: info.file_size,
+        checksum: info.checksum.clone(),
+        install_path: install_base.to_string_lossy().to_string(),
+        created_at: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs(),
+    });
+    queue.save(app_handle)?;
+
+    // 4. Download the archive with resume support
     let archive_path = install_base.join(&info.file_name);
 
     // Check if we need to download
@@ -261,30 +494,32 @@ pub async fn download_and_install_java(
     };
 
     if need_download {
-        let client = reqwest::Client::new();
-        let response = client
-            .get(&info.download_url)
-            .send()
-            .await
-            .map_err(|e| format!("Download failed: {}", e))?;
-
-        let bytes = response
-            .bytes()
-            .await
-            .map_err(|e| format!("Failed to read download content: {}", e))?;
-
-        // Verify downloaded file checksum
-        if let Some(expected) = &info.checksum {
-            if !downloader::verify_checksum(&bytes, Some(expected), None) {
-                return Err("Downloaded file verification failed, the file may be corrupted".to_string());
-            }
-        }
-
-        std::fs::write(&archive_path, &bytes)
-            .map_err(|e| format!("Failed to save downloaded file: {}", e))?;
+        // Use resumable download
+        downloader::download_with_resume(
+            app_handle,
+            &info.download_url,
+            &archive_path,
+            info.checksum.as_deref(),
+            info.file_size,
+        )
+        .await?;
     }
 
-    // 4. Extract
+    // 5. Emit extracting status
+    let _ = app_handle.emit(
+        "java-download-progress",
+        JavaDownloadProgress {
+            file_name: file_name.clone(),
+            downloaded_bytes: info.file_size,
+            total_bytes: info.file_size,
+            speed_bytes_per_sec: 0,
+            eta_seconds: 0,
+            status: "Extracting".to_string(),
+            percentage: 100.0,
+        },
+    );
+
+    // 6. Extract
     // If the target directory exists, remove it first
     if version_dir.exists() {
         std::fs::remove_dir_all(&version_dir)
@@ -304,10 +539,10 @@ pub async fn download_and_install_java(
         return Err(format!("Unsupported archive format: {}", info.file_name));
     };
 
-    // 5. Clean up downloaded archive
+    // 7. Clean up downloaded archive
     let _ = std::fs::remove_file(&archive_path);
 
-    // 6. Locate java executable
+    // 8. Locate java executable
     // macOS has a different structure: jdk-xxx/Contents/Home/bin/java
     // Linux/Windows: jdk-xxx/bin/java
     let java_home = version_dir.join(&top_level_dir);
@@ -326,9 +561,27 @@ pub async fn download_and_install_java(
         ));
     }
 
-    // 7. Verify installation
+    // 9. Verify installation
     let installation = check_java_installation(&java_bin)
         .ok_or_else(|| "Failed to verify Java installation".to_string())?;
+
+    // 10. Remove from download queue
+    queue.remove(major_version, &image_type.to_string());
+    queue.save(app_handle)?;
+
+    // 11. Emit completed status
+    let _ = app_handle.emit(
+        "java-download-progress",
+        JavaDownloadProgress {
+            file_name,
+            downloaded_bytes: info.file_size,
+            total_bytes: info.file_size,
+            speed_bytes_per_sec: 0,
+            eta_seconds: 0,
+            status: "Completed".to_string(),
+            percentage: 100.0,
+        },
+    );
 
     Ok(installation)
 }
@@ -675,4 +928,58 @@ fn find_java_executable(dir: &PathBuf) -> Option<PathBuf> {
     }
 
     None
+}
+
+/// Resume pending Java downloads from queue
+pub async fn resume_pending_downloads(app_handle: &AppHandle) -> Result<Vec<JavaInstallation>, String> {
+    let queue = DownloadQueue::load(app_handle);
+    let mut installed = Vec::new();
+
+    for pending in queue.pending_downloads.iter() {
+        let image_type = if pending.image_type == "jdk" {
+            ImageType::Jdk
+        } else {
+            ImageType::Jre
+        };
+
+        // Try to resume the download
+        match download_and_install_java(
+            app_handle,
+            pending.major_version,
+            image_type,
+            Some(PathBuf::from(&pending.install_path)),
+        )
+        .await
+        {
+            Ok(installation) => {
+                installed.push(installation);
+            }
+            Err(e) => {
+                eprintln!(
+                    "Failed to resume Java {} {} download: {}",
+                    pending.major_version, pending.image_type, e
+                );
+            }
+        }
+    }
+
+    Ok(installed)
+}
+
+/// Cancel current Java download
+pub fn cancel_current_download() {
+    downloader::cancel_java_download();
+}
+
+/// Get pending downloads from queue
+pub fn get_pending_downloads(app_handle: &AppHandle) -> Vec<PendingJavaDownload> {
+    let queue = DownloadQueue::load(app_handle);
+    queue.pending_downloads
+}
+
+/// Clear a specific pending download
+pub fn clear_pending_download(app_handle: &AppHandle, major_version: u32, image_type: &str) -> Result<(), String> {
+    let mut queue = DownloadQueue::load(app_handle);
+    queue.remove(major_version, image_type);
+    queue.save(app_handle)
 }

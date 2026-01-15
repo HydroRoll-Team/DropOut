@@ -1,25 +1,23 @@
 <script lang="ts">
   import { getVersion } from "@tauri-apps/api/app";
-  import { onMount, onDestroy } from "svelte";
   import { convertFileSrc } from "@tauri-apps/api/core";
+  import { onDestroy, onMount } from "svelte";
   import DownloadMonitor from "./lib/DownloadMonitor.svelte";
   import GameConsole from "./lib/GameConsole.svelte";
-  
-  // Components
-  import Sidebar from "./components/Sidebar.svelte";
-  import HomeView from "./components/HomeView.svelte";
-  import VersionsView from "./components/VersionsView.svelte";
-  import SettingsView from "./components/SettingsView.svelte";
+// Components
   import BottomBar from "./components/BottomBar.svelte";
+  import HomeView from "./components/HomeView.svelte";
   import LoginModal from "./components/LoginModal.svelte";
-  import StatusToast from "./components/StatusToast.svelte";
   import ParticleBackground from "./components/ParticleBackground.svelte";
-
-  // Stores
-  import { uiState } from "./stores/ui.svelte";
+  import SettingsView from "./components/SettingsView.svelte";
+  import Sidebar from "./components/Sidebar.svelte";
+  import StatusToast from "./components/StatusToast.svelte";
+  import VersionsView from "./components/VersionsView.svelte";
+// Stores
   import { authState } from "./stores/auth.svelte";
-  import { settingsState } from "./stores/settings.svelte";
   import { gameState } from "./stores/game.svelte";
+  import { settingsState } from "./stores/settings.svelte";
+  import { uiState } from "./stores/ui.svelte";
 
   let mouseX = $state(0);
   let mouseY = $state(0);
@@ -32,6 +30,7 @@
   onMount(async () => {
     authState.checkAccount();
     await settingsState.loadSettings();
+    await settingsState.detectJava();
     gameState.loadVersions();
     getVersion().then((v) => (uiState.appVersion = v));
     window.addEventListener("mousemove", handleMouseMove);

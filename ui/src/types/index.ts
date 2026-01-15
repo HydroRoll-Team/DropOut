@@ -53,6 +53,50 @@ export interface JavaDownloadInfo {
   image_type: string;
 }
 
+export interface JavaReleaseInfo {
+  major_version: number;
+  image_type: string;
+  version: string;
+  release_name: string;
+  release_date: string | null;
+  file_size: number;
+  checksum: string | null;
+  download_url: string;
+  is_lts: boolean;
+  is_available: boolean;
+  architecture: string;
+}
+
+export interface JavaCatalog {
+  releases: JavaReleaseInfo[];
+  available_major_versions: number[];
+  lts_versions: number[];
+  cached_at: number;
+}
+
+export interface JavaDownloadProgress {
+  file_name: string;
+  downloaded_bytes: number;
+  total_bytes: number;
+  speed_bytes_per_sec: number;
+  eta_seconds: number;
+  status: string;
+  percentage: number;
+}
+
+export interface PendingJavaDownload {
+  major_version: number;
+  image_type: string;
+  download_url: string;
+  file_name: string;
+  file_size: number;
+  checksum: string | null;
+  install_path: string;
+  created_at: number;
+}
+
+export type JavaDownloadSource = "adoptium" | "mojang" | "azul";
+
 // ==================== Fabric Types ====================
 
 export interface FabricGameVersion {
