@@ -35,5 +35,13 @@ jobs:
       - run: pnpm format
         working-directory: ui
 
-      - run: pnpm lint
+      - run: pnpm lint:fix
         working-directory: ui
+
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add -A
+          git diff --staged --quiet || git commit -m "chore: auto-fix formatting and linting issues [skip ci]"
+          git push
