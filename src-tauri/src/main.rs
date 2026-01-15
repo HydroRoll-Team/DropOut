@@ -158,7 +158,7 @@ async fn start_game(
         url: client_jar.url.clone(),
         path: client_path.clone(),
         sha1: client_jar.sha1.clone(),
-        sha256: None,
+        sha256: client_jar.sha256.clone(),
     });
 
     // --- Libraries ---
