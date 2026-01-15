@@ -1,6 +1,6 @@
 <script lang="ts">
   import { uiState } from '../stores/ui.svelte';
-  import { Home, Package, Settings } from 'lucide-svelte';
+  import { Home, Box, Package, Settings } from 'lucide-svelte';
 </script>
 
 <aside
@@ -76,6 +76,7 @@
     {/snippet}
 
     {@render navItem('home', Home, 'Overview')}
+    {@render navItem('instances', Box, 'Instances')}
     {@render navItem('versions', Package, 'Versions')}
     {@render navItem('settings', Settings, 'Settings')}
   </nav>
