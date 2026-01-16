@@ -3,20 +3,35 @@ name: Prek Checks
 on:
   push:
     branches: ["main", "dev"]
-  pull_request:
-    branches: ["main", "dev"]
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   prek:
     runs-on: ubuntu-latest
+    # Skip if commit message contains [skip ci] (to avoid loops with pre-commit.ci)
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Run prek
-        uses: j178/prek-action@v1
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
-          all_files: ${{ github.event_name == 'pull_request' }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      
+      - name: Run prek (auto-fix)
+        id: prek
+        uses: j178/prek-action@v1
+        continue-on-error: true
+        with:
+          all_files: true
+      
+      - name: Commit fixes
+        if: steps.prek.outcome == 'failure'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: apply prek auto-fixes [skip ci]"
+          commit_user_name: "pre-commit bot"
+          commit_user_email: "pre-commit-bot@users.noreply.github.com"
+          skip_dirty_check: true
