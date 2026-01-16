@@ -4,7 +4,9 @@ applyTo: "**"
 
 # Commit Helper Instructions
 
-When user requests commit help → Follow <a>.github/agents/commit.agent.md</a>
+When user requests commit help → Follow [commit.agent.md](.github/agents/commit.agent.md)
+
+**Full Workflow**: Commit → Push → Pull Request generation (optional at each step)
 
 ## Critical Rules
 
@@ -23,7 +25,7 @@ When user requests commit help → Follow <a>.github/agents/commit.agent.md</a>
 
 **AI commits MUST include**: `Reviewed-by: [MODEL_NAME]`
 
-**Spec**: <a>.github/references/git/conventional-commit.md</a>
+**Spec**: [conventional-commit.md](.github/references/git/conventional-commit.md)
 
 ## Common Mistakes
 
@@ -36,3 +38,10 @@ When user requests commit help → Follow <a>.github/agents/commit.agent.md</a>
 ## User Triggers
 
 "create commit", "commit message", "conventional commit"
+
+## Post-Commit Features
+
+- **Push Options**: After commit, offers git push with multiple strategies
+- **PR Generation**: After push, can auto-generate Pull Request from commit
+- **PR Templates**: English (default) or Chinese, with auto-explanation if language differs
+- **PR Location**: `.github/PULL_REQUEST_TEMPLATE/en-pull_request_template.md` or `cn-pull_request_template.md`

@@ -2,15 +2,7 @@
 
 > A standard for writing commit messages.
 
-## Table of Contents
-
-- [What is Conventional Commits?](#what-is-conventional-commits)
-- [Examples](#examples)
-- [Rules](#rules)
-- [Why Should We Use It?](#why-should-we-use-it)
-- [Changelog Generation](#changelog-generation)
-- [Bump the Version Precisely](#bump-the-version-precisely)
-- [How About Squash Merges?](#how-about-squash-merges)
+## Specification
 
 The Conventional Commits specification is a lightweight convention on top of commit messages. It provides an easy set of rules for creating an explicit commit history; which makes it easier to write automated tools on top of. This convention dovetails with [SemVer](https://semver.org/), by describing the features, fixes, and breaking changes made in commit messages.
 
@@ -61,7 +53,7 @@ Refs #133
 
 ## Rules
 
-The key words **“MUST”, “MUST NOT”, “REQUIRED”, “SHALL”, “SHALL NOT”, “SHOULD”, “SHOULD NOT”, “RECOMMENDED”, “MAY”, and “OPTIONAL”** in this document are to be interpreted as described in [RFC 2119](https://www.ietf.org/rfc/rfc2119.txt).
+The key words **“MUST”, “MUST NOT”, “REQUIRED”, “SHALL”, “SHALL NOT”, “SHOULD”, “SHOULD NOT”, “RECOMMENDED”, “MAY”, and “OPTIONAL”** in this document are to be interpreted as described in RFC 2119.
 
 - Commits MUST be prefixed with a type, which consists of a noun, feat, fix, etc., followed by the OPTIONAL scope, OPTIONAL !, and REQUIRED terminal colon and space.
 - The type feat MUST be used when a commit adds a new feature to your application or library.
@@ -135,19 +127,3 @@ feat(SHOPPER-000): introduce OrderMonitor v2
 ```text
 fix(SHOPPER-000): correct minor typos in code
 ```
-
-## How About Squash Merges?
-
-Why do we need squash merges if we have good commit messages?
-
-### Pros
-
-- Every squash commit linked to PR
-- Cleaner git history
-- Easy roll-back
-
-### Cons
-
-- It changes commit history, which can cause conflicts
-- It's hard to understand what actually changed
-- Sometimes what you commit is not related to the purpose of the PR
