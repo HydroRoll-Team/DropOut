@@ -1,0 +1,35 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-ast
+      - id: check-case-conflict
+      - id: check-json
+      - id: check-toml
+      - id: check-yaml
+      - id: fix-byte-order-marker
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.13
+    hooks:
+      - id: ruff-check
+        types_or: [ python, pyi ]
+        args: [ --fix ]
+      - id: ruff-format
+        types_or: [ python, pyi ]
+
+  - repo: local
+    hooks:
+      - id: oxlint
+        name: oxlint (svelte/ts/js)
+        entry: pnpm --dir ui run lint:fix
+        language: system
+        files: ^ui/
+        pass_filenames: false
+
+      - id: oxfmt
+        name: oxfmt (format)
+        entry: pnpm --dir ui run format
+        language: system
+        files: ^ui/
+        pass_filenames: false
