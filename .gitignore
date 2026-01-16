@@ -6,3 +6,22 @@ Cargo.lock
 
 # Tauri dev files
 src-tauri/gen/
+
+# Python version
+.python-version
+
+# Ruff
+.ruff_cache/
+
+# ESLint
+.eslintcache
+
+# Svelte
+.svelte-kit/
+
+# Node.js
+node_modules/
+
+# Python Build
+dist/
+__pycache__/

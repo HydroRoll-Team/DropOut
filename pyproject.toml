@@ -1,0 +1,20 @@
+[project]
+name = "dropout"
+dynamic = ["version"]
+description = "DropOut is a modern, minimalist, and efficient Minecraft launcher built with the latest web and system technologies. It leverages Tauri v2 to deliver a lightweight application with a robust Rust backend and a reactive Svelte 5 frontend."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pre-commit>=4.5.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "_version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
+only-include = ["_version.py"]
