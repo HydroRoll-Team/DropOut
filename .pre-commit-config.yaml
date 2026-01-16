@@ -31,7 +31,9 @@ repos:
         args: ["--check", "--manifest-path", "src-tauri/Cargo.toml", "--"]
         files: ^src-tauri/.*\.rs$
         pass_filenames: false
+        language: system
       - id: clippy
         args: ["--manifest-path", "src-tauri/Cargo.toml", "--", "-D", "warnings"]
         files: ^src-tauri/.*\.rs$
         pass_filenames: false
+        language: system
