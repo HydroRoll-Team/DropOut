@@ -577,6 +577,10 @@ pub async fn download_and_install_java(
         ));
     }
 
+    // Resolve symlinks and strip UNC prefix to ensure clean path
+    let java_bin = std::fs::canonicalize(&java_bin).map_err(|e| e.to_string())?;
+    let java_bin = strip_unc_prefix(java_bin);
+
     // 9. Verify installation
     let installation = check_java_installation(&java_bin)
         .ok_or_else(|| "Failed to verify Java installation".to_string())?;
@@ -919,7 +923,8 @@ fn find_java_executable(dir: &PathBuf) -> Option<PathBuf> {
     // Directly look in the bin directory
     let direct_bin = dir.join("bin").join(bin_name);
     if direct_bin.exists() {
-        return Some(direct_bin);
+        let resolved = std::fs::canonicalize(&direct_bin).unwrap_or(direct_bin);
+        return Some(strip_unc_prefix(resolved));
     }
 
     // macOS: Contents/Home/bin/java
@@ -939,7 +944,8 @@ fn find_java_executable(dir: &PathBuf) -> Option<PathBuf> {
                 // Try direct bin path
                 let nested_bin = path.join("bin").join(bin_name);
                 if nested_bin.exists() {
-                    return Some(nested_bin);
+                    let resolved = std::fs::canonicalize(&nested_bin).unwrap_or(nested_bin);
+                    return Some(strip_unc_prefix(resolved));
                 }
 
                 // macOS: nested/Contents/Home/bin/java
