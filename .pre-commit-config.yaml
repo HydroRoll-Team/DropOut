@@ -21,5 +21,6 @@ repos:
     rev: v1.0
     hooks:
       - id: fmt
+        args: ["--manifest-path", "src-tauri/Cargo.toml"]
       - id: clippy
-        args: ["--", "-D", "warnings"]
+        args: ["--manifest-path", "src-tauri/Cargo.toml", "--", "-D", "warnings"]
