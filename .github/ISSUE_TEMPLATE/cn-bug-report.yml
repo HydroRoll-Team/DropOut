@@ -72,8 +72,6 @@ body:
       label: Minecraft 版本
       description: 您尝试启动的 Minecraft 版本是？
       options:
-        - 最新正式版
-        - 最新快照版
         - "1.21.x"
         - "1.20.x"
         - "1.19.x"
@@ -114,7 +112,7 @@ body:
       description: 您的 Java 来自哪里？
       options:
         - DropOut 自动检测
-        - 通过 DropOut 下载 (Adoptium)
+        - 通过 DropOut 下载
         - 手动安装 (Oracle)
         - 手动安装 (Sdkman)
         - 手动安装 (Homebrew)
@@ -169,18 +167,18 @@ body:
     attributes:
       label: 日志和错误信息
       description: |
-        请提供相关的日志或错误信息以帮助诊断问题。
+        请从 DropOut 启动器终端上传日志文件，然后在此粘贴日志链接。
         
-        **日志文件位置：**
+        **如何上传日志：**
+        1. 在 DropOut 启动器中打开终端
+        2. 使用内置的日志上传功能
+        3. 复制生成的日志链接并粘贴到下方
+        
+        如果无法使用自动上传，可以手动从以下位置获取日志：
         - **macOS**: `$HOME/Library/Application Support/com.dropout.launcher/logs`
         - **Linux**: `$HOME/.local/share/com.dropout.launcher`
-        
-        请在此粘贴相关的日志或错误信息。
-        内容将自动格式化为代码。
-        **请确保在上传文件前已关闭 DropOut。**
-      render: shell
       placeholder: |
-        在此粘贴日志...
+        粘贴日志链接或日志内容...
     validations:
       required: false
 
@@ -191,11 +189,11 @@ body:
       description: |
         如果适用，请添加截图或录屏以帮助说明您的问题。
         
-        **⚠️ 重要的截图要求：**
-        - **使用系统自带截图工具**（Windows: Win+Shift+S, macOS: Cmd+Shift+4, Linux: gnome-screenshot/spectacle）
-        - **不要使用 QQ/微信/Discord 截图工具**，因为它们可能会改变分辨率和纵横比
-        - **提供无遮挡的原始图片** - 避免窗口边框或覆盖层
-        - 对于游戏相关问题，请捕获实际游戏窗口
+        **截图要求：**
+        - 使用系统自带截图工具（Windows: `Win+Shift+S`, macOS: `Cmd+Shift+4`, Linux: `gnome-screenshot`/`spectacle`）
+        - 不要使用 QQ/微信/Discord 截图工具，它们可能改变分辨率和纵横比
+        - 提供无遮挡的原始图片，避免窗口边框或覆盖层
+        - 对于游戏问题，请捕获实际游戏窗口
         - 保持原始分辨率和 DPI
         
         可以在上传前压缩大文件。

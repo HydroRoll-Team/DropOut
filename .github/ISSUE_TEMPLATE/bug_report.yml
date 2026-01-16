@@ -72,8 +72,6 @@ body:
       label: Minecraft Version
       description: Which Minecraft version are you trying to launch?
       options:
-        - Latest Release
-        - Latest Snapshot
         - "1.21.x"
         - "1.20.x"
         - "1.19.x"
@@ -114,7 +112,7 @@ body:
       description: Where did you get Java from?
       options:
         - Auto-detected by DropOut
-        - Downloaded via DropOut (Adoptium)
+        - Downloaded via DropOut
         - Manually installed (Oracle)
         - Manually installed (Sdkman)
         - Manually installed (Homebrew)
@@ -169,18 +167,18 @@ body:
     attributes:
       label: Logs and Error Messages
       description: |
-        Please provide relevant logs or error messages to help diagnose the issue.
+        Please upload log files from the DropOut launcher terminal, then paste the log link here.
         
-        **Log file locations:**
+        **How to upload logs:**
+        1. Open the terminal in DropOut launcher
+        2. Use the built-in log upload feature
+        3. Copy the generated log link and paste it below
+        
+        If automatic upload is unavailable, you can manually retrieve logs from:
         - **macOS**: `$HOME/Library/Application Support/com.dropout.launcher/logs`
         - **Linux**: `$HOME/.local/share/com.dropout.launcher`
-        
-        Please paste any relevant logs or error messages here.
-        This will be automatically formatted as code.
-        **Please ensure DropOut is closed before uploading files.**
-      render: shell
       placeholder: |
-        Paste logs here...
+        Paste log link or log content...
     validations:
       required: false
 
@@ -191,10 +189,10 @@ body:
       description: |
         If applicable, add screenshots or screen recordings to help explain your problem.
         
-        **⚠️ Important Screenshot Requirements:**
-        - **Use native screenshot tools** (Windows: Win+Shift+S, macOS: Cmd+Shift+4, Linux: gnome-screenshot/spectacle)
-        - **DO NOT use QQ/WeChat/Discord screenshot tools** as they may alter resolution and aspect ratio
-        - **Provide unobstructed original images** - avoid window borders or overlays
+        **Screenshot Requirements:**
+        - Use native screenshot tools (Windows: `Win+Shift+S`, macOS: `Cmd+Shift+4`, Linux: `gnome-screenshot`/`spectacle`)
+        - DO NOT use QQ/WeChat/Discord screenshot tools as they may alter resolution and aspect ratio
+        - Provide unobstructed original images, avoid window borders or overlays
         - For game-related issues, capture the actual game window
         - Keep the original resolution and DPI
         
