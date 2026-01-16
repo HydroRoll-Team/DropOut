@@ -1,6 +1,6 @@
 <script lang="ts">
   import { uiState } from '../stores/ui.svelte';
-  import { Home, Package, Settings } from 'lucide-svelte';
+  import { Home, Package, Settings, Bot } from 'lucide-svelte';
 </script>
 
 <aside
@@ -57,7 +57,7 @@
   <!-- Navigation -->
   <nav class="flex-1 w-full flex flex-col gap-1 px-3">
     <!-- Nav Item Helper -->
-    {#snippet navItem(view, Icon, label)}
+    {#snippet navItem(view: any, Icon: any, label: string)}
       <button
         class="group flex items-center lg:gap-3 justify-center lg:justify-start w-full px-0 lg:px-4 py-2.5 rounded-sm transition-all duration-200 relative
         {uiState.currentView === view
@@ -77,6 +77,7 @@
 
     {@render navItem('home', Home, 'Overview')}
     {@render navItem('versions', Package, 'Versions')}
+    {@render navItem('guide', Bot, 'Assistant')}
     {@render navItem('settings', Settings, 'Settings')}
   </nav>
 

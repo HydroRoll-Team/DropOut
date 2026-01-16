@@ -13,6 +13,7 @@
     placeholder?: string;
     disabled?: boolean;
     class?: string;
+    allowCustom?: boolean; // New prop to allow custom input
     onchange?: (value: string) => void;
   }
 
@@ -22,17 +23,25 @@
     placeholder = "Select...", 
     disabled = false,
     class: className = "",
+    allowCustom = false,
     onchange
   }: Props = $props();
 
   let isOpen = $state(false);
   let containerRef: HTMLDivElement;
+  let customInput = $state(""); // State for custom input
 
   let selectedOption = $derived(options.find(o => o.value === value));
+  // Display label: if option exists use its label, otherwise if custom is allowed use raw value, else placeholder
+  let displayLabel = $derived(selectedOption ? selectedOption.label : (allowCustom && value ? value : placeholder));
 
   function toggle() {
     if (!disabled) {
       isOpen = !isOpen;
+      // When opening, if current value is custom (not in options), pre-fill input
+      if (isOpen && allowCustom && !selectedOption) {
+          customInput = value;
+      }
     }
   }
 
@@ -41,6 +50,13 @@
     value = option.value;
     isOpen = false;
     onchange?.(option.value);
+  }
+
+  function handleCustomSubmit() {
+      if (!customInput.trim()) return;
+      value = customInput.trim();
+      isOpen = false;
+      onchange?.(value);
   }
 
   function handleKeydown(e: KeyboardEvent) {
@@ -98,8 +114,8 @@
            transition-colors cursor-pointer outline-none
            disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-zinc-700"
   >
-    <span class="truncate {!selectedOption ? 'text-zinc-500' : ''}">
-      {selectedOption?.label || placeholder}
+    <span class="truncate {(!selectedOption && !value) ? 'text-zinc-500' : ''}">
+      {displayLabel}
     </span>
     <ChevronDown 
       size={14} 
@@ -111,8 +127,29 @@
   {#if isOpen}
     <div 
       class="absolute z-50 w-full mt-1 py-1 bg-zinc-900 border border-zinc-700 rounded-md shadow-xl
-             max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150"
+             max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150 flex flex-col"
     >
+      {#if allowCustom}
+        <div class="px-2 py-2 border-b border-zinc-700/50 mb-1">
+            <div class="flex gap-2">
+                <input 
+                    type="text" 
+                    bind:value={customInput}
+                    placeholder="Custom value..."
+                    class="flex-1 bg-black/30 border border-zinc-700 rounded px-2 py-1 text-xs text-white focus:border-indigo-500 outline-none"
+                    onkeydown={(e) => e.key === 'Enter' && handleCustomSubmit()}
+                    onclick={(e) => e.stopPropagation()} 
+                />
+                <button 
+                    onclick={(e) => { e.stopPropagation(); handleCustomSubmit(); }}
+                    class="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-xs transition-colors"
+                >
+                    Set
+                </button>
+            </div>
+        </div>
+      {/if}
+
       {#each options as option}
         <button
           type="button"

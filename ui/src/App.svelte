@@ -10,6 +10,7 @@
   import LoginModal from "./components/LoginModal.svelte";
   import ParticleBackground from "./components/ParticleBackground.svelte";
   import SettingsView from "./components/SettingsView.svelte";
+  import AssistantView from "./components/AssistantView.svelte";
   import Sidebar from "./components/Sidebar.svelte";
   import StatusToast from "./components/StatusToast.svelte";
   import VersionsView from "./components/VersionsView.svelte";
@@ -18,6 +19,7 @@
   import { gameState } from "./stores/game.svelte";
   import { settingsState } from "./stores/settings.svelte";
   import { uiState } from "./stores/ui.svelte";
+  import { logsState } from "./stores/logs.svelte";
   import { convertFileSrc } from "@tauri-apps/api/core";
 
   let mouseX = $state(0);
@@ -29,23 +31,18 @@
   }
 
   onMount(async () => {
+    // ENFORCE DARK MODE: Always add 'dark' class and attribute
+    document.documentElement.classList.add('dark');
+    document.documentElement.setAttribute('data-theme', 'dark');
+    document.documentElement.classList.remove('light');
+    
     authState.checkAccount();
     await settingsState.loadSettings();
+    logsState.init();
     await settingsState.detectJava();
     gameState.loadVersions();
     getVersion().then((v) => (uiState.appVersion = v));
     window.addEventListener("mousemove", handleMouseMove);
-  });
-  
-  $effect(() => {
-    // ENFORCE DARK MODE: Always add 'dark' class and attribute
-    // This combined with the @variant dark in app.css ensures dark mode is always active
-    // regardless of system preference settings.
-    document.documentElement.classList.add('dark');
-    document.documentElement.setAttribute('data-theme', 'dark');
-    
-    // Ensure 'light' class is never present
-    document.documentElement.classList.remove('light');
   });
 
   onDestroy(() => {
@@ -120,6 +117,8 @@
                <VersionsView />
              {:else if uiState.currentView === "settings"}
                <SettingsView />
+             {:else if uiState.currentView === "guide"}
+               <AssistantView />
              {/if}
           </div>
           
