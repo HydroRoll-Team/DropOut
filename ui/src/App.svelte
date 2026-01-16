@@ -11,12 +11,14 @@
   import ParticleBackground from "./components/ParticleBackground.svelte";
   import SettingsView from "./components/SettingsView.svelte";
   import AssistantView from "./components/AssistantView.svelte";
+  import InstancesView from "./components/InstancesView.svelte";
   import Sidebar from "./components/Sidebar.svelte";
   import StatusToast from "./components/StatusToast.svelte";
   import VersionsView from "./components/VersionsView.svelte";
 // Stores
   import { authState } from "./stores/auth.svelte";
   import { gameState } from "./stores/game.svelte";
+  import { instancesState } from "./stores/instances.svelte";
   import { settingsState } from "./stores/settings.svelte";
   import { uiState } from "./stores/ui.svelte";
   import { logsState } from "./stores/logs.svelte";
@@ -40,6 +42,7 @@
     await settingsState.loadSettings();
     logsState.init();
     await settingsState.detectJava();
+    await instancesState.loadInstances();
     gameState.loadVersions();
     getVersion().then((v) => (uiState.appVersion = v));
     window.addEventListener("mousemove", handleMouseMove);
@@ -113,6 +116,8 @@
           <div class="flex-1 relative overflow-hidden">
              {#if uiState.currentView === "home"}
                <HomeView mouseX={mouseX} mouseY={mouseY} />
+             {:else if uiState.currentView === "instances"}
+               <InstancesView />
              {:else if uiState.currentView === "versions"}
                <VersionsView />
              {:else if uiState.currentView === "settings"}

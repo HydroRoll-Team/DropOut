@@ -2,6 +2,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import { gameState } from "../stores/game.svelte";
+  import { instancesState } from "../stores/instances.svelte";
   import ModLoaderSelector from "./ModLoaderSelector.svelte";
 
   let searchQuery = $state("");
@@ -18,11 +19,17 @@
 
   // Load installed modded versions with Java version info (both Fabric and Forge)
   async function loadInstalledModdedVersions() {
+    if (!instancesState.activeInstanceId) {
+      installedFabricVersions = [];
+      isLoadingModded = false;
+      return;
+    }
     isLoadingModded = true;
     try {
       // Get all installed versions and filter for modded ones (Fabric and Forge)
       const allInstalled = await invoke<Array<{ id: string; type: string }>>(
-        "list_installed_versions"
+        "list_installed_versions",
+        { instanceId: instancesState.activeInstanceId }
       );
       
       // Filter for Fabric and Forge versions
@@ -36,7 +43,10 @@
           try {
             const javaVersion = await invoke<number | null>(
               "get_version_java_version",
-              { versionId: id }
+              {
+                instanceId: instancesState.activeInstanceId!,
+                versionId: id,
+              }
             );
             return {
               id,

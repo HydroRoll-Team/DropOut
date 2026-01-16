@@ -4,6 +4,7 @@
   import { authState } from "../stores/auth.svelte";
   import { gameState } from "../stores/game.svelte";
   import { uiState } from "../stores/ui.svelte";
+  import { instancesState } from "../stores/instances.svelte";
   import { Terminal, ChevronDown, Play, User, Check } from 'lucide-svelte';
 
   interface InstalledVersion {
@@ -44,9 +45,16 @@
   }
 
   async function loadInstalledVersions() {
+    if (!instancesState.activeInstanceId) {
+      installedVersions = [];
+      isLoadingVersions = false;
+      return;
+    }
     isLoadingVersions = true;
     try {
-      installedVersions = await invoke<InstalledVersion[]>("list_installed_versions");
+      installedVersions = await invoke<InstalledVersion[]>("list_installed_versions", {
+        instanceId: instancesState.activeInstanceId,
+      });
       // If no version is selected but we have installed versions, select the first one
       if (!gameState.selectedVersion && installedVersions.length > 0) {
         gameState.selectedVersion = installedVersions[0].id;
