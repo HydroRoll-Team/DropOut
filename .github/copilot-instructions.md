@@ -6,8 +6,11 @@
 - **Backend (Rust)**: Game launching, asset management, authentication, mod loader installation
 - **Frontend (Svelte 5)**: Reactive UI with Tailwind CSS 4 and particle effects
 - **Communication**: Tauri commands (invoke) and events (emit/listen)
+- **Pre-commit Hooks**: Python-based tooling for JSON/TOML validation (managed via `pyproject.toml`)
 
 **Key Data Flow**: Frontend invokes Rust commands → Rust processes/downloads → Rust emits progress events → Frontend updates UI via listeners
+
+**Version Management**: Uses `_version.py` for single source of truth, synced to `Cargo.toml` (0.1.24) and `tauri.conf.json`
 
 ## Project Structure
 
@@ -48,24 +51,36 @@ ui/                 # Svelte 5 frontend
 ```bash
 cargo tauri dev  # Starts frontend dev server (Vite on :5173) + Tauri window
 ```
-- Frontend uses Vite with hot reload
+- Frontend uses **Rolldown-based Vite fork** (`npm:rolldown-vite@7.2.5`) with hot reload
 - Backend recompiles on Rust file changes
 - Console shows both Rust stdout and frontend Vite logs
+- **Vite Config**: Uses `usePolling: true` for watch compatibility with Tauri
+- **HMR**: WebSocket on `ws://localhost:5173`
+
+### Pre-commit Checks
+- Uses **pre-commit** with Python (configured in `pyproject.toml`)
+- Hooks: JSON/TOML/YAML validation, Ruff for Python files
+- Run manually: `pre-commit run --all-files`
+- **IMPORTANT**: All Python tooling for CI/validation lives here, NOT for app logic
 
 ### Building
 ```bash
-cd ui && pnpm install  # Install frontend dependencies
+cd ui && pnpm install  # Install frontend dependencies (requires pnpm 9, Node 22)
 cargo tauri build      # Produces platform bundles in src-tauri/target/release/bundle/
 ```
 
-### Pre-commit Checks
-- Uses `pre-commit` with Python (configured in `pyproject.toml`)
-- Hooks: JSON/TOML/YAML validation, Ruff for Python files
-- Run manually: `pre-commit run --all-files`
+### Frontend Workflows
+```bash
+cd ui
+pnpm check         # Svelte type checking + TypeScript validation
+pnpm lint          # OxLint for code quality
+pnpm format        # OxFmt for formatting (--check for CI)
+```
 
 ### Testing
 - CI workflow: [`.github/workflows/test.yml`](.github/workflows/test.yml) tests on Ubuntu, Arch (Wayland), Windows, macOS
 - Local: `cargo test` (no comprehensive test suite exists yet)
+- **Test workflow behavior**: Push/PR = Linux build only, `workflow_dispatch` = full multi-platform builds
 
 ## Project-Specific Patterns & Conventions
 
@@ -138,6 +153,14 @@ export class AuthState {
 // Export singleton
 export const authState = new AuthState();
 ```
+**CRITICAL**: Stores are TypeScript classes with `$state` runes, not Svelte 4's `writable()`. Each store file exports a singleton instance.
+
+**Store Pattern**: 
+- File: `stores/*.svelte.ts` (note `.svelte.ts` extension)
+- Class-based with reactive `$state` properties
+- Methods for actions (async operations with `invoke()`)
+- Derived values with `get` accessors
+- Side effects with `$effect()` (auto-tracks dependencies)
 
 ### Version Inheritance System
 Modded versions (Fabric/Forge) use `inheritsFrom` field:
@@ -234,6 +257,9 @@ Game arguments may contain `${variable}` placeholders. Use the `has_unresolved_p
 - **Mod loader libraries**: Don't have `downloads.artifact`, use Maven resolution via [`maven.rs`](../src-tauri/src/core/maven.rs)
 - **Native extraction**: Extract to `versions/<version>/natives/`, exclude META-INF
 - **Classpath order**: Libraries → Client JAR (see [`main.rs:437-453`](../src-tauri/src/main.rs#L437-L453))
+- **Version management**: Single source in `_version.py`, synced to Cargo.toml and tauri.conf.json
+- **Frontend dependencies**: Must use pnpm 9 + Node 22 (uses Rolldown-based Vite fork)
+- **Store files**: Must have `.svelte.ts` extension, not `.ts`
 
 ## Debugging Tips
 
@@ -246,7 +272,18 @@ Game arguments may contain `${variable}` placeholders. Use the `has_unresolved_p
 ## Version Compatibility
 
 - **Rust**: Edition 2021, requires Tauri v2 dependencies
-- **Node.js**: pnpm for frontend (uses Rolldown-based Vite fork)
+- **Node.js**: 22+ with pnpm 9+ for frontend (uses Rolldown-based Vite fork `npm:rolldown-vite@7.2.5`)
 - **Tauri**: v2.9+
 - **Svelte**: v5.46+ (runes mode)
 - **Java**: Supports detection of Java 8-23+, recommends Java 17+ for modern Minecraft
+- **Python**: 3.10+ for pre-commit hooks (validation only, not app logic)
+
+## Commit Conventions
+
+Follow instructions in [`.github/instructions/commit.instructions.md`](.github/instructions/commit.instructions.md):
+- **Format**: `<type>[scope]: <description>` (lowercase, imperative, no period)
+- **AI commits**: MUST include `Reviewed-by: [MODEL_NAME]`
+- **Common types**: `feat`, `fix`, `docs`, `refactor`, `perf`, `test`, `chore`
+- **Language**: Commit messages ALWAYS in English
+- **Confirmation**: ALWAYS ask before committing (unless "commit directly" requested)
+- See [Conventional Commits spec](.github/references/git/conventional-commit.md) for details
