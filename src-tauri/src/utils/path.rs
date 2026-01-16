@@ -48,8 +48,12 @@ pub fn normalize_java_path(java_path: &str) -> Result<PathBuf, String> {
         path.set_extension("exe");
     }
 
-    // If still not found and it's just "java.exe", try to find it in PATH
-    if !path.exists() && path.file_name() == Some(std::ffi::OsStr::new("java.exe")) {
+    // If still not found and it's just "java.exe" (not an absolute path), try to find it in PATH
+    // Only search PATH for relative paths or just "java", not for absolute paths that don't exist
+    if !path.exists()
+        && !path.is_absolute()
+        && path.file_name() == Some(std::ffi::OsStr::new("java.exe"))
+    {
         // Try to locate java.exe in PATH
         if let Ok(output) = std::process::Command::new("where").arg("java").output() {
             if output.status.success() {
@@ -59,7 +63,7 @@ pub fn normalize_java_path(java_path: &str) -> Result<PathBuf, String> {
                 }
             }
         }
-        
+
         // If still not found after PATH search, return specific error
         if !path.exists() {
             return Err(
@@ -80,7 +84,7 @@ pub fn normalize_java_path(java_path: &str) -> Result<PathBuf, String> {
     // Canonicalize and strip UNC prefix for clean path
     let canonical = std::fs::canonicalize(&path)
         .map_err(|e| format!("Failed to resolve Java path '{}': {}", path.display(), e))?;
-    
+
     Ok(strip_unc_prefix(canonical))
 }
 
@@ -98,7 +102,7 @@ pub fn normalize_java_path(java_path: &str) -> Result<PathBuf, String> {
                 }
             }
         }
-        
+
         // If still not found after PATH search, return specific error
         if !path.exists() {
             return Err(
@@ -119,7 +123,7 @@ pub fn normalize_java_path(java_path: &str) -> Result<PathBuf, String> {
     // Canonicalize to resolve symlinks and get absolute path
     let canonical = std::fs::canonicalize(&path)
         .map_err(|e| format!("Failed to resolve Java path '{}': {}", path.display(), e))?;
-    
+
     Ok(strip_unc_prefix(canonical))
 }
 
@@ -196,23 +200,23 @@ mod tests {
     fn test_normalize_with_temp_file() {
         // Create a temporary file to test with an actual existing path
         let temp_dir = std::env::temp_dir();
-        
+
         #[cfg(target_os = "windows")]
         let temp_file = temp_dir.join("test_java_normalize.exe");
         #[cfg(not(target_os = "windows"))]
         let temp_file = temp_dir.join("test_java_normalize");
-        
+
         // Create the file
         if let Ok(mut file) = fs::File::create(&temp_file) {
             let _ = file.write_all(b"#!/bin/sh\necho test");
             drop(file);
-            
+
             // Test normalization
             let result = normalize_java_path(temp_file.to_str().unwrap());
-            
+
             // Clean up
             let _ = fs::remove_file(&temp_file);
-            
+
             // Verify result
             assert!(result.is_ok(), "Failed to normalize temp file path");
             let normalized = result.unwrap();
@@ -227,12 +231,12 @@ mod tests {
             let unc_path = PathBuf::from(r"\\?\C:\Windows\System32\cmd.exe");
             let stripped = strip_unc_prefix(unc_path);
             assert_eq!(stripped.to_string_lossy(), r"C:\Windows\System32\cmd.exe");
-            
+
             let normal_path = PathBuf::from(r"C:\Windows\System32\cmd.exe");
             let unchanged = strip_unc_prefix(normal_path.clone());
             assert_eq!(unchanged, normal_path);
         }
-        
+
         #[cfg(not(target_os = "windows"))]
         {
             let path = PathBuf::from("/usr/bin/java");

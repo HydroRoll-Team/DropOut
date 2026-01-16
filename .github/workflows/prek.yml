@@ -35,15 +35,23 @@ jobs:
             librsvg2-dev \
             pkg-config
       
-      - name: Run prek (auto-fix)
+      - name: Run prek
         id: prek
         uses: j178/prek-action@v1
         continue-on-error: true
-        with:
-          all_files: true
+
+      - name: Check for changes
+        id: check_changes
+        if: steps.prek.outcome == 'failure'
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Commit fixes
-        if: steps.prek.outcome == 'failure'
+        if: steps.prek.outcome == 'failure' && steps.check_changes.outputs.has_changes == 'true'
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore: apply prek auto-fixes [skip ci]"

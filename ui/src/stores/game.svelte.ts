@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { Version } from "../types";
 import { uiState } from "./ui.svelte";
 import { authState } from "./auth.svelte";
+import { instancesState } from "./instances.svelte";
 
 export class GameState {
   versions = $state<Version[]>([]);
@@ -34,10 +35,19 @@ export class GameState {
       return;
     }
 
+    if (!instancesState.activeInstanceId) {
+      alert("Please select an instance first!");
+      uiState.setView("instances");
+      return;
+    }
+
     uiState.setStatus("Preparing to launch " + this.selectedVersion + "...");
-    console.log("Invoking start_game for version:", this.selectedVersion);
+    console.log("Invoking start_game for version:", this.selectedVersion, "instance:", instancesState.activeInstanceId);
     try {
-      const msg = await invoke<string>("start_game", { versionId: this.selectedVersion });
+      const msg = await invoke<string>("start_game", {
+        instanceId: instancesState.activeInstanceId,
+        versionId: this.selectedVersion,
+      });
       console.log("Response:", msg);
       uiState.setStatus(msg);
     } catch (e) {

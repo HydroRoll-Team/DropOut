@@ -6,6 +6,7 @@ pub mod downloader;
 pub mod fabric;
 pub mod forge;
 pub mod game_version;
+pub mod instance;
 pub mod java;
 pub mod manifest;
 pub mod maven;

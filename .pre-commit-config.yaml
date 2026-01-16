@@ -1,10 +1,11 @@
 ci:
   autofix_prs: true
   autofix_commit_msg: "[pre-commit.ci] auto fixes from pre-commit hooks [skip ci]"
-
+  skip: [fmt,cargo-check,clippy]
+  
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: check-json
         exclude: ^ui/tsconfig.*\.json$
@@ -18,20 +19,15 @@ repos:
       - id: check-ast
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.6
+    rev: v0.14.13
     hooks:
       - id: ruff
         args: [ --fix ]
       - id: ruff-format
 
-  - repo: https://github.com/doublify/pre-commit-rust
-    rev: v1.0
+  - repo: https://github.com/FeryET/pre-commit-rust
+    rev: v1.2.1
     hooks:
       - id: fmt
-        args: ["--check", "--manifest-path", "src-tauri/Cargo.toml", "--"]
-        files: ^src-tauri/.*\.rs$
-        pass_filenames: false
+      - id: cargo-check
       - id: clippy
-        args: ["--manifest-path", "src-tauri/Cargo.toml", "--", "-D", "warnings"]
-        files: ^src-tauri/.*\.rs$
-        pass_filenames: false

@@ -68,11 +68,16 @@ async fn start_game(
     auth_state: State<'_, core::auth::AccountState>,
     config_state: State<'_, core::config::ConfigState>,
     assistant_state: State<'_, core::assistant::AssistantState>,
+    instance_state: State<'_, core::instance::InstanceState>,
+    instance_id: String,
     version_id: String,
 ) -> Result<String, String> {
     emit_log!(
         window,
-        format!("Starting game launch for version: {}", version_id)
+        format!(
+            "Starting game launch for version: {} in instance: {}",
+            version_id, instance_id
+        )
     );
 
     // Check for active account
@@ -93,14 +98,10 @@ async fn start_game(
         format!("Memory: {}MB - {}MB", config.min_memory, config.max_memory)
     );
 
-    // Get App Data Directory (e.g., ~/.local/share/com.dropout.launcher or similar)
-    // The identifier is set in tauri.conf.json.
-    // If not accessible, use a specific logic.
-    let app_handle = window.app_handle();
-    let game_dir = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+    // Get game directory from instance
+    let game_dir = instance_state
+        .get_instance_game_dir(&instance_id)
+        .ok_or_else(|| format!("Instance {} not found", instance_id))?;
 
     // Ensure game directory exists
     tokio::fs::create_dir_all(&game_dir)
@@ -169,6 +170,7 @@ async fn start_game(
     };
 
     // Check if configured Java is compatible
+    let app_handle = window.app_handle();
     let mut java_path_to_use = config.java_path.clone();
     if !java_path_to_use.is_empty() && java_path_to_use != "java" {
         let is_compatible =
@@ -890,12 +892,15 @@ async fn get_versions(window: Window) -> Result<Vec<core::manifest::Version>, St
 
 /// Check if a version is installed (has client.jar)
 #[tauri::command]
-async fn check_version_installed(window: Window, version_id: String) -> Result<bool, String> {
-    let app_handle = window.app_handle();
-    let game_dir = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+async fn check_version_installed(
+    _window: Window,
+    instance_state: State<'_, core::instance::InstanceState>,
+    instance_id: String,
+    version_id: String,
+) -> Result<bool, String> {
+    let game_dir = instance_state
+        .get_instance_game_dir(&instance_id)
+        .ok_or_else(|| format!("Instance {} not found", instance_id))?;
 
     // For modded versions, check the parent vanilla version
     let minecraft_version = if version_id.starts_with("fabric-loader-") {
@@ -929,19 +934,24 @@ async fn check_version_installed(window: Window, version_id: String) -> Result<b
 async fn install_version(
     window: Window,
     config_state: State<'_, core::config::ConfigState>,
+    instance_state: State<'_, core::instance::InstanceState>,
+    instance_id: String,
     version_id: String,
 ) -> Result<(), String> {
     emit_log!(
         window,
-        format!("Starting installation for version: {}", version_id)
+        format!(
+            "Starting installation for version: {} in instance: {}",
+            version_id, instance_id
+        )
     );
 
     let config = config_state.config.lock().unwrap().clone();
-    let app_handle = window.app_handle();
-    let game_dir = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+
+    // Get game directory from instance
+    let game_dir = instance_state
+        .get_instance_game_dir(&instance_id)
+        .ok_or_else(|| format!("Instance {} not found", instance_id))?;
 
     // Ensure game directory exists
     tokio::fs::create_dir_all(&game_dir)
@@ -1530,22 +1540,22 @@ async fn get_fabric_loaders_for_version(
 #[tauri::command]
 async fn install_fabric(
     window: Window,
+    instance_state: State<'_, core::instance::InstanceState>,
+    instance_id: String,
     game_version: String,
     loader_version: String,
 ) -> Result<core::fabric::InstalledFabricVersion, String> {
     emit_log!(
         window,
         format!(
-            "Installing Fabric {} for Minecraft {}...",
-            loader_version, game_version
+            "Installing Fabric {} for Minecraft {} in instance {}...",
+            loader_version, game_version, instance_id
         )
     );
 
-    let app_handle = window.app_handle();
-    let game_dir = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+    let game_dir = instance_state
+        .get_instance_game_dir(&instance_id)
+        .ok_or_else(|| format!("Instance {} not found", instance_id))?;
 
     let result = core::fabric::install_fabric(&game_dir, &game_version, &loader_version)
         .await
@@ -1564,12 +1574,14 @@ async fn install_fabric(
 
 /// List installed Fabric versions
 #[tauri::command]
-async fn list_installed_fabric_versions(window: Window) -> Result<Vec<String>, String> {
-    let app_handle = window.app_handle();
-    let game_dir = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+async fn list_installed_fabric_versions(
+    _window: Window,
+    instance_state: State<'_, core::instance::InstanceState>,
+    instance_id: String,
+) -> Result<Vec<String>, String> {
+    let game_dir = instance_state
+        .get_instance_game_dir(&instance_id)
+        .ok_or_else(|| format!("Instance {} not found", instance_id))?;
 
     core::fabric::list_installed_fabric_versions(&game_dir)
         .await
@@ -1579,14 +1591,14 @@ async fn list_installed_fabric_versions(window: Window) -> Result<Vec<String>, S
 /// Get Java version requirement for a specific version
 #[tauri::command]
 async fn get_version_java_version(
-    window: Window,
+    _window: Window,
+    instance_state: State<'_, core::instance::InstanceState>,
+    instance_id: String,
     version_id: String,
 ) -> Result<Option<u64>, String> {
-    let app_handle = window.app_handle();
-    let game_dir = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+    let game_dir = instance_state
+        .get_instance_game_dir(&instance_id)
+        .ok_or_else(|| format!("Instance {} not found", instance_id))?;
 
     // Try to load the version JSON to get javaVersion
     match core::manifest::load_version(&game_dir, &version_id).await {
@@ -1607,12 +1619,15 @@ struct VersionMetadata {
 
 /// Delete a version (remove version directory)
 #[tauri::command]
-async fn delete_version(window: Window, version_id: String) -> Result<(), String> {
-    let app_handle = window.app_handle();
-    let game_dir = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+async fn delete_version(
+    window: Window,
+    instance_state: State<'_, core::instance::InstanceState>,
+    instance_id: String,
+    version_id: String,
+) -> Result<(), String> {
+    let game_dir = instance_state
+        .get_instance_game_dir(&instance_id)
+        .ok_or_else(|| format!("Instance {} not found", instance_id))?;
 
     let version_dir = game_dir.join("versions").join(&version_id);
 
@@ -1634,14 +1649,14 @@ async fn delete_version(window: Window, version_id: String) -> Result<(), String
 /// Get detailed metadata for a specific version
 #[tauri::command]
 async fn get_version_metadata(
-    window: Window,
+    _window: Window,
+    instance_state: State<'_, core::instance::InstanceState>,
+    instance_id: String,
     version_id: String,
 ) -> Result<VersionMetadata, String> {
-    let app_handle = window.app_handle();
-    let game_dir = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+    let game_dir = instance_state
+        .get_instance_game_dir(&instance_id)
+        .ok_or_else(|| format!("Instance {} not found", instance_id))?;
 
     // Initialize metadata
     let mut metadata = VersionMetadata {
@@ -1728,12 +1743,14 @@ struct InstalledVersion {
 /// List all installed versions from the data directory
 /// Simply lists all folders in the versions directory without validation
 #[tauri::command]
-async fn list_installed_versions(window: Window) -> Result<Vec<InstalledVersion>, String> {
-    let app_handle = window.app_handle();
-    let game_dir = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+async fn list_installed_versions(
+    _window: Window,
+    instance_state: State<'_, core::instance::InstanceState>,
+    instance_id: String,
+) -> Result<Vec<InstalledVersion>, String> {
+    let game_dir = instance_state
+        .get_instance_game_dir(&instance_id)
+        .ok_or_else(|| format!("Instance {} not found", instance_id))?;
 
     let versions_dir = game_dir.join("versions");
     let mut installed = Vec::new();
@@ -1813,15 +1830,15 @@ async fn list_installed_versions(window: Window) -> Result<Vec<InstalledVersion>
 /// Check if Fabric is installed for a specific version
 #[tauri::command]
 async fn is_fabric_installed(
-    window: Window,
+    _window: Window,
+    instance_state: State<'_, core::instance::InstanceState>,
+    instance_id: String,
     game_version: String,
     loader_version: String,
 ) -> Result<bool, String> {
-    let app_handle = window.app_handle();
-    let game_dir = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+    let game_dir = instance_state
+        .get_instance_game_dir(&instance_id)
+        .ok_or_else(|| format!("Instance {} not found", instance_id))?;
 
     Ok(core::fabric::is_fabric_installed(
         &game_dir,
@@ -1853,25 +1870,26 @@ async fn get_forge_versions_for_game(
 async fn install_forge(
     window: Window,
     config_state: State<'_, core::config::ConfigState>,
+    instance_state: State<'_, core::instance::InstanceState>,
+    instance_id: String,
     game_version: String,
     forge_version: String,
 ) -> Result<core::forge::InstalledForgeVersion, String> {
     emit_log!(
         window,
         format!(
-            "Installing Forge {} for Minecraft {}...",
-            forge_version, game_version
+            "Installing Forge {} for Minecraft {} in instance {}...",
+            forge_version, game_version, instance_id
         )
     );
 
-    let app_handle = window.app_handle();
-    let game_dir = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+    let game_dir = instance_state
+        .get_instance_game_dir(&instance_id)
+        .ok_or_else(|| format!("Instance {} not found", instance_id))?;
 
     // Get Java path from config or detect
     let config = config_state.config.lock().unwrap().clone();
+    let app_handle = window.app_handle();
     let java_path_str = if !config.java_path.is_empty() && config.java_path != "java" {
         config.java_path.clone()
     } else {
@@ -2075,6 +2093,85 @@ async fn list_openai_models(
     assistant.list_openai_models(&config.assistant).await
 }
 
+// ==================== Instance Management Commands ====================
+
+/// Create a new instance
+#[tauri::command]
+async fn create_instance(
+    window: Window,
+    state: State<'_, core::instance::InstanceState>,
+    name: String,
+) -> Result<core::instance::Instance, String> {
+    let app_handle = window.app_handle();
+    state.create_instance(name, app_handle)
+}
+
+/// Delete an instance
+#[tauri::command]
+async fn delete_instance(
+    state: State<'_, core::instance::InstanceState>,
+    instance_id: String,
+) -> Result<(), String> {
+    state.delete_instance(&instance_id)
+}
+
+/// Update an instance
+#[tauri::command]
+async fn update_instance(
+    state: State<'_, core::instance::InstanceState>,
+    instance: core::instance::Instance,
+) -> Result<(), String> {
+    state.update_instance(instance)
+}
+
+/// Get all instances
+#[tauri::command]
+async fn list_instances(
+    state: State<'_, core::instance::InstanceState>,
+) -> Result<Vec<core::instance::Instance>, String> {
+    Ok(state.list_instances())
+}
+
+/// Get a single instance by ID
+#[tauri::command]
+async fn get_instance(
+    state: State<'_, core::instance::InstanceState>,
+    instance_id: String,
+) -> Result<core::instance::Instance, String> {
+    state
+        .get_instance(&instance_id)
+        .ok_or_else(|| format!("Instance {} not found", instance_id))
+}
+
+/// Set the active instance
+#[tauri::command]
+async fn set_active_instance(
+    state: State<'_, core::instance::InstanceState>,
+    instance_id: String,
+) -> Result<(), String> {
+    state.set_active_instance(&instance_id)
+}
+
+/// Get the active instance
+#[tauri::command]
+async fn get_active_instance(
+    state: State<'_, core::instance::InstanceState>,
+) -> Result<Option<core::instance::Instance>, String> {
+    Ok(state.get_active_instance())
+}
+
+/// Duplicate an instance
+#[tauri::command]
+async fn duplicate_instance(
+    window: Window,
+    state: State<'_, core::instance::InstanceState>,
+    instance_id: String,
+    new_name: String,
+) -> Result<core::instance::Instance, String> {
+    let app_handle = window.app_handle();
+    state.duplicate_instance(&instance_id, new_name, app_handle)
+}
+
 #[tauri::command]
 async fn assistant_chat_stream(
     window: tauri::Window,
@@ -2100,6 +2197,16 @@ fn main() {
         .setup(|app| {
             let config_state = core::config::ConfigState::new(app.handle());
             app.manage(config_state);
+
+            // Initialize instance state
+            let instance_state = core::instance::InstanceState::new(app.handle());
+
+            // Migrate legacy data if needed
+            if let Err(e) = core::instance::migrate_legacy_data(app.handle(), &instance_state) {
+                eprintln!("[Startup] Warning: Failed to migrate legacy data: {}", e);
+            }
+
+            app.manage(instance_state);
 
             // Load saved account on startup
             let app_dir = app.path().app_data_dir().unwrap();
@@ -2176,7 +2283,16 @@ fn main() {
             assistant_chat,
             assistant_chat_stream,
             list_ollama_models,
-            list_openai_models
+            list_openai_models,
+            // Instance management commands
+            create_instance,
+            delete_instance,
+            update_instance,
+            list_instances,
+            get_instance,
+            set_active_instance,
+            get_active_instance,
+            duplicate_instance
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

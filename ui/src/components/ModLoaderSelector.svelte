@@ -9,6 +9,7 @@
   } from "../types";
   import { Loader2, Download, AlertCircle, Check, ChevronDown, CheckCircle } from 'lucide-svelte';
   import { logsState } from "../stores/logs.svelte";
+  import { instancesState } from "../stores/instances.svelte";
 
   interface Props {
     selectedGameVersion: string;
@@ -52,12 +53,13 @@
   });
 
   async function checkInstallStatus() {
-    if (!selectedGameVersion) {
+    if (!selectedGameVersion || !instancesState.activeInstanceId) {
       isVersionInstalled = false;
       return;
     }
     try {
       isVersionInstalled = await invoke<boolean>("check_version_installed", {
+        instanceId: instancesState.activeInstanceId,
         versionId: selectedGameVersion,
       });
     } catch (e) {
@@ -112,8 +114,13 @@
     error = null;
     logsState.addLog("info", "Installer", `Starting installation of ${selectedGameVersion}...`);
 
+    if (!instancesState.activeInstanceId) {
+      error = "Please select an instance first";
+      return;
+    }
     try {
       await invoke("install_version", {
+        instanceId: instancesState.activeInstanceId,
         versionId: selectedGameVersion,
       });
       logsState.addLog("info", "Installer", `Successfully installed ${selectedGameVersion}`);
@@ -134,6 +141,12 @@
       return;
     }
 
+    if (!instancesState.activeInstanceId) {
+      error = "Please select an instance first";
+      isInstalling = false;
+      return;
+    }
+
     isInstalling = true;
     error = null;
 
@@ -142,6 +155,7 @@
       if (!isVersionInstalled) {
         logsState.addLog("info", "Installer", `Installing base game ${selectedGameVersion} first...`);
         await invoke("install_version", {
+          instanceId: instancesState.activeInstanceId,
           versionId: selectedGameVersion,
         });
         isVersionInstalled = true;
@@ -151,6 +165,7 @@
       if (selectedLoader === "fabric" && selectedFabricLoader) {
         logsState.addLog("info", "Installer", `Installing Fabric ${selectedFabricLoader} for ${selectedGameVersion}...`);
         const result = await invoke<any>("install_fabric", {
+          instanceId: instancesState.activeInstanceId,
           gameVersion: selectedGameVersion,
           loaderVersion: selectedFabricLoader,
         });
@@ -159,6 +174,7 @@
       } else if (selectedLoader === "forge" && selectedForgeVersion) {
         logsState.addLog("info", "Installer", `Installing Forge ${selectedForgeVersion} for ${selectedGameVersion}...`);
         const result = await invoke<any>("install_forge", {
+          instanceId: instancesState.activeInstanceId,
           gameVersion: selectedGameVersion,
           forgeVersion: selectedForgeVersion,
         });
