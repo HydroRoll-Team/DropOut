@@ -10,7 +10,8 @@
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
     "lint": "oxlint .",
     "lint:fix": "oxlint . --fix",
-    "format": "oxfmt . --write"
+    "format": "oxfmt . --write",
+    "format:check": "oxfmt . --check"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.9.1",
