@@ -6,6 +6,7 @@
 [![Dependabot Updates](https://github.com/HsiangNianian/DropOut/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/HsiangNianian/DropOut/actions/workflows/dependabot/dependabot-updates)
 [![Release](https://github.com/HsiangNianian/DropOut/actions/workflows/release.yml/badge.svg)](https://github.com/HsiangNianian/DropOut/actions/workflows/release.yml)
 [![Test & Build](https://github.com/HsiangNianian/DropOut/actions/workflows/test.yml/badge.svg)](https://github.com/HsiangNianian/DropOut/actions/workflows/test.yml)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut?ref=badge_shield)
 
 DropOut is a modern, minimalist, and efficient Minecraft launcher built with the latest web and system technologies. It leverages **Tauri v2** to deliver a lightweight application with a robust **Rust** backend and a reactive **Svelte 5** frontend.
 
@@ -108,3 +109,6 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## License
 
 Distributed under the MIT License. See `LICENSE` for more information.
+
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut?ref=badge_large)
