@@ -13,6 +13,18 @@ use crate::utils::zip;
 const ADOPTIUM_API_BASE: &str = "https://api.adoptium.net/v3";
 const CACHE_DURATION_SECS: u64 = 24 * 60 * 60; // 24 hours
 
+/// Helper to strip UNC prefix on Windows (\\?\)
+fn strip_unc_prefix(path: PathBuf) -> PathBuf {
+    #[cfg(target_os = "windows")]
+    {
+        let s = path.to_string_lossy().to_string();
+        if s.starts_with(r"\\?\") {
+            return PathBuf::from(&s[4..]);
+        }
+    }
+    path
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JavaInstallation {
     pub path: String,
@@ -649,7 +661,11 @@ fn get_java_candidates() -> Vec<PathBuf> {
             for line in paths.lines() {
                 let path = PathBuf::from(line.trim());
                 if path.exists() {
-                    candidates.push(path);
+                    // Resolve symlinks (important for Windows javapath wrapper)
+                    let resolved = std::fs::canonicalize(&path).unwrap_or(path);
+                    // Strip UNC prefix if present to keep paths clean
+                    let final_path = strip_unc_prefix(resolved);
+                    candidates.push(final_path);
                 }
             }
         }
