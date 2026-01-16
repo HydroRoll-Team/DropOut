@@ -1,7 +1,8 @@
 ci:
   autofix_prs: true
   autofix_commit_msg: "[pre-commit.ci] auto fixes from pre-commit hooks [skip ci]"
-
+  skip: [fmt,cargo-check,clippy]
+  
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
