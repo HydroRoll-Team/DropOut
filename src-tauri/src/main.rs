@@ -1,12 +1,12 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use serde::Serialize;
 use std::process::Stdio;
 use std::sync::Mutex;
 use tauri::{Emitter, Manager, State, Window}; // Added Emitter
 use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::process::Command;
-use serde::Serialize; // Added Serialize
+use tokio::process::Command; // Added Serialize
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -67,6 +67,7 @@ async fn start_game(
     window: Window,
     auth_state: State<'_, core::auth::AccountState>,
     config_state: State<'_, core::config::ConfigState>,
+    assistant_state: State<'_, core::assistant::AssistantState>,
     version_id: String,
 ) -> Result<String, String> {
     emit_log!(
@@ -83,10 +84,7 @@ async fn start_game(
         .clone()
         .ok_or("No active account found. Please login first.")?;
 
-    emit_log!(
-        window,
-        format!("Account found: {}", account.username())
-    );
+    emit_log!(window, format!("Account found: {}", account.username()));
 
     let config = config_state.config.lock().unwrap().clone();
     emit_log!(window, format!("Java path: {}", config.java_path));
@@ -119,10 +117,11 @@ async fn start_game(
 
     // First, load the local version to get the original inheritsFrom value
     // (before merge clears it)
-    let original_inherits_from = match core::manifest::load_local_version(&game_dir, &version_id).await {
-        Ok(local_version) => local_version.inherits_from.clone(),
-        Err(_) => None,
-    };
+    let original_inherits_from =
+        match core::manifest::load_local_version(&game_dir, &version_id).await {
+            Ok(local_version) => local_version.inherits_from.clone(),
+            Err(_) => None,
+        };
 
     let version_details = core::manifest::load_version(&game_dir, &version_id)
         .await
@@ -138,8 +137,7 @@ async fn start_game(
 
     // Determine the actual minecraft version for client.jar
     // (for modded versions, this is the parent vanilla version)
-    let minecraft_version = original_inherits_from
-        .unwrap_or_else(|| version_id.clone());
+    let minecraft_version = original_inherits_from.unwrap_or_else(|| version_id.clone());
 
     // 2. Prepare download tasks
     emit_log!(window, "Preparing download tasks...".to_string());
@@ -573,9 +571,11 @@ async fn start_game(
     );
 
     let window_rx = window.clone();
+    let assistant_arc = assistant_state.assistant.clone();
     tokio::spawn(async move {
         let mut reader = BufReader::new(stdout).lines();
         while let Ok(Some(line)) = reader.next_line().await {
+            assistant_arc.lock().unwrap().add_log(line.clone());
             let _ = window_rx.emit("game-stdout", line);
         }
         // Emit log when stdout stream ends (game closing)
@@ -583,10 +583,12 @@ async fn start_game(
     });
 
     let window_rx_err = window.clone();
+    let assistant_arc_err = assistant_state.assistant.clone();
     let window_exit = window.clone();
     tokio::spawn(async move {
         let mut reader = BufReader::new(stderr).lines();
         while let Ok(Some(line)) = reader.next_line().await {
+            assistant_arc_err.lock().unwrap().add_log(line.clone());
             let _ = window_rx_err.emit("game-stderr", line);
         }
         // Emit log when stderr stream ends
@@ -700,10 +702,18 @@ async fn check_version_installed(window: Window, version_id: String) -> Result<b
     // For modded versions, check the parent vanilla version
     let minecraft_version = if version_id.starts_with("fabric-loader-") {
         // Format: fabric-loader-X.X.X-1.20.4
-        version_id.split('-').last().unwrap_or(&version_id).to_string()
+        version_id
+            .split('-')
+            .next_back()
+            .unwrap_or(&version_id)
+            .to_string()
     } else if version_id.contains("-forge-") {
         // Format: 1.20.4-forge-49.0.38
-        version_id.split("-forge-").next().unwrap_or(&version_id).to_string()
+        version_id
+            .split("-forge-")
+            .next()
+            .unwrap_or(&version_id)
+            .to_string()
     } else {
         version_id.clone()
     };
@@ -749,21 +759,24 @@ async fn install_version(
     );
 
     // First, try to fetch the vanilla version from Mojang and save it locally
-    let version_details = match core::manifest::load_local_version(&game_dir, &version_id).await {
+    let _version_details = match core::manifest::load_local_version(&game_dir, &version_id).await {
         Ok(v) => v,
         Err(_) => {
             // Not found locally, fetch from Mojang
-            emit_log!(window, format!("Fetching version {} from Mojang...", version_id));
+            emit_log!(
+                window,
+                format!("Fetching version {} from Mojang...", version_id)
+            );
             let fetched = core::manifest::fetch_vanilla_version(&version_id)
                 .await
                 .map_err(|e| e.to_string())?;
-            
+
             // Save the version JSON locally
             emit_log!(window, format!("Saving version JSON..."));
             core::manifest::save_local_version(&game_dir, &fetched)
                 .await
                 .map_err(|e| e.to_string())?;
-            
+
             fetched
         }
     };
@@ -1056,6 +1069,38 @@ async fn save_settings(
 }
 
 #[tauri::command]
+async fn get_config_path(state: State<'_, core::config::ConfigState>) -> Result<String, String> {
+    Ok(state.file_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+async fn read_raw_config(state: State<'_, core::config::ConfigState>) -> Result<String, String> {
+    tokio::fs::read_to_string(&state.file_path)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn save_raw_config(
+    state: State<'_, core::config::ConfigState>,
+    content: String,
+) -> Result<(), String> {
+    // Validate JSON
+    let new_config: core::config::LauncherConfig =
+        serde_json::from_str(&content).map_err(|e| format!("Invalid JSON: {}", e))?;
+
+    // Save to file
+    tokio::fs::write(&state.file_path, &content)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    // Update in-memory state
+    *state.config.lock().unwrap() = new_config;
+
+    Ok(())
+}
+
+#[tauri::command]
 async fn start_microsoft_login() -> Result<core::auth::DeviceCodeResponse, String> {
     core::auth::start_device_flow().await
 }
@@ -1166,7 +1211,9 @@ async fn refresh_account(
 
 /// Detect Java installations on the system
 #[tauri::command]
-async fn detect_java(app_handle: tauri::AppHandle) -> Result<Vec<core::java::JavaInstallation>, String> {
+async fn detect_java(
+    app_handle: tauri::AppHandle,
+) -> Result<Vec<core::java::JavaInstallation>, String> {
     Ok(core::java::detect_all_java_installations(&app_handle))
 }
 
@@ -1484,11 +1531,13 @@ async fn install_forge(
         config.java_path.clone()
     } else {
         // Try to find a suitable Java installation
-        let javas = core::java::detect_all_java_installations(&app_handle);
+        let javas = core::java::detect_all_java_installations(app_handle);
         if let Some(java) = javas.first() {
             java.path.clone()
         } else {
-            return Err("No Java installation found. Please configure Java in settings.".to_string());
+            return Err(
+                "No Java installation found. Please configure Java in settings.".to_string(),
+            );
         }
     };
     let java_path = std::path::PathBuf::from(&java_path_str);
@@ -1500,7 +1549,10 @@ async fn install_forge(
         .await
         .map_err(|e| format!("Forge installer failed: {}", e))?;
 
-    emit_log!(window, "Forge installer completed, creating version profile...".to_string());
+    emit_log!(
+        window,
+        "Forge installer completed, creating version profile...".to_string()
+    );
 
     // Now create the version JSON
     let result = core::forge::install_forge(&game_dir, &game_version, &forge_version)
@@ -1547,7 +1599,7 @@ async fn get_github_releases() -> Result<Vec<GithubRelease>, String> {
             r["name"].as_str(),
             r["published_at"].as_str(),
             r["body"].as_str(),
-            r["html_url"].as_str()
+            r["html_url"].as_str(),
         ) {
             result.push(GithubRelease {
                 tag_name: tag.to_string(),
@@ -1589,8 +1641,7 @@ async fn upload_to_pastebin(
 
     match service.as_str() {
         "pastebin.com" => {
-            let api_key = api_key
-                .ok_or("Pastebin API Key not configured in settings")?;
+            let api_key = api_key.ok_or("Pastebin API Key not configured in settings")?;
 
             let res = client
                 .post("https://pastebin.com/api/api_post.php")
@@ -1636,6 +1687,60 @@ async fn upload_to_pastebin(
     }
 }
 
+#[tauri::command]
+async fn assistant_check_health(
+    assistant_state: State<'_, core::assistant::AssistantState>,
+    config_state: State<'_, core::config::ConfigState>,
+) -> Result<bool, String> {
+    let assistant = assistant_state.assistant.lock().unwrap().clone();
+    let config = config_state.config.lock().unwrap().clone();
+    Ok(assistant.check_health(&config.assistant).await)
+}
+
+#[tauri::command]
+async fn assistant_chat(
+    assistant_state: State<'_, core::assistant::AssistantState>,
+    config_state: State<'_, core::config::ConfigState>,
+    messages: Vec<core::assistant::Message>,
+) -> Result<core::assistant::Message, String> {
+    let assistant = assistant_state.assistant.lock().unwrap().clone();
+    let config = config_state.config.lock().unwrap().clone();
+    assistant.chat(messages, &config.assistant).await
+}
+
+#[tauri::command]
+async fn list_ollama_models(
+    assistant_state: State<'_, core::assistant::AssistantState>,
+    endpoint: String,
+) -> Result<Vec<core::assistant::ModelInfo>, String> {
+    let assistant = assistant_state.assistant.lock().unwrap().clone();
+    assistant.list_ollama_models(&endpoint).await
+}
+
+#[tauri::command]
+async fn list_openai_models(
+    assistant_state: State<'_, core::assistant::AssistantState>,
+    config_state: State<'_, core::config::ConfigState>,
+) -> Result<Vec<core::assistant::ModelInfo>, String> {
+    let assistant = assistant_state.assistant.lock().unwrap().clone();
+    let config = config_state.config.lock().unwrap().clone();
+    assistant.list_openai_models(&config.assistant).await
+}
+
+#[tauri::command]
+async fn assistant_chat_stream(
+    window: tauri::Window,
+    assistant_state: State<'_, core::assistant::AssistantState>,
+    config_state: State<'_, core::config::ConfigState>,
+    messages: Vec<core::assistant::Message>,
+) -> Result<String, String> {
+    let assistant = assistant_state.assistant.lock().unwrap().clone();
+    let config = config_state.config.lock().unwrap().clone();
+    assistant
+        .chat_stream(messages, &config.assistant, &window)
+        .await
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
@@ -1643,6 +1748,7 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .manage(core::auth::AccountState::new())
         .manage(MsRefreshTokenState::new())
+        .manage(core::assistant::AssistantState::new())
         .setup(|app| {
             let config_state = core::config::ConfigState::new(app.handle());
             app.manage(config_state);
@@ -1666,7 +1772,7 @@ fn main() {
             }
 
             // Check for pending Java downloads and notify frontend
-            let pending = core::java::get_pending_downloads(&app.app_handle());
+            let pending = core::java::get_pending_downloads(app.app_handle());
             if !pending.is_empty() {
                 println!("[Startup] Found {} pending Java download(s)", pending.len());
                 let _ = app.emit("pending-java-downloads", pending.len());
@@ -1685,6 +1791,9 @@ fn main() {
             logout,
             get_settings,
             save_settings,
+            get_config_path,
+            read_raw_config,
+            save_raw_config,
             start_microsoft_login,
             complete_microsoft_login,
             refresh_account,
@@ -1711,7 +1820,12 @@ fn main() {
             get_forge_versions_for_game,
             install_forge,
             get_github_releases,
-            upload_to_pastebin
+            upload_to_pastebin,
+            assistant_check_health,
+            assistant_chat,
+            assistant_chat_stream,
+            list_ollama_models,
+            list_openai_models
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

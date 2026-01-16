@@ -67,13 +67,11 @@ pub struct FabricLibrary {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(untagged)]
 pub enum FabricMainClass {
-    Structured {
-        client: String,
-        server: String,
-    },
+    Structured { client: String, server: String },
     Simple(String),
 }
 
+#[allow(dead_code)]
 impl FabricMainClass {
     pub fn client(&self) -> &str {
         match self {
@@ -81,7 +79,7 @@ impl FabricMainClass {
             FabricMainClass::Simple(s) => s,
         }
     }
-    
+
     pub fn server(&self) -> &str {
         match self {
             FabricMainClass::Structured { server, .. } => server,
@@ -200,7 +198,7 @@ pub fn generate_version_id(game_version: &str, loader_version: &str) -> String {
 /// # Returns
 /// Information about the installed version.
 pub async fn install_fabric(
-    game_dir: &PathBuf,
+    game_dir: &std::path::Path,
     game_version: &str,
     loader_version: &str,
 ) -> Result<InstalledFabricVersion, Box<dyn Error + Send + Sync>> {
@@ -240,7 +238,11 @@ pub async fn install_fabric(
 ///
 /// # Returns
 /// `true` if the version JSON exists, `false` otherwise.
-pub fn is_fabric_installed(game_dir: &PathBuf, game_version: &str, loader_version: &str) -> bool {
+pub fn is_fabric_installed(
+    game_dir: &std::path::Path,
+    game_version: &str,
+    loader_version: &str,
+) -> bool {
     let version_id = generate_version_id(game_version, loader_version);
     let json_path = game_dir
         .join("versions")
@@ -257,7 +259,7 @@ pub fn is_fabric_installed(game_dir: &PathBuf, game_version: &str, loader_versio
 /// # Returns
 /// A list of installed Fabric version IDs.
 pub async fn list_installed_fabric_versions(
-    game_dir: &PathBuf,
+    game_dir: &std::path::Path,
 ) -> Result<Vec<String>, Box<dyn Error + Send + Sync>> {
     let versions_dir = game_dir.join("versions");
     let mut installed = Vec::new();

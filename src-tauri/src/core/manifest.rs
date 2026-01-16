@@ -45,7 +45,7 @@ pub async fn fetch_version_manifest() -> Result<VersionManifest, Box<dyn Error +
 /// # Returns
 /// The parsed `GameVersion` if found, or an error if not found.
 pub async fn load_local_version(
-    game_dir: &PathBuf,
+    game_dir: &std::path::Path,
     version_id: &str,
 ) -> Result<GameVersion, Box<dyn Error + Send + Sync>> {
     let json_path = game_dir
@@ -102,7 +102,7 @@ pub async fn fetch_vanilla_version(
 /// # Returns
 /// A fully resolved `GameVersion` ready for launching.
 pub async fn load_version(
-    game_dir: &PathBuf,
+    game_dir: &std::path::Path,
     version_id: &str,
 ) -> Result<GameVersion, Box<dyn Error + Send + Sync>> {
     // Try loading from local first
@@ -138,7 +138,7 @@ pub async fn load_version(
 /// # Returns
 /// The path where the JSON was saved.
 pub async fn save_local_version(
-    game_dir: &PathBuf,
+    game_dir: &std::path::Path,
     version: &GameVersion,
 ) -> Result<PathBuf, Box<dyn Error + Send + Sync>> {
     let version_dir = game_dir.join("versions").join(&version.id);
@@ -158,8 +158,9 @@ pub async fn save_local_version(
 ///
 /// # Returns
 /// A list of version IDs found in the versions directory.
+#[allow(dead_code)]
 pub async fn list_local_versions(
-    game_dir: &PathBuf,
+    game_dir: &std::path::Path,
 ) -> Result<Vec<String>, Box<dyn Error + Send + Sync>> {
     let versions_dir = game_dir.join("versions");
     let mut versions = Vec::new();

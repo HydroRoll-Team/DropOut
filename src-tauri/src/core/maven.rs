@@ -8,6 +8,7 @@
 use std::path::PathBuf;
 
 /// Known Maven repository URLs for mod loaders
+#[allow(dead_code)]
 pub const MAVEN_CENTRAL: &str = "https://repo1.maven.org/maven2/";
 pub const FABRIC_MAVEN: &str = "https://maven.fabricmc.net/";
 pub const FORGE_MAVEN: &str = "https://maven.minecraftforge.net/";
@@ -114,7 +115,7 @@ impl MavenCoordinate {
     ///
     /// # Returns
     /// The full path where the library should be stored
-    pub fn to_local_path(&self, libraries_dir: &PathBuf) -> PathBuf {
+    pub fn to_local_path(&self, libraries_dir: &std::path::Path) -> PathBuf {
         let rel_path = self.to_path();
         libraries_dir.join(rel_path.replace('/', std::path::MAIN_SEPARATOR_STR))
     }
@@ -183,7 +184,7 @@ pub fn resolve_library_url(
 ///
 /// # Returns
 /// The path where the library should be stored
-pub fn get_library_path(name: &str, libraries_dir: &PathBuf) -> Option<PathBuf> {
+pub fn get_library_path(name: &str, libraries_dir: &std::path::Path) -> Option<PathBuf> {
     let coord = MavenCoordinate::parse(name)?;
     Some(coord.to_local_path(libraries_dir))
 }

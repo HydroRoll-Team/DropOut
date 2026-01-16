@@ -6,6 +6,44 @@ use tauri::{AppHandle, Manager};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
+pub struct AssistantConfig {
+    pub enabled: bool,
+    pub llm_provider: String, // "ollama" or "openai"
+    // Ollama settings
+    pub ollama_endpoint: String,
+    pub ollama_model: String,
+    // OpenAI settings
+    pub openai_api_key: Option<String>,
+    pub openai_endpoint: String,
+    pub openai_model: String,
+    // Common settings
+    pub system_prompt: String,
+    pub response_language: String,
+    // TTS settings
+    pub tts_enabled: bool,
+    pub tts_provider: String, // "disabled", "piper", "edge"
+}
+
+impl Default for AssistantConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            llm_provider: "ollama".to_string(),
+            ollama_endpoint: "http://localhost:11434".to_string(),
+            ollama_model: "llama3".to_string(),
+            openai_api_key: None,
+            openai_endpoint: "https://api.openai.com/v1".to_string(),
+            openai_model: "gpt-3.5-turbo".to_string(),
+            system_prompt: "You are a helpful Minecraft expert assistant. You help players with game issues, mod installation, performance optimization, and gameplay tips. Analyze any game logs provided and give concise, actionable advice.".to_string(),
+            response_language: "auto".to_string(),
+            tts_enabled: false,
+            tts_provider: "disabled".to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct LauncherConfig {
     pub min_memory: u32, // in MB
     pub max_memory: u32, // in MB
@@ -20,6 +58,7 @@ pub struct LauncherConfig {
     pub theme: String,
     pub log_upload_service: String, // "paste.rs" or "pastebin.com"
     pub pastebin_api_key: Option<String>,
+    pub assistant: AssistantConfig,
 }
 
 impl Default for LauncherConfig {
@@ -38,6 +77,7 @@ impl Default for LauncherConfig {
             theme: "dark".to_string(),
             log_upload_service: "paste.rs".to_string(),
             pastebin_api_key: None,
+            assistant: AssistantConfig::default(),
         }
     }
 }

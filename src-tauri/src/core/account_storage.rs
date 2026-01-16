@@ -138,6 +138,7 @@ impl AccountStorage {
         }
     }
 
+    #[allow(dead_code)]
     pub fn set_active_account(&self, uuid: &str) -> Result<(), String> {
         let mut store = self.load();
         if store.accounts.iter().any(|a| a.id() == uuid) {
@@ -148,6 +149,7 @@ impl AccountStorage {
         }
     }
 
+    #[allow(dead_code)]
     pub fn get_all_accounts(&self) -> Vec<StoredAccount> {
         self.load().accounts
     }

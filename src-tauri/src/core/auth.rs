@@ -136,6 +136,7 @@ pub async fn refresh_microsoft_token(refresh_token: &str) -> Result<TokenRespons
 }
 
 /// Check if a Microsoft account token is expired or about to expire
+#[allow(dead_code)]
 pub fn is_token_expired(expires_at: i64) -> bool {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -430,17 +431,21 @@ pub async fn fetch_profile(mc_access_token: &str) -> Result<MinecraftProfile, St
 
 // 7. Check Game Ownership
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct Entitlement {
     pub name: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct EntitlementsResponse {
     pub items: Vec<Entitlement>,
     pub signature: Option<String>,
-    pub keyId: Option<String>,
+    #[serde(rename = "keyId")]
+    pub key_id: Option<String>,
 }
 
+#[allow(dead_code)]
 pub async fn check_ownership(mc_access_token: &str) -> Result<bool, String> {
     let client = get_client();
     let url = "https://api.minecraftservices.com/entitlements/mcstore";

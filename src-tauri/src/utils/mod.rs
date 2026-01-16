@@ -1,6 +1,7 @@
 pub mod zip;
 
 // File system related utility functions
+#[allow(dead_code)]
 pub mod file_utils {
     use std::fs;
     use std::io::{self, Write};
@@ -16,6 +17,7 @@ pub mod file_utils {
 }
 
 // Configuration parsing utilities
+#[allow(dead_code)]
 pub mod config_parser {
     use std::collections::HashMap;
 

@@ -111,9 +111,8 @@ impl DownloadQueue {
 
     /// Remove a completed or cancelled download
     pub fn remove(&mut self, major_version: u32, image_type: &str) {
-        self.pending_downloads.retain(|d| {
-            !(d.major_version == major_version && d.image_type == image_type)
-        });
+        self.pending_downloads
+            .retain(|d| !(d.major_version == major_version && d.image_type == image_type));
     }
 }
 
@@ -174,7 +173,8 @@ pub async fn download_with_resume(
         let content = tokio::fs::read_to_string(&meta_path)
             .await
             .map_err(|e| e.to_string())?;
-        serde_json::from_str(&content).unwrap_or_else(|_| create_new_metadata(url, &file_name, total_size, checksum))
+        serde_json::from_str(&content)
+            .unwrap_or_else(|_| create_new_metadata(url, &file_name, total_size, checksum))
     } else {
         create_new_metadata(url, &file_name, total_size, checksum)
     };
@@ -191,6 +191,7 @@ pub async fn download_with_resume(
         .create(true)
         .write(true)
         .read(true)
+        .truncate(false)
         .open(&part_path)
         .await
         .map_err(|e| format!("Failed to open part file: {}", e))?;
@@ -220,9 +221,7 @@ pub async fn download_with_resume(
         let segment_end = segment.end;
         let app_handle = app_handle.clone();
         let file_name = file_name.clone();
-        let total_size = total_size;
         let last_progress_bytes = last_progress_bytes.clone();
-        let start_time = start_time.clone();
 
         let handle = tokio::spawn(async move {
             let _permit = semaphore.acquire().await.unwrap();
@@ -240,7 +239,9 @@ pub async fn download_with_resume(
                 .await
                 .map_err(|e| format!("Request failed: {}", e))?;
 
-            if !response.status().is_success() && response.status() != reqwest::StatusCode::PARTIAL_CONTENT {
+            if !response.status().is_success()
+                && response.status() != reqwest::StatusCode::PARTIAL_CONTENT
+            {
                 return Err(format!("Server returned error: {}", response.status()));
             }
 
@@ -319,7 +320,8 @@ pub async fn download_with_resume(
                 if e.contains("cancelled") {
                     // Save progress for resume
                     metadata.downloaded_bytes = progress.load(Ordering::Relaxed);
-                    let meta_content = serde_json::to_string_pretty(&metadata).map_err(|e| e.to_string())?;
+                    let meta_content =
+                        serde_json::to_string_pretty(&metadata).map_err(|e| e.to_string())?;
                     tokio::fs::write(&meta_path, meta_content).await.ok();
                     return Err(e);
                 }
@@ -357,7 +359,7 @@ pub async fn download_with_resume(
         let data = tokio::fs::read(&part_path)
             .await
             .map_err(|e| format!("Failed to read file for verification: {}", e))?;
-        
+
         if !verify_checksum(&data, Some(expected), None) {
             // Checksum failed, delete files and retry
             tokio::fs::remove_file(&part_path).await.ok();
@@ -378,7 +380,12 @@ pub async fn download_with_resume(
 }
 
 /// Create new download metadata with segments
-fn create_new_metadata(url: &str, file_name: &str, total_size: u64, checksum: Option<&str>) -> DownloadMetadata {
+fn create_new_metadata(
+    url: &str,
+    file_name: &str,
+    total_size: u64,
+    checksum: Option<&str>,
+) -> DownloadMetadata {
     let segment_count = get_segment_count(total_size);
     let segment_size = total_size / segment_count as u64;
     let mut segments = Vec::new();
@@ -559,11 +566,7 @@ pub async fn download_files(
 
                 if task.sha256.is_some() || task.sha1.is_some() {
                     if let Ok(data) = tokio::fs::read(&task.path).await {
-                        if verify_checksum(
-                            &data,
-                            task.sha256.as_deref(),
-                            task.sha1.as_deref(),
-                        ) {
+                        if verify_checksum(&data, task.sha256.as_deref(), task.sha1.as_deref()) {
                             // Already valid, skip download
                             let skipped_size = tokio::fs::metadata(&task.path)
                                 .await

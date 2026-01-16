@@ -5,7 +5,7 @@ use tauri::AppHandle;
 use tauri::Emitter;
 use tauri::Manager;
 
-use crate::core::downloader::{self, JavaDownloadProgress, DownloadQueue, PendingJavaDownload};
+use crate::core::downloader::{self, DownloadQueue, JavaDownloadProgress, PendingJavaDownload};
 use crate::utils::zip;
 
 const ADOPTIUM_API_BASE: &str = "https://api.adoptium.net/v3";
@@ -58,23 +58,12 @@ pub struct JavaReleaseInfo {
 }
 
 /// Java catalog containing all available versions
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct JavaCatalog {
     pub releases: Vec<JavaReleaseInfo>,
     pub available_major_versions: Vec<u32>,
     pub lts_versions: Vec<u32>,
     pub cached_at: u64,
-}
-
-impl Default for JavaCatalog {
-    fn default() -> Self {
-        Self {
-            releases: Vec::new(),
-            available_major_versions: Vec::new(),
-            lts_versions: Vec::new(),
-            cached_at: 0,
-        }
-    }
 }
 
 /// Adoptium `/v3/assets/latest/{version}/hotspot` API response structures
@@ -86,6 +75,7 @@ pub struct AdoptiumAsset {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct AdoptiumBinary {
     pub os: String,
     pub architecture: String,
@@ -104,6 +94,7 @@ pub struct AdoptiumPackage {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct AdoptiumVersionData {
     pub major: u32,
     pub minor: u32,
@@ -114,6 +105,7 @@ pub struct AdoptiumVersionData {
 
 /// Adoptium available releases response
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct AvailableReleases {
     pub available_releases: Vec<u32>,
     pub available_lts_releases: Vec<u32>,
@@ -231,6 +223,7 @@ pub fn save_catalog_cache(app_handle: &AppHandle, catalog: &JavaCatalog) -> Resu
 }
 
 /// Clear Java catalog cache
+#[allow(dead_code)]
 pub fn clear_catalog_cache(app_handle: &AppHandle) -> Result<(), String> {
     let cache_path = get_catalog_cache_path(app_handle);
     if cache_path.exists() {
@@ -240,7 +233,10 @@ pub fn clear_catalog_cache(app_handle: &AppHandle) -> Result<(), String> {
 }
 
 /// Fetch complete Java catalog from Adoptium API with platform availability check
-pub async fn fetch_java_catalog(app_handle: &AppHandle, force_refresh: bool) -> Result<JavaCatalog, String> {
+pub async fn fetch_java_catalog(
+    app_handle: &AppHandle,
+    force_refresh: bool,
+) -> Result<JavaCatalog, String> {
     // Check cache first unless force refresh
     if !force_refresh {
         if let Some(cached) = load_cached_catalog(app_handle) {
@@ -294,7 +290,9 @@ pub async fn fetch_java_catalog(app_handle: &AppHandle, force_refresh: bool) -> 
                                     file_size: asset.binary.package.size,
                                     checksum: asset.binary.package.checksum,
                                     download_url: asset.binary.package.link,
-                                    is_lts: available.available_lts_releases.contains(major_version),
+                                    is_lts: available
+                                        .available_lts_releases
+                                        .contains(major_version),
                                     is_available: true,
                                     architecture: asset.binary.architecture.clone(),
                                 });
@@ -547,7 +545,11 @@ pub async fn download_and_install_java(
     // Linux/Windows: jdk-xxx/bin/java
     let java_home = version_dir.join(&top_level_dir);
     let java_bin = if cfg!(target_os = "macos") {
-        java_home.join("Contents").join("Home").join("bin").join("java")
+        java_home
+            .join("Contents")
+            .join("Home")
+            .join("bin")
+            .join("java")
     } else if cfg!(windows) {
         java_home.join("bin").join("java.exe")
     } else {
@@ -885,7 +887,7 @@ pub fn detect_all_java_installations(app_handle: &AppHandle) -> Vec<JavaInstalla
     installations
 }
 
-//// Find the java executable in a directory using a limited-depth search
+/// Find the java executable in a directory using a limited-depth search
 fn find_java_executable(dir: &PathBuf) -> Option<PathBuf> {
     let bin_name = if cfg!(windows) { "java.exe" } else { "java" };
 
@@ -918,7 +920,11 @@ fn find_java_executable(dir: &PathBuf) -> Option<PathBuf> {
                 // macOS: nested/Contents/Home/bin/java
                 #[cfg(target_os = "macos")]
                 {
-                    let macos_nested = path.join("Contents").join("Home").join("bin").join(bin_name);
+                    let macos_nested = path
+                        .join("Contents")
+                        .join("Home")
+                        .join("bin")
+                        .join(bin_name);
                     if macos_nested.exists() {
                         return Some(macos_nested);
                     }
@@ -931,7 +937,9 @@ fn find_java_executable(dir: &PathBuf) -> Option<PathBuf> {
 }
 
 /// Resume pending Java downloads from queue
-pub async fn resume_pending_downloads(app_handle: &AppHandle) -> Result<Vec<JavaInstallation>, String> {
+pub async fn resume_pending_downloads(
+    app_handle: &AppHandle,
+) -> Result<Vec<JavaInstallation>, String> {
     let queue = DownloadQueue::load(app_handle);
     let mut installed = Vec::new();
 
@@ -978,7 +986,12 @@ pub fn get_pending_downloads(app_handle: &AppHandle) -> Vec<PendingJavaDownload>
 }
 
 /// Clear a specific pending download
-pub fn clear_pending_download(app_handle: &AppHandle, major_version: u32, image_type: &str) -> Result<(), String> {
+#[allow(dead_code)]
+pub fn clear_pending_download(
+    app_handle: &AppHandle,
+    major_version: u32,
+    image_type: &str,
+) -> Result<(), String> {
     let mut queue = DownloadQueue::load(app_handle);
     queue.remove(major_version, image_type);
     queue.save(app_handle)

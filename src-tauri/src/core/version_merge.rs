@@ -101,6 +101,7 @@ fn merge_json_arrays(
 ///
 /// # Returns
 /// `true` if the version has an `inheritsFrom` field that needs resolution.
+#[allow(dead_code)]
 pub fn needs_inheritance_resolution(version: &GameVersion) -> bool {
     version.inherits_from.is_some()
 }
@@ -116,6 +117,7 @@ pub fn needs_inheritance_resolution(version: &GameVersion) -> bool {
 ///
 /// # Returns
 /// A fully merged `GameVersion` with all inheritance resolved.
+#[allow(dead_code)]
 pub async fn resolve_inheritance<F, Fut>(
     version: GameVersion,
     version_loader: F,

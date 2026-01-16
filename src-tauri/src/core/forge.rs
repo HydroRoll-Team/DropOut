@@ -43,6 +43,7 @@ pub struct InstalledForgeVersion {
 
 /// Forge installer manifest structure (from version.json inside installer JAR)
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct ForgeInstallerManifest {
     id: Option<String>,
     #[serde(rename = "inheritsFrom")]
@@ -183,30 +184,30 @@ async fn fetch_forge_installer_manifest(
     forge_version: &str,
 ) -> Result<ForgeInstallerManifest, Box<dyn Error + Send + Sync>> {
     let forge_full = format!("{}-{}", game_version, forge_version);
-    
+
     // Download the installer JAR to extract version.json
     let installer_url = format!(
         "{}net/minecraftforge/forge/{}/forge-{}-installer.jar",
         FORGE_MAVEN_URL, forge_full, forge_full
     );
-    
+
     println!("Fetching Forge installer from: {}", installer_url);
-    
+
     let response = reqwest::get(&installer_url).await?;
     if !response.status().is_success() {
         return Err(format!("Failed to download Forge installer: {}", response.status()).into());
     }
-    
+
     let bytes = response.bytes().await?;
-    
+
     // Extract version.json from the JAR (which is a ZIP file)
     let cursor = std::io::Cursor::new(bytes.as_ref());
     let mut archive = zip::ZipArchive::new(cursor)?;
-    
+
     // Look for version.json in the archive
     let version_json = archive.by_name("version.json")?;
     let manifest: ForgeInstallerManifest = serde_json::from_reader(version_json)?;
-    
+
     Ok(manifest)
 }
 
@@ -224,7 +225,7 @@ async fn fetch_forge_installer_manifest(
 /// # Returns
 /// Information about the installed version.
 pub async fn install_forge(
-    game_dir: &PathBuf,
+    game_dir: &std::path::Path,
     game_version: &str,
     forge_version: &str,
 ) -> Result<InstalledForgeVersion, Box<dyn Error + Send + Sync>> {
@@ -234,7 +235,8 @@ pub async fn install_forge(
     let manifest = fetch_forge_installer_manifest(game_version, forge_version).await?;
 
     // Create version JSON from the manifest
-    let version_json = create_forge_version_json_from_manifest(game_version, forge_version, &manifest)?;
+    let version_json =
+        create_forge_version_json_from_manifest(game_version, forge_version, &manifest)?;
 
     // Create the version directory
     let version_dir = game_dir.join("versions").join(&version_id);
@@ -275,20 +277,20 @@ pub async fn run_forge_installer(
         "{}net/minecraftforge/forge/{}-{}/forge-{}-{}-installer.jar",
         FORGE_MAVEN_URL, game_version, forge_version, game_version, forge_version
     );
-    
+
     let installer_path = game_dir.join("forge-installer.jar");
-    
+
     // Download installer
     let client = reqwest::Client::new();
     let response = client.get(&installer_url).send().await?;
-    
+
     if !response.status().is_success() {
         return Err(format!("Failed to download Forge installer: {}", response.status()).into());
     }
-    
+
     let bytes = response.bytes().await?;
     tokio::fs::write(&installer_path, &bytes).await?;
-    
+
     // Run the installer in headless mode
     // The installer accepts --installClient <path> to install to a specific directory
     let output = tokio::process::Command::new(java_path)
@@ -298,19 +300,20 @@ pub async fn run_forge_installer(
         .arg(game_dir)
         .output()
         .await?;
-    
+
     // Clean up installer
     let _ = tokio::fs::remove_file(&installer_path).await;
-    
+
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         let stdout = String::from_utf8_lossy(&output.stdout);
         return Err(format!(
             "Forge installer failed:\nstdout: {}\nstderr: {}",
             stdout, stderr
-        ).into());
+        )
+        .into());
     }
-    
+
     Ok(())
 }
 
@@ -332,13 +335,14 @@ fn create_forge_version_json_from_manifest(
     });
 
     // Convert libraries to JSON format, preserving download info
-    let lib_entries: Vec<serde_json::Value> = manifest.libraries
+    let lib_entries: Vec<serde_json::Value> = manifest
+        .libraries
         .iter()
         .map(|lib| {
             let mut entry = serde_json::json!({
                 "name": lib.name
             });
-            
+
             // Add URL if present
             if let Some(url) = &lib.url {
                 entry["url"] = serde_json::Value::String(url.clone());
@@ -346,19 +350,22 @@ fn create_forge_version_json_from_manifest(
                 // Default to Forge Maven for Forge libraries
                 entry["url"] = serde_json::Value::String(FORGE_MAVEN_URL.to_string());
             }
-            
+
             // Add downloads if present
             if let Some(downloads) = &lib.downloads {
                 if let Some(artifact) = &downloads.artifact {
                     let mut artifact_json = serde_json::Map::new();
                     if let Some(path) = &artifact.path {
-                        artifact_json.insert("path".to_string(), serde_json::Value::String(path.clone()));
+                        artifact_json
+                            .insert("path".to_string(), serde_json::Value::String(path.clone()));
                     }
                     if let Some(url) = &artifact.url {
-                        artifact_json.insert("url".to_string(), serde_json::Value::String(url.clone()));
+                        artifact_json
+                            .insert("url".to_string(), serde_json::Value::String(url.clone()));
                     }
                     if let Some(sha1) = &artifact.sha1 {
-                        artifact_json.insert("sha1".to_string(), serde_json::Value::String(sha1.clone()));
+                        artifact_json
+                            .insert("sha1".to_string(), serde_json::Value::String(sha1.clone()));
                     }
                     if !artifact_json.is_empty() {
                         entry["downloads"] = serde_json::json!({
@@ -367,7 +374,7 @@ fn create_forge_version_json_from_manifest(
                     }
                 }
             }
-            
+
             entry
         })
         .collect();
@@ -377,7 +384,7 @@ fn create_forge_version_json_from_manifest(
         "game": [],
         "jvm": []
     });
-    
+
     if let Some(args) = &manifest.arguments {
         if let Some(game_args) = &args.game {
             arguments["game"] = serde_json::Value::Array(game_args.clone());
@@ -461,7 +468,12 @@ fn is_modern_forge(game_version: &str) -> bool {
 ///
 /// # Returns
 /// `true` if the version JSON exists, `false` otherwise.
-pub fn is_forge_installed(game_dir: &PathBuf, game_version: &str, forge_version: &str) -> bool {
+#[allow(dead_code)]
+pub fn is_forge_installed(
+    game_dir: &std::path::Path,
+    game_version: &str,
+    forge_version: &str,
+) -> bool {
     let version_id = generate_version_id(game_version, forge_version);
     let json_path = game_dir
         .join("versions")
@@ -477,8 +489,9 @@ pub fn is_forge_installed(game_dir: &PathBuf, game_version: &str, forge_version:
 ///
 /// # Returns
 /// A list of installed Forge version IDs.
+#[allow(dead_code)]
 pub async fn list_installed_forge_versions(
-    game_dir: &PathBuf,
+    game_dir: &std::path::Path,
 ) -> Result<Vec<String>, Box<dyn Error + Send + Sync>> {
     let versions_dir = game_dir.join("versions");
     let mut installed = Vec::new();
