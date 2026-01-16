@@ -48,8 +48,12 @@ pub fn normalize_java_path(java_path: &str) -> Result<PathBuf, String> {
         path.set_extension("exe");
     }
 
-    // If still not found and it's just "java.exe", try to find it in PATH
-    if !path.exists() && path.file_name() == Some(std::ffi::OsStr::new("java.exe")) {
+    // If still not found and it's just "java.exe" (not an absolute path), try to find it in PATH
+    // Only search PATH for relative paths or just "java", not for absolute paths that don't exist
+    if !path.exists()
+        && !path.is_absolute()
+        && path.file_name() == Some(std::ffi::OsStr::new("java.exe"))
+    {
         // Try to locate java.exe in PATH
         if let Ok(output) = std::process::Command::new("where").arg("java").output() {
             if output.status.success() {
