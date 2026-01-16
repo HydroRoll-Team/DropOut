@@ -10,9 +10,9 @@ export class UIState {
 
   setStatus(msg: string) {
     if (this.statusTimeout) clearTimeout(this.statusTimeout);
-    
+
     this.status = msg;
-    
+
     if (msg !== "Ready") {
       this.statusTimeout = setTimeout(() => {
         this.status = "Ready";

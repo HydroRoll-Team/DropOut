@@ -17,7 +17,14 @@ function parseGameLogLevel(levelStr: string): LogEntry["level"] {
   if (upper === "INFO") return "info";
   if (upper === "WARN" || upper === "WARNING") return "warn";
   if (upper === "ERROR" || upper === "SEVERE") return "error";
-  if (upper === "DEBUG" || upper === "TRACE" || upper === "FINE" || upper === "FINER" || upper === "FINEST") return "debug";
+  if (
+    upper === "DEBUG" ||
+    upper === "TRACE" ||
+    upper === "FINE" ||
+    upper === "FINER" ||
+    upper === "FINEST"
+  )
+    return "debug";
   if (upper === "FATAL") return "fatal";
   return "info";
 }
@@ -37,8 +44,9 @@ export class LogsState {
 
   addLog(level: LogEntry["level"], source: string, message: string) {
     const now = new Date();
-    const timestamp = now.toLocaleTimeString() + "." + now.getMilliseconds().toString().padStart(3, "0");
-    
+    const timestamp =
+      now.toLocaleTimeString() + "." + now.getMilliseconds().toString().padStart(3, "0");
+
     this.logs.push({
       id: this.nextId++,
       timestamp,
@@ -60,7 +68,7 @@ export class LogsState {
   // Parse game output and extract level/source
   addGameLog(rawLine: string, isStderr: boolean) {
     const match = rawLine.match(GAME_LOG_REGEX);
-    
+
     if (match) {
       const [, thread, levelStr, extraSource, message] = match;
       const level = parseGameLogLevel(levelStr);
@@ -105,33 +113,33 @@ export class LogsState {
 
     // Download Events (Summarized)
     await listen("download-start", (e) => {
-        this.addLog("info", "Downloader", `Starting batch download of ${e.payload} files...`);
+      this.addLog("info", "Downloader", `Starting batch download of ${e.payload} files...`);
     });
 
     await listen("download-complete", () => {
-        this.addLog("info", "Downloader", "All downloads completed.");
+      this.addLog("info", "Downloader", "All downloads completed.");
     });
 
     // Listen to file download progress to log finished files
     await listen<any>("download-progress", (e) => {
-        const p = e.payload;
-        if (p.status === "Finished") {
-             if (p.file.endsWith(".jar")) {
-                 this.addLog("info", "Downloader", `Downloaded ${p.file}`);
-             }
+      const p = e.payload;
+      if (p.status === "Finished") {
+        if (p.file.endsWith(".jar")) {
+          this.addLog("info", "Downloader", `Downloaded ${p.file}`);
         }
+      }
     });
 
     // Java Download
     await listen<any>("java-download-progress", (e) => {
-        const p = e.payload;
-        if (p.status === "Downloading" && p.percentage === 0) {
-             this.addLog("info", "JavaInstaller", `Downloading Java: ${p.file_name}`);
-        } else if (p.status === "Completed") {
-             this.addLog("info", "JavaInstaller", `Java installed: ${p.file_name}`);
-        } else if (p.status === "Error") {
-             this.addLog("error", "JavaInstaller", `Java download error`);
-        }
+      const p = e.payload;
+      if (p.status === "Downloading" && p.percentage === 0) {
+        this.addLog("info", "JavaInstaller", `Downloading Java: ${p.file_name}`);
+      } else if (p.status === "Completed") {
+        this.addLog("info", "JavaInstaller", `Java installed: ${p.file_name}`);
+      } else if (p.status === "Error") {
+        this.addLog("error", "JavaInstaller", `Java download error`);
+      }
     });
   }
 }

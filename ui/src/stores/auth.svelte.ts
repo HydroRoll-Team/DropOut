@@ -14,7 +14,7 @@ export class AuthState {
   deviceCodeData = $state<DeviceCodeResponse | null>(null);
   msLoginLoading = $state(false);
   msLoginStatus = $state("Waiting for authorization...");
-  
+
   private pollInterval: ReturnType<typeof setInterval> | null = null;
   private isPollingRequestActive = false;
   private authProgressUnlisten: UnlistenFn | null = null;
@@ -87,9 +87,7 @@ export class AuthState {
     this.setupAuthProgressListener();
 
     try {
-      this.deviceCodeData = (await invoke(
-        "start_microsoft_login"
-      )) as DeviceCodeResponse;
+      this.deviceCodeData = (await invoke("start_microsoft_login")) as DeviceCodeResponse;
 
       if (this.deviceCodeData) {
         try {
@@ -99,13 +97,17 @@ export class AuthState {
         }
 
         open(this.deviceCodeData.verification_uri);
-        logsState.addLog("info", "Auth", "Microsoft login started, waiting for browser authorization...");
+        logsState.addLog(
+          "info",
+          "Auth",
+          "Microsoft login started, waiting for browser authorization...",
+        );
 
         console.log("Starting polling for token...");
         const intervalMs = (this.deviceCodeData.interval || 5) * 1000;
         this.pollInterval = setInterval(
           () => this.checkLoginStatus(this.deviceCodeData!.device_code),
-          intervalMs
+          intervalMs,
         );
       }
     } catch (e) {
@@ -159,7 +161,11 @@ export class AuthState {
       this.stopPolling();
       this.cleanupAuthListener();
       this.isLoginModalOpen = false;
-      logsState.addLog("info", "Auth", `Login successful! Welcome, ${this.currentAccount.username}`);
+      logsState.addLog(
+        "info",
+        "Auth",
+        `Login successful! Welcome, ${this.currentAccount.username}`,
+      );
       uiState.setStatus("Welcome back, " + this.currentAccount.username);
     } catch (e: any) {
       const errStr = e.toString();
@@ -169,11 +175,8 @@ export class AuthState {
         console.error("Polling Error:", errStr);
         this.msLoginStatus = "Error: " + errStr;
         logsState.addLog("error", "Auth", `Login error: ${errStr}`);
-        
-        if (
-          errStr.includes("expired_token") ||
-          errStr.includes("access_denied")
-        ) {
+
+        if (errStr.includes("expired_token") || errStr.includes("access_denied")) {
           this.stopPolling();
           this.cleanupAuthListener();
           alert("Login failed: " + errStr);

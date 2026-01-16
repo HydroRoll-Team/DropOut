@@ -1,21 +1,23 @@
-name: UI Checker
+name: UI Auto Lint
 
 on:
   push:
+    branches: ["main", "dev"]
     paths:
       - "ui/**"
-      - ".github/workflows/check.yml"
-  pull_request:
-    paths:
-      - "ui/**"
-      - ".github/workflows/check.yml"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  check:
+  fix:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -32,12 +34,14 @@ jobs:
       - run: pnpm install
         working-directory: ui
 
-      - run: pnpm check
+      - run: pnpm format
         working-directory: ui
 
-      - run: pnpm lint
+      - run: pnpm lint:fix
         working-directory: ui
 
-      - run: pnpm format --check
-        working-directory: ui
-        
+      - name: Commit changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "style: auto format and lint fix [skip ci]"
+          file_pattern: "ui/**"

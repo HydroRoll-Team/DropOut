@@ -34,7 +34,7 @@ export async function getFabricLoaderVersions(): Promise<FabricLoaderVersion[]> 
  * Get Fabric loaders available for a specific Minecraft version.
  */
 export async function getFabricLoadersForVersion(
-  gameVersion: string
+  gameVersion: string,
 ): Promise<FabricLoaderEntry[]> {
   return invoke<FabricLoaderEntry[]>("get_fabric_loaders_for_version", {
     gameVersion,
@@ -46,7 +46,7 @@ export async function getFabricLoadersForVersion(
  */
 export async function installFabric(
   gameVersion: string,
-  loaderVersion: string
+  loaderVersion: string,
 ): Promise<InstalledFabricVersion> {
   return invoke<InstalledFabricVersion>("install_fabric", {
     gameVersion,
@@ -66,7 +66,7 @@ export async function listInstalledFabricVersions(): Promise<string[]> {
  */
 export async function isFabricInstalled(
   gameVersion: string,
-  loaderVersion: string
+  loaderVersion: string,
 ): Promise<boolean> {
   return invoke<boolean>("is_fabric_installed", {
     gameVersion,
@@ -86,9 +86,7 @@ export async function getForgeGameVersions(): Promise<string[]> {
 /**
  * Get Forge versions available for a specific Minecraft version.
  */
-export async function getForgeVersionsForGame(
-  gameVersion: string
-): Promise<ForgeVersion[]> {
+export async function getForgeVersionsForGame(gameVersion: string): Promise<ForgeVersion[]> {
   return invoke<ForgeVersion[]>("get_forge_versions_for_game", {
     gameVersion,
   });
@@ -99,7 +97,7 @@ export async function getForgeVersionsForGame(
  */
 export async function installForge(
   gameVersion: string,
-  forgeVersion: string
+  forgeVersion: string,
 ): Promise<InstalledForgeVersion> {
   return invoke<InstalledForgeVersion>("install_forge", {
     gameVersion,

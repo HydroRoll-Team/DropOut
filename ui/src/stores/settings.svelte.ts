@@ -28,7 +28,7 @@ export class SettingsState {
     log_upload_service: "paste.rs",
     pastebin_api_key: undefined,
   });
-  
+
   // Convert background path to proper asset URL
   get backgroundUrl(): string | undefined {
     if (this.settings.custom_background_path) {
@@ -42,59 +42,59 @@ export class SettingsState {
   // Java download modal state
   showJavaDownloadModal = $state(false);
   selectedDownloadSource = $state<JavaDownloadSource>("adoptium");
-  
+
   // Java catalog state
   javaCatalog = $state<JavaCatalog | null>(null);
   isLoadingCatalog = $state(false);
   catalogError = $state("");
-  
+
   // Version selection state
   selectedMajorVersion = $state<number | null>(null);
   selectedImageType = $state<"jre" | "jdk">("jre");
   showOnlyRecommended = $state(true);
   searchQuery = $state("");
-  
+
   // Download progress state
   isDownloadingJava = $state(false);
   downloadProgress = $state<JavaDownloadProgress | null>(null);
   javaDownloadStatus = $state("");
-  
+
   // Pending downloads
   pendingDownloads = $state<PendingJavaDownload[]>([]);
-  
+
   // Event listener cleanup
   private progressUnlisten: UnlistenFn | null = null;
 
   // Computed: filtered releases based on selection
   get filteredReleases(): JavaReleaseInfo[] {
     if (!this.javaCatalog) return [];
-    
+
     let releases = this.javaCatalog.releases;
-    
+
     // Filter by major version if selected
     if (this.selectedMajorVersion !== null) {
-      releases = releases.filter(r => r.major_version === this.selectedMajorVersion);
+      releases = releases.filter((r) => r.major_version === this.selectedMajorVersion);
     }
-    
+
     // Filter by image type
-    releases = releases.filter(r => r.image_type === this.selectedImageType);
-    
+    releases = releases.filter((r) => r.image_type === this.selectedImageType);
+
     // Filter by recommended (LTS) versions
     if (this.showOnlyRecommended) {
-      releases = releases.filter(r => r.is_lts);
+      releases = releases.filter((r) => r.is_lts);
     }
-    
+
     // Filter by search query
     if (this.searchQuery.trim()) {
       const query = this.searchQuery.toLowerCase();
       releases = releases.filter(
-        r =>
+        (r) =>
           r.release_name.toLowerCase().includes(query) ||
           r.version.toLowerCase().includes(query) ||
-          r.major_version.toString().includes(query)
+          r.major_version.toString().includes(query),
       );
     }
-    
+
     return releases;
   }
 
@@ -102,36 +102,39 @@ export class SettingsState {
   get availableMajorVersions(): number[] {
     if (!this.javaCatalog) return [];
     let versions = [...this.javaCatalog.available_major_versions];
-    
+
     // Filter by LTS if showOnlyRecommended is enabled
     if (this.showOnlyRecommended) {
-      versions = versions.filter(v => this.javaCatalog!.lts_versions.includes(v));
+      versions = versions.filter((v) => this.javaCatalog!.lts_versions.includes(v));
     }
-    
+
     // Sort descending (newest first)
     return versions.sort((a, b) => b - a);
   }
 
   // Get installation status for a release: 'installed' | 'download'
-  getInstallStatus(release: JavaReleaseInfo): 'installed' | 'download' {
+  getInstallStatus(release: JavaReleaseInfo): "installed" | "download" {
     // Find installed Java that matches the major version and image type (by path pattern)
-    const matchingInstallations = this.javaInstallations.filter(inst => {
+    const matchingInstallations = this.javaInstallations.filter((inst) => {
       // Check if this is a DropOut-managed Java (path contains temurin-XX-jre/jdk pattern)
       const pathLower = inst.path.toLowerCase();
       const pattern = `temurin-${release.major_version}-${release.image_type}`;
       return pathLower.includes(pattern);
     });
-    
+
     // If any matching installation exists, it's installed
-    return matchingInstallations.length > 0 ? 'installed' : 'download';
+    return matchingInstallations.length > 0 ? "installed" : "download";
   }
 
   // Computed: selected release details
   get selectedRelease(): JavaReleaseInfo | null {
     if (!this.javaCatalog || this.selectedMajorVersion === null) return null;
-    return this.javaCatalog.releases.find(
-      r => r.major_version === this.selectedMajorVersion && r.image_type === this.selectedImageType
-    ) || null;
+    return (
+      this.javaCatalog.releases.find(
+        (r) =>
+          r.major_version === this.selectedMajorVersion && r.image_type === this.selectedImageType,
+      ) || null
+    );
   }
 
   async loadSettings() {
@@ -145,7 +148,7 @@ export class SettingsState {
       }
       // Ensure custom_background_path is reactive
       if (!this.settings.custom_background_path) {
-         this.settings.custom_background_path = undefined;
+        this.settings.custom_background_path = undefined;
       }
     } catch (e) {
       console.error("Failed to load settings:", e);
@@ -158,7 +161,7 @@ export class SettingsState {
       if (this.settings.custom_background_path === "") {
         this.settings.custom_background_path = undefined;
       }
-      
+
       await invoke("save_settings", { config: this.settings });
       uiState.setStatus("Settings saved!");
     } catch (e) {
@@ -193,13 +196,13 @@ export class SettingsState {
     this.javaDownloadStatus = "";
     this.catalogError = "";
     this.downloadProgress = null;
-    
+
     // Setup progress event listener
     await this.setupProgressListener();
-    
+
     // Load catalog
     await this.loadJavaCatalog(false);
-    
+
     // Check for pending downloads
     await this.loadPendingDownloads();
   }
@@ -219,13 +222,13 @@ export class SettingsState {
     if (this.progressUnlisten) {
       this.progressUnlisten();
     }
-    
+
     this.progressUnlisten = await listen<JavaDownloadProgress>(
       "java-download-progress",
       (event) => {
         this.downloadProgress = event.payload;
         this.javaDownloadStatus = event.payload.status;
-        
+
         if (event.payload.status === "Completed") {
           this.isDownloadingJava = false;
           setTimeout(async () => {
@@ -235,18 +238,18 @@ export class SettingsState {
         } else if (event.payload.status === "Error") {
           this.isDownloadingJava = false;
         }
-      }
+      },
     );
   }
 
   async loadJavaCatalog(forceRefresh: boolean) {
     this.isLoadingCatalog = true;
     this.catalogError = "";
-    
+
     try {
       const command = forceRefresh ? "refresh_java_catalog" : "fetch_java_catalog";
       this.javaCatalog = await invoke<JavaCatalog>(command);
-      
+
       // Auto-select first LTS version
       if (this.selectedMajorVersion === null && this.javaCatalog.lts_versions.length > 0) {
         // Select most recent LTS (21 or highest)
@@ -283,21 +286,21 @@ export class SettingsState {
       uiState.setStatus("Selected Java version is not available for this platform");
       return;
     }
-    
+
     this.isDownloadingJava = true;
     this.javaDownloadStatus = "Starting download...";
     this.downloadProgress = null;
-    
+
     try {
       const result: JavaInstallation = await invoke("download_adoptium_java", {
         majorVersion: this.selectedMajorVersion,
         imageType: this.selectedImageType,
         customPath: null,
       });
-      
+
       this.settings.java_path = result.path;
       await this.detectJava();
-      
+
       setTimeout(() => {
         this.showJavaDownloadModal = false;
         uiState.setStatus(`Java ${this.selectedMajorVersion} is ready to use!`);
@@ -324,10 +327,10 @@ export class SettingsState {
 
   async resumeDownloads() {
     if (this.pendingDownloads.length === 0) return;
-    
+
     this.isDownloadingJava = true;
     this.javaDownloadStatus = "Resuming download...";
-    
+
     try {
       const installed = await invoke<JavaInstallation[]>("resume_java_downloads");
       if (installed.length > 0) {
