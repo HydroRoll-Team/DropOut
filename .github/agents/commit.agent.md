@@ -327,27 +327,21 @@ After successful push, ask if user wants to create a Pull Request.
 4. **Language handling**:
    - **If PR language ≠ user's instruction language**:
      - Generate PR in chosen language
-     - Add explanation section at top in user's language
-     - Format: `<!-- [语言] 说明：<explanation> -->`
+     - Add explanation section **OUTSIDE** markdown code block in user's instruction language
+     - Place explanation before the PR template content
+     - Clearly explain what the PR does in user's native language
    - **If PR language = user's instruction language**:
-     - Generate PR directly without explanation
+     - Generate PR directly without additional explanation
 
 **Example 1: Chinese user → English PR**:
-```markdown
-<!-- 中文说明：此 PR 改进了提交助手文档，添加了必需工具说明、替换了自定义链接标记、添加了 commitizen 验证。这解决了工具权限上下文缺失的问题，用户现在可以看到清晰的权限说明。 -->
 
-# Description
-
-Improve commit helper agent documentation and validation
-
-## Type of Change
-
-- [x] Documentation update
-- [x] Configuration change
-...
+**(Outside code block, in user's instruction language - Chinese):**
+```
+此 PR 为 commit helper agent 添加了完整的提交后工作流，包括推送选项和 PR 自动生成功能。
+主要更新：新增 Step 7（推送选项）、Step 8（PR自动生成）、跨语言说明功能、commitizen 验证等。
 ```
 
-**Example 2: English user → English PR**:
+**(PR template in English):**
 ```markdown
 # Description
 
@@ -360,7 +354,28 @@ Improve commit helper agent documentation and validation
 ...
 ```
 
-**Example 3: Chinese user → Chinese PR** (no explanation):
+**Example 2: English user → Chinese PR**:
+
+**(Outside code block, in user's instruction language - English):**
+```
+This PR adds a complete post-commit workflow to the commit helper agent, including push options and PR auto-generation.
+Key updates: Added Step 7 (push options), Step 8 (PR generation), cross-language explanation, commitizen validation, etc.
+```
+
+**(PR template in Chinese):**
+```markdown
+# 描述
+
+改进提交助手文档和验证
+
+## 更改类型
+
+- [x] 文档更新
+- [x] 配置更改
+...
+```
+
+**Example 3: Chinese user → Chinese PR** (no additional explanation):
 ```markdown
 # 描述
 
