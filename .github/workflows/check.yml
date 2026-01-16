@@ -38,6 +38,6 @@ jobs:
       - run: pnpm lint
         working-directory: ui
 
-      - run: pnpm format --check
+      - run: pnpm format:check
         working-directory: ui
         
