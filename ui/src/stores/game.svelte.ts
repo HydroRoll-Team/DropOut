@@ -42,7 +42,12 @@ export class GameState {
     }
 
     uiState.setStatus("Preparing to launch " + this.selectedVersion + "...");
-    console.log("Invoking start_game for version:", this.selectedVersion, "instance:", instancesState.activeInstanceId);
+    console.log(
+      "Invoking start_game for version:",
+      this.selectedVersion,
+      "instance:",
+      instancesState.activeInstanceId,
+    );
     try {
       const msg = await invoke<string>("start_game", {
         instanceId: instancesState.activeInstanceId,
