@@ -2,6 +2,9 @@
   import { open } from "@tauri-apps/plugin-dialog";
   import { settingsState } from "../stores/settings.svelte";
   import CustomSelect from "./CustomSelect.svelte";
+  import ConfigEditorModal from "./ConfigEditorModal.svelte";
+  import { onMount } from "svelte";
+  import { RefreshCw, FileJson } from "lucide-svelte";
 
   // Use convertFileSrc directly from settingsState.backgroundUrl for cleaner approach
   // or use the imported one if passing raw path.
@@ -16,6 +19,84 @@
     { value: "paste.rs", label: "paste.rs (Free, No Account)" },
     { value: "pastebin.com", label: "pastebin.com (Requires API Key)" }
   ];
+
+  const llmProviderOptions = [
+    { value: "ollama", label: "Ollama (Local)" },
+    { value: "openai", label: "OpenAI (Remote)" }
+  ];
+
+  const languageOptions = [
+    { value: "auto", label: "Auto (Match User)" },
+    { value: "English", label: "English" },
+    { value: "Chinese", label: "中文" },
+    { value: "Japanese", label: "日本語" },
+    { value: "Korean", label: "한국어" },
+    { value: "Spanish", label: "Español" },
+    { value: "French", label: "Français" },
+    { value: "German", label: "Deutsch" },
+    { value: "Russian", label: "Русский" },
+  ];
+
+  const ttsProviderOptions = [
+    { value: "disabled", label: "Disabled" },
+    { value: "piper", label: "Piper TTS (Local)" },
+    { value: "edge", label: "Edge TTS (Online)" },
+  ];
+
+  const personas = [
+    {
+      value: "default",
+      label: "Minecraft Expert (Default)",
+      prompt: "You are a helpful Minecraft expert assistant. You help players with game issues, mod installation, performance optimization, and gameplay tips. Analyze any game logs provided and give concise, actionable advice."
+    },
+    {
+      value: "technical",
+      label: "Technical Debugger",
+      prompt: "You are a technical support specialist for Minecraft. Focus strictly on analyzing logs, identifying crash causes, and providing technical solutions. Be precise and avoid conversational filler."
+    },
+    {
+      value: "concise",
+      label: "Concise Helper",
+      prompt: "You are a direct and concise assistant. Provide answers in as few words as possible while remaining accurate. Use bullet points for lists."
+    },
+    {
+      value: "explain",
+      label: "Teacher / Explainer",
+      prompt: "You are a patient teacher. Explain Minecraft concepts, redstone mechanics, and mod features in simple, easy-to-understand terms suitable for beginners."
+    },
+    {
+      value: "pirate",
+      label: "Pirate Captain",
+      prompt: "You are a salty Minecraft Pirate Captain! Yarr! Speak like a pirate while helping the crew (the user) with their blocky adventures. Use terms like 'matey', 'landlubber', and 'treasure'."
+    }
+  ];
+
+  let selectedPersona = $state("");
+
+  function applyPersona(value: string) {
+      const persona = personas.find(p => p.value === value);
+      if (persona) {
+          settingsState.settings.assistant.system_prompt = persona.prompt;
+          selectedPersona = value; // Keep selected to show what's active
+      }
+  }
+
+  function resetSystemPrompt() {
+      const defaultPersona = personas.find(p => p.value === "default");
+      if (defaultPersona) {
+          settingsState.settings.assistant.system_prompt = defaultPersona.prompt;
+          selectedPersona = "default";
+      }
+  }
+
+  // Load models when assistant settings are shown
+  function loadModelsForProvider() {
+    if (settingsState.settings.assistant.llm_provider === "ollama") {
+      settingsState.loadOllamaModels();
+    } else if (settingsState.settings.assistant.llm_provider === "openai") {
+      settingsState.loadOpenaiModels();
+    }
+  }
 
   async function selectBackground() {
     try {
@@ -47,6 +128,15 @@
 <div class="h-full flex flex-col p-6 overflow-hidden">
   <div class="flex items-center justify-between mb-6">
      <h2 class="text-3xl font-black bg-clip-text text-transparent bg-gradient-to-r dark:from-white dark:to-white/60 from-gray-900 to-gray-600">Settings</h2>
+     
+     <button 
+        onclick={() => settingsState.openConfigEditor()}
+        class="p-2 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-colors flex items-center gap-2 text-sm border border-transparent hover:border-white/5"
+        title="Open Settings JSON"
+     >
+        <FileJson size={18} />
+        <span class="hidden sm:inline">Open JSON</span>
+     </button>
   </div>
 
   <div class="flex-1 overflow-y-auto pr-2 space-y-6 custom-scrollbar pb-10">
@@ -341,6 +431,298 @@
         </div>
     </div>
 
+    <!-- AI Assistant -->
+    <div class="dark:bg-[#09090b] bg-white p-6 rounded-sm border dark:border-white/10 border-gray-200 shadow-sm">
+        <h3 class="text-xs font-bold uppercase tracking-widest text-white/40 mb-6 flex items-center gap-2">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="10" rx="2"/>
+                <circle cx="12" cy="5" r="2"/>
+                <path d="M12 7v4"/>
+                <circle cx="8" cy="16" r="1" fill="currentColor"/>
+                <circle cx="16" cy="16" r="1" fill="currentColor"/>
+            </svg>
+            AI Assistant
+        </h3>
+        <div class="space-y-6">
+            <!-- Enable/Disable -->
+            <div class="flex items-center justify-between">
+                <div>
+                   <h4 class="text-sm font-medium dark:text-white/90 text-black/80" id="assistant-enabled-label">Enable Assistant</h4>
+                   <p class="text-xs dark:text-white/40 text-black/50 mt-1">Toggle the AI assistant feature on or off.</p>
+                </div>
+                <button 
+                    aria-labelledby="assistant-enabled-label"
+                    onclick={() => { settingsState.settings.assistant.enabled = !settingsState.settings.assistant.enabled; settingsState.saveSettings(); }}
+                    class="w-11 h-6 rounded-full transition-colors duration-200 ease-in-out relative focus:outline-none {settingsState.settings.assistant.enabled ? 'bg-indigo-500' : 'dark:bg-white/10 bg-black/10'}"
+                >
+                    <div class="absolute top-1 left-1 bg-white w-4 h-4 rounded-full shadow-sm transition-transform duration-200 ease-in-out {settingsState.settings.assistant.enabled ? 'translate-x-5' : 'translate-x-0'}"></div>
+                </button>
+            </div>
+
+            {#if settingsState.settings.assistant.enabled}
+                <!-- LLM Provider Section -->
+                <div class="pt-4 border-t dark:border-white/5 border-black/5">
+                    <h4 class="text-xs font-bold uppercase tracking-widest text-white/30 mb-4">Language Model</h4>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label for="llm-provider" class="block text-sm font-medium text-white/70 mb-2">Provider</label>
+                            <CustomSelect
+                                options={llmProviderOptions}
+                                bind:value={settingsState.settings.assistant.llm_provider}
+                                onchange={() => settingsState.saveSettings()}
+                                class="w-full"
+                            />
+                        </div>
+
+                        {#if settingsState.settings.assistant.llm_provider === 'ollama'}
+                            <!-- Ollama Settings -->
+                            <div class="pl-4 border-l-2 border-indigo-500/30 space-y-4">
+                                <div>
+                                    <label for="ollama-endpoint" class="block text-sm font-medium text-white/70 mb-2">API Endpoint</label>
+                                    <div class="flex gap-2">
+                                        <input
+                                            id="ollama-endpoint"
+                                            type="text"
+                                            bind:value={settingsState.settings.assistant.ollama_endpoint}
+                                            placeholder="http://localhost:11434"
+                                            class="bg-black/40 text-white flex-1 px-4 py-3 rounded-xl border border-white/10 focus:border-indigo-500/50 outline-none font-mono text-xs transition-colors"
+                                        />
+                                        <button
+                                            onclick={() => settingsState.loadOllamaModels()}
+                                            disabled={settingsState.isLoadingOllamaModels}
+                                            class="px-4 py-2 bg-white/10 hover:bg-white/20 disabled:opacity-50 text-white rounded-xl border border-white/5 transition-colors whitespace-nowrap text-sm font-medium flex items-center gap-2"
+                                            title="Refresh models"
+                                        >
+                                            <RefreshCw size={14} class={settingsState.isLoadingOllamaModels ? "animate-spin" : ""} />
+                                            <span class="hidden sm:inline">Refresh</span>
+                                        </button>
+                                    </div>
+                                    <p class="text-xs text-white/30 mt-2">
+                                        Default: http://localhost:11434. Make sure Ollama is running.
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <label for="ollama-model" class="block text-sm font-medium text-white/70">Model</label>
+                                        {#if settingsState.ollamaModels.length > 0}
+                                            <span class="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                                                {settingsState.ollamaModels.length} installed
+                                            </span>
+                                        {/if}
+                                    </div>
+                                    
+                                    {#if settingsState.isLoadingOllamaModels}
+                                        <div class="bg-black/40 text-white/50 w-full px-4 py-3 rounded-xl border border-white/10 text-sm flex items-center gap-2">
+                                            <RefreshCw size={14} class="animate-spin" />
+                                            Loading models...
+                                        </div>
+                                    {:else if settingsState.ollamaModelsError}
+                                        <div class="bg-red-500/10 text-red-400 w-full px-4 py-3 rounded-xl border border-red-500/20 text-sm">
+                                            {settingsState.ollamaModelsError}
+                                        </div>
+                                        <CustomSelect
+                                            options={settingsState.currentModelOptions}
+                                            bind:value={settingsState.settings.assistant.ollama_model}
+                                            onchange={() => settingsState.saveSettings()}
+                                            class="w-full mt-2"
+                                            allowCustom={true}
+                                        />
+                                    {:else if settingsState.ollamaModels.length === 0}
+                                        <div class="bg-amber-500/10 text-amber-400 w-full px-4 py-3 rounded-xl border border-amber-500/20 text-sm">
+                                            No models found. Click Refresh to load installed models.
+                                        </div>
+                                        <CustomSelect
+                                            options={settingsState.currentModelOptions}
+                                            bind:value={settingsState.settings.assistant.ollama_model}
+                                            onchange={() => settingsState.saveSettings()}
+                                            class="w-full mt-2"
+                                            allowCustom={true}
+                                        />
+                                    {:else}
+                                        <CustomSelect
+                                            options={settingsState.currentModelOptions}
+                                            bind:value={settingsState.settings.assistant.ollama_model}
+                                            onchange={() => settingsState.saveSettings()}
+                                            class="w-full"
+                                            allowCustom={true}
+                                        />
+                                    {/if}
+                                    
+                                    <p class="text-xs text-white/30 mt-2">
+                                        Run <code class="bg-black/30 px-1 rounded">ollama pull {'<model>'}</code> to download new models. Or type a custom model name above.
+                                    </p>
+                                </div>
+                            </div>
+                        {:else if settingsState.settings.assistant.llm_provider === 'openai'}
+                            <!-- OpenAI Settings -->
+                            <div class="pl-4 border-l-2 border-emerald-500/30 space-y-4">
+                                <div>
+                                    <label for="openai-key" class="block text-sm font-medium text-white/70 mb-2">API Key</label>
+                                    <div class="flex gap-2">
+                                        <input
+                                            id="openai-key"
+                                            type="password"
+                                            bind:value={settingsState.settings.assistant.openai_api_key}
+                                            placeholder="sk-..."
+                                            class="bg-black/40 text-white flex-1 px-4 py-3 rounded-xl border border-white/10 focus:border-indigo-500/50 outline-none font-mono text-xs transition-colors"
+                                        />
+                                        <button
+                                            onclick={() => settingsState.loadOpenaiModels()}
+                                            disabled={settingsState.isLoadingOpenaiModels || !settingsState.settings.assistant.openai_api_key}
+                                            class="px-4 py-2 bg-white/10 hover:bg-white/20 disabled:opacity-50 text-white rounded-xl border border-white/5 transition-colors whitespace-nowrap text-sm font-medium flex items-center gap-2"
+                                            title="Refresh models"
+                                        >
+                                            <RefreshCw size={14} class={settingsState.isLoadingOpenaiModels ? "animate-spin" : ""} />
+                                            <span class="hidden sm:inline">Load</span>
+                                        </button>
+                                    </div>
+                                    <p class="text-xs text-white/30 mt-2">
+                                        Get your API key from <a href="https://platform.openai.com/api-keys" target="_blank" class="text-indigo-400 hover:underline">OpenAI Dashboard</a>.
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <label for="openai-endpoint" class="block text-sm font-medium text-white/70 mb-2">API Endpoint</label>
+                                    <input
+                                        id="openai-endpoint"
+                                        type="text"
+                                        bind:value={settingsState.settings.assistant.openai_endpoint}
+                                        placeholder="https://api.openai.com/v1"
+                                        class="bg-black/40 text-white w-full px-4 py-3 rounded-xl border border-white/10 focus:border-indigo-500/50 outline-none font-mono text-xs transition-colors"
+                                    />
+                                    <p class="text-xs text-white/30 mt-2">
+                                        Use custom endpoint for Azure OpenAI or other compatible APIs.
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <label for="openai-model" class="block text-sm font-medium text-white/70">Model</label>
+                                        {#if settingsState.openaiModels.length > 0}
+                                            <span class="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                                                {settingsState.openaiModels.length} available
+                                            </span>
+                                        {/if}
+                                    </div>
+                                    
+                                    {#if settingsState.isLoadingOpenaiModels}
+                                        <div class="bg-black/40 text-white/50 w-full px-4 py-3 rounded-xl border border-white/10 text-sm flex items-center gap-2">
+                                            <RefreshCw size={14} class="animate-spin" />
+                                            Loading models...
+                                        </div>
+                                    {:else if settingsState.openaiModelsError}
+                                        <div class="bg-red-500/10 text-red-400 w-full px-4 py-3 rounded-xl border border-red-500/20 text-sm mb-2">
+                                            {settingsState.openaiModelsError}
+                                        </div>
+                                        <CustomSelect
+                                            options={settingsState.currentModelOptions}
+                                            bind:value={settingsState.settings.assistant.openai_model}
+                                            onchange={() => settingsState.saveSettings()}
+                                            class="w-full"
+                                            allowCustom={true}
+                                        />
+                                    {:else}
+                                        <CustomSelect
+                                            options={settingsState.currentModelOptions}
+                                            bind:value={settingsState.settings.assistant.openai_model}
+                                            onchange={() => settingsState.saveSettings()}
+                                            class="w-full"
+                                            allowCustom={true}
+                                        />
+                                    {/if}
+                                </div>
+                            </div>
+                        {/if}
+                    </div>
+                </div>
+
+                <!-- Response Settings -->
+                <div class="pt-4 border-t dark:border-white/5 border-black/5">
+                    <h4 class="text-xs font-bold uppercase tracking-widest text-white/30 mb-4">Response Settings</h4>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label for="response-lang" class="block text-sm font-medium text-white/70 mb-2">Response Language</label>
+                            <CustomSelect
+                                options={languageOptions}
+                                bind:value={settingsState.settings.assistant.response_language}
+                                onchange={() => settingsState.saveSettings()}
+                                class="w-full"
+                            />
+                        </div>
+
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <label for="system-prompt" class="block text-sm font-medium text-white/70">System Prompt</label>
+                                <button 
+                                    onclick={resetSystemPrompt}
+                                    class="text-xs text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1 opacity-80 hover:opacity-100"
+                                    title="Reset to default prompt"
+                                >
+                                    <RefreshCw size={10} />
+                                    Reset
+                                </button>
+                            </div>
+
+                            <div class="mb-3">
+                                <CustomSelect 
+                                    options={personas.map(p => ({ value: p.value, label: p.label }))}
+                                    bind:value={selectedPersona}
+                                    placeholder="Load a preset persona..."
+                                    onchange={applyPersona}
+                                    class="w-full"
+                                />
+                            </div>
+
+                            <textarea
+                                id="system-prompt"
+                                bind:value={settingsState.settings.assistant.system_prompt}
+                                oninput={() => selectedPersona = ""} 
+                                rows="4"
+                                placeholder="You are a helpful Minecraft expert assistant..."
+                                class="bg-black/40 text-white w-full px-4 py-3 rounded-xl border border-white/10 focus:border-indigo-500/50 outline-none text-sm transition-colors resize-none"
+                            ></textarea>
+                            <p class="text-xs text-white/30 mt-2">
+                                Customize how the assistant behaves and responds.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TTS Settings -->
+                <div class="pt-4 border-t dark:border-white/5 border-black/5">
+                    <h4 class="text-xs font-bold uppercase tracking-widest text-white/30 mb-4">Text-to-Speech (Coming Soon)</h4>
+                    
+                    <div class="space-y-4 opacity-50 pointer-events-none">
+                        <div class="flex items-center justify-between">
+                            <div>
+                               <h4 class="text-sm font-medium dark:text-white/90 text-black/80">Enable TTS</h4>
+                               <p class="text-xs dark:text-white/40 text-black/50 mt-1">Read assistant responses aloud.</p>
+                            </div>
+                            <button 
+                                disabled
+                                class="w-11 h-6 rounded-full transition-colors duration-200 ease-in-out relative focus:outline-none dark:bg-white/10 bg-black/10"
+                            >
+                                <div class="absolute top-1 left-1 bg-white w-4 h-4 rounded-full shadow-sm transition-transform duration-200 ease-in-out translate-x-0"></div>
+                            </button>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-white/70 mb-2">TTS Provider</label>
+                            <CustomSelect
+                                options={ttsProviderOptions}
+                                value="disabled"
+                                class="w-full"
+                            />
+                        </div>
+                    </div>
+                </div>
+            {/if}
+        </div>
+    </div>
+
     <div class="pt-4 flex justify-end">
       <button
         onclick={() => settingsState.saveSettings()}
@@ -351,6 +733,10 @@
     </div>
   </div>
 </div>
+
+{#if settingsState.showConfigEditor}
+    <ConfigEditorModal />
+{/if}
 
 <!-- Java Download Modal -->
 {#if settingsState.showJavaDownloadModal}
