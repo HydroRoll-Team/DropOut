@@ -8,6 +8,7 @@ import type {
   JavaInstallation,
   JavaReleaseInfo,
   LauncherConfig,
+  ModelInfo,
   PendingJavaDownload,
 } from "../types";
 import { uiState } from "./ui.svelte";
@@ -27,6 +28,20 @@ export class SettingsState {
     custom_background_path: undefined,
     log_upload_service: "paste.rs",
     pastebin_api_key: undefined,
+    assistant: {
+      enabled: true,
+      llm_provider: "ollama",
+      ollama_endpoint: "http://localhost:11434",
+      ollama_model: "llama3",
+      openai_api_key: undefined,
+      openai_endpoint: "https://api.openai.com/v1",
+      openai_model: "gpt-3.5-turbo",
+      system_prompt:
+        "You are a helpful Minecraft expert assistant. You help players with game issues, mod installation, performance optimization, and gameplay tips. Analyze any game logs provided and give concise, actionable advice.",
+      response_language: "auto",
+      tts_enabled: false,
+      tts_provider: "disabled",
+    },
   });
 
   // Convert background path to proper asset URL
@@ -62,8 +77,57 @@ export class SettingsState {
   // Pending downloads
   pendingDownloads = $state<PendingJavaDownload[]>([]);
 
+  // AI Model lists
+  ollamaModels = $state<ModelInfo[]>([]);
+  openaiModels = $state<ModelInfo[]>([]);
+  isLoadingOllamaModels = $state(false);
+  isLoadingOpenaiModels = $state(false);
+  ollamaModelsError = $state("");
+  openaiModelsError = $state("");
+
+  // Config Editor state
+  showConfigEditor = $state(false);
+  rawConfigContent = $state("");
+  configFilePath = $state("");
+  configEditorError = $state("");
+
   // Event listener cleanup
   private progressUnlisten: UnlistenFn | null = null;
+
+  async openConfigEditor() {
+    this.configEditorError = "";
+    try {
+      const path = await invoke<string>("get_config_path");
+      const content = await invoke<string>("read_raw_config");
+      this.configFilePath = path;
+      this.rawConfigContent = content;
+      this.showConfigEditor = true;
+    } catch (e) {
+      console.error("Failed to open config editor:", e);
+      uiState.setStatus(`Failed to open config: ${e}`);
+    }
+  }
+
+  async saveRawConfig(content: string, closeAfterSave = true) {
+    try {
+      await invoke("save_raw_config", { content });
+      // Reload settings to ensure UI is in sync
+      await this.loadSettings();
+      if (closeAfterSave) {
+        this.showConfigEditor = false;
+      }
+      uiState.setStatus("Configuration saved successfully!");
+    } catch (e) {
+      console.error("Failed to save config:", e);
+      this.configEditorError = String(e);
+    }
+  }
+
+  closeConfigEditor() {
+    this.showConfigEditor = false;
+    this.rawConfigContent = "";
+    this.configEditorError = "";
+  }
 
   // Computed: filtered releases based on selection
   get filteredReleases(): JavaReleaseInfo[] {
@@ -388,6 +452,109 @@ export class SettingsState {
   // Legacy compatibility
   get availableJavaVersions(): number[] {
     return this.availableMajorVersions;
+  }
+
+  // AI Model loading methods
+  async loadOllamaModels() {
+    this.isLoadingOllamaModels = true;
+    this.ollamaModelsError = "";
+
+    try {
+      const models = await invoke<ModelInfo[]>("list_ollama_models", {
+        endpoint: this.settings.assistant.ollama_endpoint,
+      });
+      this.ollamaModels = models;
+
+      // If no model is selected or selected model isn't available, select the first one
+      if (models.length > 0) {
+        const currentModel = this.settings.assistant.ollama_model;
+        const modelExists = models.some((m) => m.id === currentModel);
+        if (!modelExists) {
+          this.settings.assistant.ollama_model = models[0].id;
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load Ollama models:", e);
+      this.ollamaModelsError = String(e);
+      this.ollamaModels = [];
+    } finally {
+      this.isLoadingOllamaModels = false;
+    }
+  }
+
+  async loadOpenaiModels() {
+    if (!this.settings.assistant.openai_api_key) {
+      this.openaiModelsError = "API key required";
+      this.openaiModels = [];
+      return;
+    }
+
+    this.isLoadingOpenaiModels = true;
+    this.openaiModelsError = "";
+
+    try {
+      const models = await invoke<ModelInfo[]>("list_openai_models");
+      this.openaiModels = models;
+
+      // If no model is selected or selected model isn't available, select the first one
+      if (models.length > 0) {
+        const currentModel = this.settings.assistant.openai_model;
+        const modelExists = models.some((m) => m.id === currentModel);
+        if (!modelExists) {
+          this.settings.assistant.openai_model = models[0].id;
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load OpenAI models:", e);
+      this.openaiModelsError = String(e);
+      this.openaiModels = [];
+    } finally {
+      this.isLoadingOpenaiModels = false;
+    }
+  }
+
+  // Computed: get model options for current provider
+  get currentModelOptions(): { value: string; label: string; details?: string }[] {
+    const provider = this.settings.assistant.llm_provider;
+
+    if (provider === "ollama") {
+      if (this.ollamaModels.length === 0) {
+        // Return fallback options if no models loaded
+        return [
+          { value: "llama3", label: "Llama 3" },
+          { value: "llama3.1", label: "Llama 3.1" },
+          { value: "llama3.2", label: "Llama 3.2" },
+          { value: "mistral", label: "Mistral" },
+          { value: "gemma2", label: "Gemma 2" },
+          { value: "qwen2.5", label: "Qwen 2.5" },
+          { value: "phi3", label: "Phi-3" },
+          { value: "codellama", label: "Code Llama" },
+        ];
+      }
+      return this.ollamaModels.map((m) => ({
+        value: m.id,
+        label: m.name,
+        details: m.size ? `${m.size}${m.details ? ` - ${m.details}` : ""}` : m.details,
+      }));
+    } else if (provider === "openai") {
+      if (this.openaiModels.length === 0) {
+        // Return fallback options if no models loaded
+        return [
+          { value: "gpt-4o", label: "GPT-4o" },
+          { value: "gpt-4o-mini", label: "GPT-4o Mini" },
+          { value: "gpt-4-turbo", label: "GPT-4 Turbo" },
+          { value: "gpt-4", label: "GPT-4" },
+          { value: "gpt-3.5-turbo", label: "GPT-3.5 Turbo" },
+        ];
+      }
+      return this.openaiModels.map((m) => ({
+        value: m.id,
+        label: m.name,
+        details: m.details,
+      }));
+    }
+
+    return [];
   }
 }
 
