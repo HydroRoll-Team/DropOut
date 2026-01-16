@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { instancesState } from "../stores/instances.svelte";
+  import { ChevronDown, ChevronUp, X } from "lucide-svelte";
+  import { onMount } from "svelte";
   import { gameState } from "../stores/game.svelte";
+  import { instancesState } from "../stores/instances.svelte";
   import { settingsState } from "../stores/settings.svelte";
   import type { Instance } from "../types";
-  import { X, ChevronDown, ChevronUp } from "lucide-svelte";
-  import { onMount } from "svelte";
 
   // Form state
   let name = $state("");
@@ -145,11 +145,13 @@
       <!-- Name -->
       <div>
         <label
+          for="instance-name"
           class="block text-sm font-medium dark:text-white/70 text-black/70 mb-2"
         >
           Instance Name
         </label>
         <input
+          id="instance-name"
           type="text"
           bind:value={name}
           placeholder="My Instance"
@@ -161,12 +163,14 @@
       <!-- Version -->
       <div>
         <label
+          for="version-search"
           class="block text-sm font-medium dark:text-white/70 text-black/70 mb-2"
         >
           Minecraft Version
         </label>
         <div class="relative">
           <input
+            id="version-search"
             type="text"
             bind:value={versionSearch}
             placeholder="Search versions..."
@@ -234,11 +238,13 @@
           <!-- Java Path -->
           <div>
             <label
+              for="java-path"
               class="block text-sm font-medium dark:text-white/70 text-black/70 mb-2"
             >
               Java Path (optional)
             </label>
             <select
+              id="java-path"
               bind:value={javaPath}
               class="w-full px-4 py-3 bg-white dark:bg-zinc-800 border border-black/10 dark:border-white/10 rounded-xl dark:text-white focus:outline-none focus:border-indigo-500/50 transition-colors"
             >
@@ -255,11 +261,13 @@
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label
+                for="min-memory"
                 class="block text-sm font-medium dark:text-white/70 text-black/70 mb-2"
               >
                 Min Memory (MB)
               </label>
               <input
+                id="min-memory"
                 type="number"
                 bind:value={minMemory}
                 placeholder="Use global"
@@ -269,11 +277,13 @@
             </div>
             <div>
               <label
+                for="max-memory"
                 class="block text-sm font-medium dark:text-white/70 text-black/70 mb-2"
               >
                 Max Memory (MB)
               </label>
               <input
+                id="max-memory"
                 type="number"
                 bind:value={maxMemory}
                 placeholder="Use global"
@@ -287,11 +297,13 @@
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label
+                for="window-width"
                 class="block text-sm font-medium dark:text-white/70 text-black/70 mb-2"
               >
                 Window Width
               </label>
               <input
+                id="window-width"
                 type="number"
                 bind:value={width}
                 placeholder="Use global"
@@ -301,11 +313,13 @@
             </div>
             <div>
               <label
+                for="window-height"
                 class="block text-sm font-medium dark:text-white/70 text-black/70 mb-2"
               >
                 Window Height
               </label>
               <input
+                id="window-height"
                 type="number"
                 bind:value={height}
                 placeholder="Use global"
@@ -318,11 +332,13 @@
           <!-- JVM Args -->
           <div>
             <label
+              for="jvm-args"
               class="block text-sm font-medium dark:text-white/70 text-black/70 mb-2"
             >
               Custom JVM Arguments
             </label>
             <input
+              id="jvm-args"
               type="text"
               bind:value={jvmArgs}
               placeholder="-XX:+UseG1GC -XX:MaxGCPauseMillis=50"

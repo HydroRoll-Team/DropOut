@@ -1,11 +1,11 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+  import { Box, Check, ChevronDown, Play, RefreshCw, Terminal, User } from 'lucide-svelte';
   import { authState } from "../stores/auth.svelte";
   import { gameState } from "../stores/game.svelte";
   import { instancesState } from "../stores/instances.svelte";
   import { uiState } from "../stores/ui.svelte";
-  import { Terminal, ChevronDown, Play, User, Check, RefreshCw, Box } from 'lucide-svelte';
 
   interface InstalledVersion {
     id: string;
@@ -14,7 +14,9 @@
 
   let isVersionDropdownOpen = $state(false);
   let isInstanceDropdownOpen = $state(false);
+  // svelte-ignore non_reactive_update - DOM refs don't need reactivity
   let dropdownRef: HTMLDivElement;
+  // svelte-ignore non_reactive_update - DOM refs don't need reactivity
   let instanceDropdownRef: HTMLDivElement;
   let installedVersions = $state<InstalledVersion[]>([]);
   let isLoadingVersions = $state(true);
@@ -143,7 +145,7 @@
   });
 
   let canLaunch = $derived(() => {
-    return (instancesState.activeInstance || gameState.selectedVersion) && 
+    return (instancesState.activeInstance || gameState.selectedVersion) &&
            (installedVersions.length > 0 || instancesState.instances.length > 0);
   });
 </script>

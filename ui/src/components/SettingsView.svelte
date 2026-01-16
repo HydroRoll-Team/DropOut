@@ -2,8 +2,7 @@
   import { open } from "@tauri-apps/plugin-dialog";
   import { settingsState } from "../stores/settings.svelte";
   import CustomSelect from "./CustomSelect.svelte";
-
-  // Use convertFileSrc directly from settingsState.backgroundUrl for cleaner approach
+// Use convertFileSrc directly from settingsState.backgroundUrl for cleaner approach
   // or use the imported one if passing raw path.
   import { convertFileSrc } from "@tauri-apps/api/core";
 
@@ -59,9 +58,10 @@
       
       <div class="space-y-4">
         <div>
-          <label class="block text-sm font-medium dark:text-white/70 text-black/70 mb-3">Custom Background Image</label>
+          <!-- svelte-ignore a11y_label_has_associated_control - This label describes a button group, not an input -->
+          <label id="background-label" class="block text-sm font-medium dark:text-white/70 text-black/70 mb-3">Custom Background Image</label>
           
-          <div class="flex items-center gap-6">
+          <div class="flex items-center gap-6" aria-labelledby="background-label">
             <!-- Preview -->
             <div class="w-40 h-24 rounded-xl overflow-hidden dark:bg-black/50 bg-gray-200 border dark:border-white/10 border-black/10 relative group shadow-lg">
               {#if settingsState.settings.custom_background_path}
