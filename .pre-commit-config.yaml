@@ -29,11 +29,12 @@ repos:
     rev: v1.2.1
     hooks:
       - id: fmt
-        args: [ --manifest-path src-tauri/Cargo.toml ]
+        args: [ --manifest-path, src-tauri/Cargo.toml, -- ]
         files: ^src-tauri/.*\.rs$
+        pass_filenames: false
       - id: cargo-check
-        args: [ --manifest-path src-tauri/Cargo.toml ]
+        args: [ --manifest-path, src-tauri/Cargo.toml ]
         files: ^src-tauri/.*\.rs$
       - id: clippy
-        args: [ --manifest-path src-tauri/Cargo.toml ]
+        args: [ --manifest-path, src-tauri/Cargo.toml ]
         files: ^src-tauri/.*\.rs$

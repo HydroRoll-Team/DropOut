@@ -6,6 +6,7 @@
 //! - Support for instance switching and isolation
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -24,6 +25,16 @@ pub struct Instance {
     pub notes: Option<String>,              // 备注（可选）
     pub mod_loader: Option<String>,         // 模组加载器类型："fabric", "forge", "vanilla"
     pub mod_loader_version: Option<String>, // 模组加载器版本
+    pub jvm_args_override: Option<String>,  // JVM参数覆盖（可选）
+    #[serde(default)]
+    pub memory_override: Option<MemoryOverride>, // 内存设置覆盖（可选）
+}
+
+/// Memory settings override for an instance
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MemoryOverride {
+    pub min: u32, // MB
+    pub max: u32, // MB
 }
 
 /// Configuration for all instances
@@ -98,6 +109,8 @@ impl InstanceState {
             notes: None,
             mod_loader: Some("vanilla".to_string()),
             mod_loader_version: None,
+            jvm_args_override: None,
+            memory_override: None,
         };
 
         let mut config = self.instances.lock().unwrap();
@@ -218,20 +231,43 @@ impl InstanceState {
             .get_instance(id)
             .ok_or_else(|| format!("Instance {} not found", id))?;
 
-        // Create new instance
-        let mut new_instance = self.create_instance(new_name, app_handle)?;
+        // Prepare new instance metadata (but don't save yet)
+        let new_id = uuid::Uuid::new_v4().to_string();
+        let instances_dir = app_handle
+            .path()
+            .app_data_dir()
+            .map_err(|e| e.to_string())?
+            .join("instances");
+        let new_game_dir = instances_dir.join(&new_id);
 
-        // Copy instance properties
-        new_instance.version_id = source_instance.version_id.clone();
-        new_instance.mod_loader = source_instance.mod_loader.clone();
-        new_instance.mod_loader_version = source_instance.mod_loader_version.clone();
-        new_instance.notes = source_instance.notes.clone();
-
-        // Copy directory contents
+        // Copy directory FIRST - if this fails, don't create metadata
         if source_instance.game_dir.exists() {
-            copy_dir_all(&source_instance.game_dir, &new_instance.game_dir)
+            copy_dir_all(&source_instance.game_dir, &new_game_dir)
                 .map_err(|e| format!("Failed to copy instance directory: {}", e))?;
+        } else {
+            // If source dir doesn't exist, create new empty game dir
+            std::fs::create_dir_all(&new_game_dir)
+                .map_err(|e| format!("Failed to create instance directory: {}", e))?;
         }
+
+        // NOW create metadata and save
+        let new_instance = Instance {
+            id: new_id,
+            name: new_name,
+            game_dir: new_game_dir,
+            version_id: source_instance.version_id.clone(),
+            mod_loader: source_instance.mod_loader.clone(),
+            mod_loader_version: source_instance.mod_loader_version.clone(),
+            notes: source_instance.notes.clone(),
+            icon_path: source_instance.icon_path.clone(),
+            created_at: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs() as i64,
+            last_played: None,
+            jvm_args_override: source_instance.jvm_args_override.clone(),
+            memory_override: source_instance.memory_override.clone(),
+        };
 
         self.update_instance(new_instance.clone())?;
 
@@ -322,4 +358,227 @@ pub fn migrate_legacy_data(
     }
 
     Ok(())
+}
+
+/// Migrate instance caches to shared global caches
+///
+/// This function deduplicates versions, libraries, and assets from all instances
+/// into a global shared cache. It prefers hard links (instant, zero-copy) and
+/// falls back to copying if hard links are not supported.
+///
+/// # Arguments
+/// * `app_handle` - Tauri app handle
+/// * `instance_state` - Instance state management
+///
+/// # Returns
+/// * `Ok((moved_count, hardlink_count, copy_count, saved_bytes))` on success
+/// * `Err(String)` on failure
+pub fn migrate_to_shared_caches(
+    app_handle: &AppHandle,
+    instance_state: &InstanceState,
+) -> Result<(usize, usize, usize, u64), String> {
+    let app_dir = app_handle.path().app_data_dir().unwrap();
+
+    // Global shared cache directories
+    let global_versions = app_dir.join("versions");
+    let global_libraries = app_dir.join("libraries");
+    let global_assets = app_dir.join("assets");
+
+    // Create global cache directories
+    std::fs::create_dir_all(&global_versions).map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&global_libraries).map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&global_assets).map_err(|e| e.to_string())?;
+
+    let mut total_moved = 0;
+    let mut hardlink_count = 0;
+    let mut copy_count = 0;
+    let mut saved_bytes = 0u64;
+
+    // Get all instances
+    let instances = instance_state.list_instances();
+
+    for instance in instances {
+        let instance_versions = instance.game_dir.join("versions");
+        let instance_libraries = instance.game_dir.join("libraries");
+        let instance_assets = instance.game_dir.join("assets");
+
+        // Migrate versions
+        if instance_versions.exists() {
+            let (moved, hardlinks, copies, bytes) =
+                deduplicate_directory(&instance_versions, &global_versions)?;
+            total_moved += moved;
+            hardlink_count += hardlinks;
+            copy_count += copies;
+            saved_bytes += bytes;
+        }
+
+        // Migrate libraries
+        if instance_libraries.exists() {
+            let (moved, hardlinks, copies, bytes) =
+                deduplicate_directory(&instance_libraries, &global_libraries)?;
+            total_moved += moved;
+            hardlink_count += hardlinks;
+            copy_count += copies;
+            saved_bytes += bytes;
+        }
+
+        // Migrate assets
+        if instance_assets.exists() {
+            let (moved, hardlinks, copies, bytes) =
+                deduplicate_directory(&instance_assets, &global_assets)?;
+            total_moved += moved;
+            hardlink_count += hardlinks;
+            copy_count += copies;
+            saved_bytes += bytes;
+        }
+    }
+
+    Ok((total_moved, hardlink_count, copy_count, saved_bytes))
+}
+
+/// Deduplicate a directory tree into a global cache
+///
+/// Recursively processes all files, checking SHA1 hashes for deduplication.
+/// Returns (total_moved, hardlink_count, copy_count, saved_bytes)
+fn deduplicate_directory(
+    source_dir: &Path,
+    dest_dir: &Path,
+) -> Result<(usize, usize, usize, u64), String> {
+    let mut moved = 0;
+    let mut hardlinks = 0;
+    let mut copies = 0;
+    let mut saved_bytes = 0u64;
+
+    // Build a hash map of existing files in dest (hash -> path)
+    let mut dest_hashes: HashMap<String, PathBuf> = HashMap::new();
+    if dest_dir.exists() {
+        index_directory_hashes(dest_dir, dest_dir, &mut dest_hashes)?;
+    }
+
+    // Process source directory
+    process_directory_for_migration(
+        source_dir,
+        source_dir,
+        dest_dir,
+        &dest_hashes,
+        &mut moved,
+        &mut hardlinks,
+        &mut copies,
+        &mut saved_bytes,
+    )?;
+
+    Ok((moved, hardlinks, copies, saved_bytes))
+}
+
+/// Index all files in a directory by their SHA1 hash
+fn index_directory_hashes(
+    dir: &Path,
+    base: &Path,
+    hashes: &mut HashMap<String, PathBuf>,
+) -> Result<(), String> {
+    if !dir.is_dir() {
+        return Ok(());
+    }
+
+    for entry in std::fs::read_dir(dir).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let path = entry.path();
+
+        if path.is_dir() {
+            index_directory_hashes(&path, base, hashes)?;
+        } else if path.is_file() {
+            let hash = compute_file_sha1(&path)?;
+            hashes.insert(hash, path);
+        }
+    }
+
+    Ok(())
+}
+
+/// Process directory for migration (recursive)
+fn process_directory_for_migration(
+    current: &Path,
+    source_base: &Path,
+    dest_base: &Path,
+    dest_hashes: &HashMap<String, PathBuf>,
+    moved: &mut usize,
+    hardlinks: &mut usize,
+    copies: &mut usize,
+    saved_bytes: &mut u64,
+) -> Result<(), String> {
+    if !current.is_dir() {
+        return Ok(());
+    }
+
+    for entry in std::fs::read_dir(current).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let source_path = entry.path();
+
+        // Compute relative path
+        let rel_path = source_path
+            .strip_prefix(source_base)
+            .map_err(|e| e.to_string())?;
+        let dest_path = dest_base.join(rel_path);
+
+        if source_path.is_dir() {
+            // Recurse into subdirectory
+            process_directory_for_migration(
+                &source_path,
+                source_base,
+                dest_base,
+                dest_hashes,
+                moved,
+                hardlinks,
+                copies,
+                saved_bytes,
+            )?;
+        } else if source_path.is_file() {
+            let file_size = std::fs::metadata(&source_path)
+                .map(|m| m.len())
+                .unwrap_or(0);
+
+            // Compute file hash
+            let source_hash = compute_file_sha1(&source_path)?;
+
+            // Check if file already exists in dest with same hash
+            if let Some(_existing) = dest_hashes.get(&source_hash) {
+                // File exists, delete source (already deduplicated)
+                std::fs::remove_file(&source_path).map_err(|e| e.to_string())?;
+                *saved_bytes += file_size;
+                *moved += 1;
+            } else {
+                // File doesn't exist, move it
+                // Create parent directory in dest
+                if let Some(parent) = dest_path.parent() {
+                    std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+                }
+
+                // Try hard link first
+                if std::fs::hard_link(&source_path, &dest_path).is_ok() {
+                    // Hard link succeeded, remove source
+                    std::fs::remove_file(&source_path).map_err(|e| e.to_string())?;
+                    *hardlinks += 1;
+                    *moved += 1;
+                } else {
+                    // Hard link failed (different filesystem?), copy instead
+                    std::fs::copy(&source_path, &dest_path).map_err(|e| e.to_string())?;
+                    std::fs::remove_file(&source_path).map_err(|e| e.to_string())?;
+                    *copies += 1;
+                    *moved += 1;
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Compute SHA1 hash of a file
+fn compute_file_sha1(path: &Path) -> Result<String, String> {
+    use sha1::{Digest, Sha1};
+
+    let data = std::fs::read(path).map_err(|e| e.to_string())?;
+    let mut hasher = Sha1::new();
+    hasher.update(&data);
+    Ok(hex::encode(hasher.finalize()))
 }

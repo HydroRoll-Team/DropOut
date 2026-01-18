@@ -48,6 +48,15 @@
     window.addEventListener("mousemove", handleMouseMove);
   });
 
+  // Refresh versions when active instance changes
+  $effect(() => {
+    if (instancesState.activeInstanceId) {
+      gameState.loadVersions();
+    } else {
+      gameState.versions = [];
+    }
+  });
+
   onDestroy(() => {
     if (typeof window !== 'undefined')
       window.removeEventListener("mousemove", handleMouseMove);

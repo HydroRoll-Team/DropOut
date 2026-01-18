@@ -270,12 +270,12 @@ pub async fn download_with_resume(
                 }
 
                 current_pos += chunk_len;
-                let total_downloaded = progress.fetch_add(chunk_len, Ordering::Relaxed) + chunk_len;
+                let total_downloaded = progress.fetch_add(chunk_len, Ordering::AcqRel) + chunk_len;
 
                 // Emit progress event (throttled)
-                let last_bytes = last_progress_bytes.load(Ordering::Relaxed);
+                let last_bytes = last_progress_bytes.load(Ordering::Acquire);
                 if total_downloaded - last_bytes > 100 * 1024 || total_downloaded >= total_size {
-                    last_progress_bytes.store(total_downloaded, Ordering::Relaxed);
+                    last_progress_bytes.store(total_downloaded, Ordering::Release);
 
                     let elapsed = start_time.elapsed().as_secs_f64();
                     let speed = if elapsed > 0.0 {
@@ -319,7 +319,7 @@ pub async fn download_with_resume(
                 all_success = false;
                 if e.contains("cancelled") {
                     // Save progress for resume
-                    metadata.downloaded_bytes = progress.load(Ordering::Relaxed);
+                    metadata.downloaded_bytes = progress.load(Ordering::Acquire);
                     let meta_content =
                         serde_json::to_string_pretty(&metadata).map_err(|e| e.to_string())?;
                     tokio::fs::write(&meta_path, meta_content).await.ok();
@@ -335,7 +335,7 @@ pub async fn download_with_resume(
 
     if !all_success {
         // Save progress
-        metadata.downloaded_bytes = progress.load(Ordering::Relaxed);
+        metadata.downloaded_bytes = progress.load(Ordering::Acquire);
         let meta_content = serde_json::to_string_pretty(&metadata).map_err(|e| e.to_string())?;
         tokio::fs::write(&meta_path, meta_content).await.ok();
         return Err("Some segments failed".to_string());
@@ -482,19 +482,19 @@ impl GlobalProgress {
     /// Get current progress snapshot without modification
     fn snapshot(&self) -> ProgressSnapshot {
         ProgressSnapshot {
-            completed_files: self.completed_files.load(Ordering::Relaxed),
+            completed_files: self.completed_files.load(Ordering::Acquire),
             total_files: self.total_files,
-            total_downloaded_bytes: self.total_downloaded_bytes.load(Ordering::Relaxed),
+            total_downloaded_bytes: self.total_downloaded_bytes.load(Ordering::Acquire),
         }
     }
 
     /// Increment completed files counter and return updated snapshot
     fn inc_completed(&self) -> ProgressSnapshot {
-        let completed = self.completed_files.fetch_add(1, Ordering::Relaxed) + 1;
+        let completed = self.completed_files.fetch_add(1, Ordering::Release) + 1;
         ProgressSnapshot {
             completed_files: completed,
             total_files: self.total_files,
-            total_downloaded_bytes: self.total_downloaded_bytes.load(Ordering::Relaxed),
+            total_downloaded_bytes: self.total_downloaded_bytes.load(Ordering::Acquire),
         }
     }
 
@@ -502,10 +502,10 @@ impl GlobalProgress {
     fn add_bytes(&self, delta: u64) -> ProgressSnapshot {
         let total_bytes = self
             .total_downloaded_bytes
-            .fetch_add(delta, Ordering::Relaxed)
+            .fetch_add(delta, Ordering::AcqRel)
             + delta;
         ProgressSnapshot {
-            completed_files: self.completed_files.load(Ordering::Relaxed),
+            completed_files: self.completed_files.load(Ordering::Acquire),
             total_files: self.total_files,
             total_downloaded_bytes: total_bytes,
         }

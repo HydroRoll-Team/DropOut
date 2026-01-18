@@ -1,43 +1,43 @@
 {
-    "productName": "dropout",
-    "version": "0.1.26",
-    "identifier": "com.dropout.launcher",
-    "build": {
-        "beforeDevCommand": "pnpm -C ../ui dev",
-        "beforeBuildCommand": "pnpm -C ../ui build",
-        "devUrl": "http://localhost:5173",
-        "frontendDist": "../ui/dist"
-    },
-    "app": {
-        "windows": [
-            {
-                "title": "Minecraft DropOut Launcher",
-                "width": 1024,
-                "height": 768,
-                "minWidth": 905,
-                "minHeight": 575,
-                "resizable": true
-            }
-        ],
-        "security": {
-            "csp": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https: ws: wss:;",
-            "capabilities": ["default"]
-        }
-    },
-    "bundle": {
-        "active": true,
-        "targets": "all",
-        "icon": [
-            "icons/32x32.png",
-            "icons/128x128.png",
-            "icons/128x128@2x.png",
-            "icons/icon.icns",
-            "icons/icon.ico"
-        ],
-        "linux": {
-            "appimage": {
-                "bundleMediaFramework": false
-            }
-        }
+  "productName": "dropout",
+  "version": "0.2.0-alpha.1",
+  "identifier": "com.dropout.launcher",
+  "build": {
+    "beforeDevCommand": "pnpm --filter @dropout/ui dev",
+    "beforeBuildCommand": "pnpm --filter @dropout/ui build",
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../ui/dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Minecraft DropOut Launcher",
+        "width": 1024,
+        "height": 768,
+        "minWidth": 905,
+        "minHeight": 575,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https: ws: wss:;",
+      "capabilities": ["default"]
     }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "linux": {
+      "appimage": {
+        "bundleMediaFramework": false
+      }
+    }
+  }
 }

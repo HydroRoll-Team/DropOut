@@ -1,7 +1,7 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::process::Stdio;
 use std::sync::Mutex;
 use tauri::{Emitter, Manager, State, Window}; // Added Emitter
@@ -82,12 +82,41 @@ async fn start_game(
 
     // Check for active account
     emit_log!(window, "Checking for active account...".to_string());
-    let account = auth_state
+    let mut account = auth_state
         .active_account
         .lock()
         .unwrap()
         .clone()
         .ok_or("No active account found. Please login first.")?;
+
+    // Check if Microsoft account token is expired and refresh if needed
+    if let core::auth::Account::Microsoft(ms_account) = &account {
+        if core::auth::is_token_expired(ms_account.expires_at) {
+            emit_log!(window, "Token expired, refreshing...".to_string());
+            match core::auth::refresh_full_auth(
+                &ms_account
+                    .refresh_token
+                    .clone()
+                    .ok_or("No refresh token available")?,
+            )
+            .await
+            {
+                Ok((refreshed_account, _new_ms_refresh)) => {
+                    let refreshed_account = core::auth::Account::Microsoft(refreshed_account);
+                    *auth_state.active_account.lock().unwrap() = Some(refreshed_account.clone());
+                    account = refreshed_account;
+                    emit_log!(window, "Token refreshed successfully".to_string());
+                }
+                Err(e) => {
+                    emit_log!(window, format!("Token refresh failed: {}", e));
+                    return Err(format!(
+                        "Your login session has expired. Please login again: {}",
+                        e
+                    ));
+                }
+            }
+        }
+    }
 
     emit_log!(window, format!("Account found: {}", account.username()));
 
@@ -267,7 +296,12 @@ async fn start_game(
         .as_ref()
         .ok_or("Version has no downloads information")?;
     let client_jar = &downloads.client;
-    let mut client_path = game_dir.join("versions");
+    // Use shared caches for versions if enabled
+    let mut client_path = if config.use_shared_caches {
+        app_handle.path().app_data_dir().unwrap().join("versions")
+    } else {
+        game_dir.join("versions")
+    };
     client_path.push(&minecraft_version);
     client_path.push(format!("{}.jar", minecraft_version));
 
@@ -280,11 +314,16 @@ async fn start_game(
 
     // --- Libraries ---
     println!("Processing libraries...");
-    let libraries_dir = game_dir.join("libraries");
+    // Use shared caches for libraries if enabled
+    let libraries_dir = if config.use_shared_caches {
+        app_handle.path().app_data_dir().unwrap().join("libraries")
+    } else {
+        game_dir.join("libraries")
+    };
     let mut native_libs_paths = Vec::new(); // Store paths to native jars for extraction
 
     for lib in &version_details.libraries {
-        if core::rules::is_library_allowed(&lib.rules) {
+        if core::rules::is_library_allowed(&lib.rules, Some(&config.feature_flags)) {
             // 1. Standard Library - check for explicit downloads first
             if let Some(downloads) = &lib.downloads {
                 if let Some(artifact) = &downloads.artifact {
@@ -307,38 +346,52 @@ async fn start_game(
                 // 2. Native Library (classifiers)
                 // e.g. "natives-linux": { ... }
                 if let Some(classifiers) = &downloads.classifiers {
-                    // Determine the key based on OS
-                    // Linux usually "natives-linux", Windows "natives-windows", Mac "natives-osx" (or macos)
-                    let os_key = if cfg!(target_os = "linux") {
-                        "natives-linux"
-                    } else if cfg!(target_os = "windows") {
-                        "natives-windows"
-                    } else if cfg!(target_os = "macos") {
-                        "natives-osx" // or natives-macos? check json
-                    } else {
-                        ""
-                    };
-
-                    if let Some(native_artifact_value) = classifiers.get(os_key) {
-                        // Parse it as DownloadArtifact
-                        if let Ok(native_artifact) =
-                            serde_json::from_value::<core::game_version::DownloadArtifact>(
-                                native_artifact_value.clone(),
-                            )
-                        {
-                            let path_str = native_artifact.path.clone().unwrap(); // Natives usually have path
-                            let mut native_path = libraries_dir.clone();
-                            native_path.push(&path_str);
-
-                            download_tasks.push(core::downloader::DownloadTask {
-                                url: native_artifact.url,
-                                path: native_path.clone(),
-                                sha1: native_artifact.sha1,
-                                sha256: None,
-                            });
-
-                            native_libs_paths.push(native_path);
+                    // Determine candidate keys based on OS and architecture
+                    let arch = std::env::consts::ARCH;
+                    let mut candidates: Vec<String> = Vec::new();
+                    if cfg!(target_os = "linux") {
+                        candidates.push("natives-linux".to_string());
+                        candidates.push(format!("natives-linux-{}", arch));
+                        if arch == "aarch64" {
+                            candidates.push("natives-linux-arm64".to_string());
                         }
+                    } else if cfg!(target_os = "windows") {
+                        candidates.push("natives-windows".to_string());
+                        candidates.push(format!("natives-windows-{}", arch));
+                    } else if cfg!(target_os = "macos") {
+                        candidates.push("natives-osx".to_string());
+                        candidates.push("natives-macos".to_string());
+                        candidates.push(format!("natives-macos-{}", arch));
+                    }
+
+                    // Pick the first available classifier key
+                    let mut chosen: Option<core::game_version::DownloadArtifact> = None;
+                    for key in candidates {
+                        if let Some(native_artifact_value) = classifiers.get(&key) {
+                            if let Ok(artifact) =
+                                serde_json::from_value::<core::game_version::DownloadArtifact>(
+                                    native_artifact_value.clone(),
+                                )
+                            {
+                                chosen = Some(artifact);
+                                break;
+                            }
+                        }
+                    }
+
+                    if let Some(native_artifact) = chosen {
+                        let path_str = native_artifact.path.clone().unwrap(); // Natives usually have path
+                        let mut native_path = libraries_dir.clone();
+                        native_path.push(&path_str);
+
+                        download_tasks.push(core::downloader::DownloadTask {
+                            url: native_artifact.url,
+                            path: native_path.clone(),
+                            sha1: native_artifact.sha1,
+                            sha256: None,
+                        });
+
+                        native_libs_paths.push(native_path);
                     }
                 }
             } else {
@@ -363,7 +416,12 @@ async fn start_game(
 
     // --- Assets ---
     println!("Fetching asset index...");
-    let assets_dir = game_dir.join("assets");
+    // Use shared caches for assets if enabled
+    let assets_dir = if config.use_shared_caches {
+        app_handle.path().app_data_dir().unwrap().join("assets")
+    } else {
+        game_dir.join("assets")
+    };
     let objects_dir = assets_dir.join("objects");
     let indexes_dir = assets_dir.join("indexes");
 
@@ -494,7 +552,7 @@ async fn start_game(
 
     // Add libraries
     for lib in &version_details.libraries {
-        if core::rules::is_library_allowed(&lib.rules) {
+        if core::rules::is_library_allowed(&lib.rules, Some(&config.feature_flags)) {
             if let Some(downloads) = &lib.downloads {
                 // Standard library with explicit downloads
                 if let Some(artifact) = &downloads.artifact {
@@ -527,7 +585,13 @@ async fn start_game(
     // First add arguments from version.json if available
     if let Some(args_obj) = &version_details.arguments {
         if let Some(jvm_args) = &args_obj.jvm {
-            parse_jvm_arguments(jvm_args, &mut args, &natives_path, &classpath);
+            parse_jvm_arguments(
+                jvm_args,
+                &mut args,
+                &natives_path,
+                &classpath,
+                &config.feature_flags,
+            );
         }
     }
 
@@ -559,8 +623,18 @@ async fn start_game(
     replacements.insert("${assets_index_name}", asset_index.id.clone());
     replacements.insert("${auth_uuid}", account.uuid());
     replacements.insert("${auth_access_token}", account.access_token());
-    replacements.insert("${user_type}", "mojang".to_string());
-    replacements.insert("${version_type}", "release".to_string());
+    // Set user_type dynamically: "msa" for Microsoft accounts, "legacy" for offline
+    let user_type = match &account {
+        core::auth::Account::Microsoft(_) => "msa",
+        core::auth::Account::Offline(_) => "legacy",
+    };
+    replacements.insert("${user_type}", user_type.to_string());
+    // Use version_type from version JSON if available, fallback to "release"
+    let version_type_str = version_details
+        .version_type
+        .clone()
+        .unwrap_or_else(|| "release".to_string());
+    replacements.insert("${version_type}", version_type_str);
     replacements.insert("${user_properties}", "{}".to_string()); // Correctly pass empty JSON object for user properties
 
     if let Some(minecraft_arguments) = &version_details.minecraft_arguments {
@@ -593,7 +667,10 @@ async fn start_game(
                             if let Ok(rules) = serde_json::from_value::<Vec<core::game_version::Rule>>(
                                 rules_val.clone(),
                             ) {
-                                core::rules::is_library_allowed(&Some(rules))
+                                core::rules::is_library_allowed(
+                                    &Some(rules),
+                                    Some(&config.feature_flags),
+                                )
                             } else {
                                 true // Parse error, assume allow? or disallow.
                             }
@@ -777,6 +854,12 @@ async fn start_game(
         }
     });
 
+    // Update instance's version_id to track last launched version
+    if let Some(mut instance) = instance_state.get_instance(&instance_id) {
+        instance.version_id = Some(version_id.clone());
+        let _ = instance_state.update_instance(instance);
+    }
+
     Ok(format!("Launched Minecraft {} successfully!", version_id))
 }
 
@@ -786,6 +869,7 @@ fn parse_jvm_arguments(
     args: &mut Vec<String>,
     natives_path: &str,
     classpath: &str,
+    feature_flags: &core::config::FeatureFlags,
 ) {
     let mut replacements = std::collections::HashMap::new();
     replacements.insert("${natives_directory}", natives_path.to_string());
@@ -811,7 +895,7 @@ fn parse_jvm_arguments(
                     if let Ok(rules) =
                         serde_json::from_value::<Vec<core::game_version::Rule>>(rules_val.clone())
                     {
-                        core::rules::is_library_allowed(&Some(rules))
+                        core::rules::is_library_allowed(&Some(rules), Some(feature_flags))
                     } else {
                         false
                     }
@@ -850,12 +934,14 @@ fn parse_jvm_arguments(
 }
 
 #[tauri::command]
-async fn get_versions(window: Window) -> Result<Vec<core::manifest::Version>, String> {
-    let app_handle = window.app_handle();
-    let game_dir = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+async fn get_versions(
+    _window: Window,
+    instance_state: State<'_, core::instance::InstanceState>,
+    instance_id: String,
+) -> Result<Vec<core::manifest::Version>, String> {
+    let game_dir = instance_state
+        .get_instance_game_dir(&instance_id)
+        .ok_or_else(|| format!("Instance {} not found", instance_id))?;
 
     match core::manifest::fetch_version_manifest().await {
         Ok(manifest) => {
@@ -1018,7 +1104,17 @@ async fn install_version(
         .as_ref()
         .ok_or("Version has no downloads information")?;
     let client_jar = &downloads.client;
-    let mut client_path = game_dir.join("versions");
+    // Use shared caches for versions if enabled
+    let mut client_path = if config.use_shared_caches {
+        window
+            .app_handle()
+            .path()
+            .app_data_dir()
+            .unwrap()
+            .join("versions")
+    } else {
+        game_dir.join("versions")
+    };
     client_path.push(&minecraft_version);
     client_path.push(format!("{}.jar", minecraft_version));
 
@@ -1030,10 +1126,20 @@ async fn install_version(
     });
 
     // --- Libraries ---
-    let libraries_dir = game_dir.join("libraries");
+    // Use shared caches for libraries if enabled
+    let libraries_dir = if config.use_shared_caches {
+        window
+            .app_handle()
+            .path()
+            .app_data_dir()
+            .unwrap()
+            .join("libraries")
+    } else {
+        game_dir.join("libraries")
+    };
 
     for lib in &version_details.libraries {
-        if core::rules::is_library_allowed(&lib.rules) {
+        if core::rules::is_library_allowed(&lib.rules, Some(&config.feature_flags)) {
             if let Some(downloads) = &lib.downloads {
                 if let Some(artifact) = &downloads.artifact {
                     let path_str = artifact
@@ -1054,33 +1160,50 @@ async fn install_version(
 
                 // Native Library (classifiers)
                 if let Some(classifiers) = &downloads.classifiers {
-                    let os_key = if cfg!(target_os = "linux") {
-                        "natives-linux"
-                    } else if cfg!(target_os = "windows") {
-                        "natives-windows"
-                    } else if cfg!(target_os = "macos") {
-                        "natives-osx"
-                    } else {
-                        ""
-                    };
-
-                    if let Some(native_artifact_value) = classifiers.get(os_key) {
-                        if let Ok(native_artifact) =
-                            serde_json::from_value::<core::game_version::DownloadArtifact>(
-                                native_artifact_value.clone(),
-                            )
-                        {
-                            let path_str = native_artifact.path.clone().unwrap();
-                            let mut native_path = libraries_dir.clone();
-                            native_path.push(&path_str);
-
-                            download_tasks.push(core::downloader::DownloadTask {
-                                url: native_artifact.url,
-                                path: native_path.clone(),
-                                sha1: native_artifact.sha1,
-                                sha256: None,
-                            });
+                    // Determine candidate keys based on OS and architecture
+                    let arch = std::env::consts::ARCH;
+                    let mut candidates: Vec<String> = Vec::new();
+                    if cfg!(target_os = "linux") {
+                        candidates.push("natives-linux".to_string());
+                        candidates.push(format!("natives-linux-{}", arch));
+                        if arch == "aarch64" {
+                            candidates.push("natives-linux-arm64".to_string());
                         }
+                    } else if cfg!(target_os = "windows") {
+                        candidates.push("natives-windows".to_string());
+                        candidates.push(format!("natives-windows-{}", arch));
+                    } else if cfg!(target_os = "macos") {
+                        candidates.push("natives-osx".to_string());
+                        candidates.push("natives-macos".to_string());
+                        candidates.push(format!("natives-macos-{}", arch));
+                    }
+
+                    // Pick the first available classifier key
+                    let mut chosen: Option<core::game_version::DownloadArtifact> = None;
+                    for key in candidates {
+                        if let Some(native_artifact_value) = classifiers.get(&key) {
+                            if let Ok(artifact) =
+                                serde_json::from_value::<core::game_version::DownloadArtifact>(
+                                    native_artifact_value.clone(),
+                                )
+                            {
+                                chosen = Some(artifact);
+                                break;
+                            }
+                        }
+                    }
+
+                    if let Some(native_artifact) = chosen {
+                        let path_str = native_artifact.path.clone().unwrap();
+                        let mut native_path = libraries_dir.clone();
+                        native_path.push(&path_str);
+
+                        download_tasks.push(core::downloader::DownloadTask {
+                            url: native_artifact.url,
+                            path: native_path.clone(),
+                            sha1: native_artifact.sha1,
+                            sha256: None,
+                        });
                     }
                 }
             } else {
@@ -1103,7 +1226,17 @@ async fn install_version(
     }
 
     // --- Assets ---
-    let assets_dir = game_dir.join("assets");
+    // Use shared caches for assets if enabled
+    let assets_dir = if config.use_shared_caches {
+        window
+            .app_handle()
+            .path()
+            .app_data_dir()
+            .unwrap()
+            .join("assets")
+    } else {
+        game_dir.join("assets")
+    };
     let objects_dir = assets_dir.join("objects");
     let indexes_dir = assets_dir.join("indexes");
 
@@ -1566,6 +1699,14 @@ async fn install_fabric(
         format!("Fabric installed successfully: {}", result.id)
     );
 
+    // Update Instance's mod_loader metadata and version_id
+    if let Some(mut instance) = instance_state.get_instance(&instance_id) {
+        instance.mod_loader = Some("fabric".to_string());
+        instance.mod_loader_version = Some(loader_version.clone());
+        instance.version_id = Some(result.id.clone());
+        instance_state.update_instance(instance)?;
+    }
+
     // Emit event to notify frontend
     let _ = window.emit("fabric-installed", &result.id);
 
@@ -1639,6 +1780,31 @@ async fn delete_version(
     tokio::fs::remove_dir_all(&version_dir)
         .await
         .map_err(|e| format!("Failed to delete version: {}", e))?;
+
+    // Clean up Instance state if necessary
+    if let Some(mut instance) = instance_state.get_instance(&instance_id) {
+        let mut updated = false;
+
+        // If deleted version is the current selected version
+        if instance.version_id.as_ref() == Some(&version_id) {
+            instance.version_id = None;
+            updated = true;
+        }
+
+        // If deleted version is a modded version, clear mod_loader
+        if (version_id.starts_with("fabric-loader-")
+            && instance.mod_loader == Some("fabric".to_string()))
+            || (version_id.contains("-forge-") && instance.mod_loader == Some("forge".to_string()))
+        {
+            instance.mod_loader = None;
+            instance.mod_loader_version = None;
+            updated = true;
+        }
+
+        if updated {
+            instance_state.update_instance(instance)?;
+        }
+    }
 
     // Emit event to notify frontend
     let _ = window.emit("version-deleted", &version_id);
@@ -1917,15 +2083,44 @@ async fn install_forge(
         "Forge installer completed, creating version profile...".to_string()
     );
 
-    // Now create the version JSON
-    let result = core::forge::install_forge(&game_dir, &game_version, &forge_version)
-        .await
-        .map_err(|e| e.to_string())?;
+    // Check if the version JSON already exists
+    let version_id = core::forge::generate_version_id(&game_version, &forge_version);
+    let json_path = game_dir
+        .join("versions")
+        .join(&version_id)
+        .join(format!("{}.json", version_id));
+
+    let result = if json_path.exists() {
+        // Version JSON was created by the installer, load it
+        emit_log!(
+            window,
+            "Using version profile created by Forge installer".to_string()
+        );
+        core::forge::InstalledForgeVersion {
+            id: version_id,
+            minecraft_version: game_version.clone(),
+            forge_version: forge_version.clone(),
+            path: json_path,
+        }
+    } else {
+        // Installer didn't create JSON, create it manually
+        core::forge::install_forge(&game_dir, &game_version, &forge_version)
+            .await
+            .map_err(|e| e.to_string())?
+    };
 
     emit_log!(
         window,
         format!("Forge installed successfully: {}", result.id)
     );
+
+    // Update Instance's mod_loader metadata and version_id
+    if let Some(mut instance) = instance_state.get_instance(&instance_id) {
+        instance.mod_loader = Some("forge".to_string());
+        instance.mod_loader_version = Some(forge_version.clone());
+        instance.version_id = Some(result.id.clone());
+        instance_state.update_instance(instance)?;
+    }
 
     // Emit event to notify frontend
     let _ = window.emit("forge-installed", &result.id);
@@ -2186,6 +2381,159 @@ async fn assistant_chat_stream(
         .await
 }
 
+/// Migrate instance caches to shared global caches
+#[derive(Serialize)]
+struct MigrationResult {
+    moved_files: usize,
+    hardlinks: usize,
+    copies: usize,
+    saved_bytes: u64,
+    saved_mb: f64,
+}
+
+#[tauri::command]
+async fn migrate_shared_caches(
+    window: Window,
+    instance_state: State<'_, core::instance::InstanceState>,
+    config_state: State<'_, core::config::ConfigState>,
+) -> Result<MigrationResult, String> {
+    emit_log!(window, "Starting migration to shared caches...".to_string());
+
+    let app_handle = window.app_handle();
+    let (moved, hardlinks, copies, saved_bytes) =
+        core::instance::migrate_to_shared_caches(app_handle, &instance_state)?;
+
+    let saved_mb = saved_bytes as f64 / (1024.0 * 1024.0);
+
+    emit_log!(
+        window,
+        format!(
+            "Migration complete: {} files moved ({} hardlinks, {} copies), {:.2} MB saved",
+            moved, hardlinks, copies, saved_mb
+        )
+    );
+
+    // Automatically enable shared caches config
+    let mut config = config_state.config.lock().unwrap().clone();
+    config.use_shared_caches = true;
+    drop(config);
+    *config_state.config.lock().unwrap() = config_state.config.lock().unwrap().clone();
+    config_state.config.lock().unwrap().use_shared_caches = true;
+    config_state.save()?;
+
+    Ok(MigrationResult {
+        moved_files: moved,
+        hardlinks,
+        copies,
+        saved_bytes,
+        saved_mb,
+    })
+}
+
+/// File information for instance file browser
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct FileInfo {
+    name: String,
+    path: String,
+    is_directory: bool,
+    size: u64,
+    modified: i64,
+}
+
+/// List files in an instance subdirectory (mods, resourcepacks, shaderpacks, saves, screenshots)
+#[tauri::command]
+async fn list_instance_directory(
+    instance_state: State<'_, core::instance::InstanceState>,
+    instance_id: String,
+    folder: String, // "mods" | "resourcepacks" | "shaderpacks" | "saves" | "screenshots"
+) -> Result<Vec<FileInfo>, String> {
+    let game_dir = instance_state
+        .get_instance_game_dir(&instance_id)
+        .ok_or_else(|| format!("Instance {} not found", instance_id))?;
+
+    let target_dir = game_dir.join(&folder);
+    if !target_dir.exists() {
+        tokio::fs::create_dir_all(&target_dir)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+
+    let mut files = Vec::new();
+    let mut entries = tokio::fs::read_dir(&target_dir)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    while let Some(entry) = entries.next_entry().await.map_err(|e| e.to_string())? {
+        let metadata = entry.metadata().await.map_err(|e| e.to_string())?;
+        let modified = metadata
+            .modified()
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+
+        files.push(FileInfo {
+            name: entry.file_name().to_string_lossy().to_string(),
+            path: entry.path().to_string_lossy().to_string(),
+            is_directory: metadata.is_dir(),
+            size: metadata.len(),
+            modified,
+        });
+    }
+
+    // Sort: directories first, then by name
+    files.sort_by(|a, b| {
+        b.is_directory
+            .cmp(&a.is_directory)
+            .then(a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+    });
+
+    Ok(files)
+}
+
+/// Delete a file in an instance directory
+#[tauri::command]
+async fn delete_instance_file(path: String) -> Result<(), String> {
+    let path_buf = std::path::PathBuf::from(&path);
+    if path_buf.is_dir() {
+        tokio::fs::remove_dir_all(&path_buf)
+            .await
+            .map_err(|e| e.to_string())?;
+    } else {
+        tokio::fs::remove_file(&path_buf)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+/// Open instance directory in system file explorer
+#[tauri::command]
+async fn open_file_explorer(path: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("explorer")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
@@ -2292,7 +2640,11 @@ fn main() {
             get_instance,
             set_active_instance,
             get_active_instance,
-            duplicate_instance
+            duplicate_instance,
+            migrate_shared_caches,
+            list_instance_directory,
+            delete_instance_file,
+            open_file_explorer
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,4 +1,4 @@
-name: Test & Build
+name: Unit Test
 
 on:
   push:
@@ -40,7 +40,8 @@ jobs:
             name: "macOS"
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v6
 
       - name: Install Dependencies (Ubuntu)
         if: runner.os == 'Linux' && !matrix.wayland
@@ -67,15 +68,13 @@ jobs:
 
       - name: Install Node.js
         if: github.event_name == 'workflow_dispatch'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22
 
       - name: Install pnpm
         if: github.event_name == 'workflow_dispatch'
-        uses: pnpm/action-setup@v2
-        with:
-          version: 9
+        uses: pnpm/action-setup@v4
 
       - name: Install Frontend Dependencies
         if: github.event_name == 'workflow_dispatch'
@@ -88,8 +87,6 @@ jobs:
 
       - name: Rust Cache
         uses: swatinem/rust-cache@v2
-        with:
-          workspaces: ./src-tauri
 
       - name: Run Tests
         working-directory: ./src-tauri
@@ -111,32 +108,32 @@ jobs:
 
       - name: Upload Artifact (Linux)
         if: runner.os == 'Linux' && github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: dropout-linux-${{ matrix.wayland && 'arch' || 'ubuntu' }}-${{ steps.slug.outputs.sha8 }}
           path: |
-            src-tauri/target/debug/bundle/appimage/*.AppImage
-            src-tauri/target/debug/bundle/deb/*.deb
-            src-tauri/target/debug/dropout
+            target/debug/bundle/appimage/*.AppImage
+            target/debug/bundle/deb/*.deb
+            target/debug/dropout
           retention-days: 5
 
       - name: Upload Artifact (Windows)
         if: runner.os == 'Windows' && github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: dropout-windows-${{ steps.slug.outputs.sha8 }}
           path: |
-            src-tauri/target/debug/bundle/msi/*.msi
-            src-tauri/target/debug/bundle/nsis/*.exe
-            src-tauri/target/debug/dropout.exe
+            target/debug/bundle/msi/*.msi
+            target/debug/bundle/nsis/*.exe
+            target/debug/dropout.exe
           retention-days: 5
 
       - name: Upload Artifact (macOS)
         if: runner.os == 'macOS' && github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: dropout-macos-${{ steps.slug.outputs.sha8 }}
           path: |
-            src-tauri/target/debug/bundle/dmg/*.dmg
-            src-tauri/target/debug/bundle/macos/DropOut.app
+            target/debug/bundle/dmg/*.dmg
+            target/debug/bundle/macos/DropOut.app
           retention-days: 5
