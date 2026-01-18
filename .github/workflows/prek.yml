@@ -14,14 +14,14 @@ jobs:
     if: "!contains(github.event.head_commit.message, '[skip ci]')"
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
-      
+
       - name: Install system dependencies
         if: runner.os == 'Linux'
         run: |
@@ -34,7 +34,7 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev \
             pkg-config
-      
+
       - name: Run prek
         id: prek
         uses: j178/prek-action@v1
