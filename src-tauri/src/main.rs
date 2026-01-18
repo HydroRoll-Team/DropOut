@@ -1917,10 +1917,28 @@ async fn install_forge(
         "Forge installer completed, creating version profile...".to_string()
     );
 
-    // Now create the version JSON
-    let result = core::forge::install_forge(&game_dir, &game_version, &forge_version)
-        .await
-        .map_err(|e| e.to_string())?;
+    // Check if the version JSON already exists
+    let version_id = core::forge::generate_version_id(&game_version, &forge_version);
+    let json_path = game_dir.join("versions").join(&version_id).join(format!("{}.json", version_id));
+
+    let result = if json_path.exists() {
+        // Version JSON was created by the installer, load it
+        emit_log!(
+            window,
+            "Using version profile created by Forge installer".to_string()
+        );
+        core::forge::InstalledForgeVersion {
+            id: version_id,
+            minecraft_version: game_version.clone(),
+            forge_version: forge_version.clone(),
+            path: json_path,
+        }
+    } else {
+        // Installer didn't create JSON, create it manually
+        core::forge::install_forge(&game_dir, &game_version, &forge_version)
+            .await
+            .map_err(|e| e.to_string())?
+    };
 
     emit_log!(
         window,
