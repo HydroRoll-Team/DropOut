@@ -124,12 +124,31 @@
     settingsState.saveSettings();
   }
 
+  let migrating = $state(false);
   async function runMigrationToSharedCaches() {
+    if (migrating) return;
+    migrating = true;
     try {
-      await (await import("@tauri-apps/api/core")).invoke("migrate_shared_caches");
-      settingsState.loadSettings();
+      const { invoke } = await import("@tauri-apps/api/core");
+      const result = await invoke<{
+        moved_files: number;
+        hardlinks: number;
+        copies: number;
+        saved_mb: number;
+      }>("migrate_shared_caches");
+      
+      // Reload settings to reflect changes
+      await settingsState.loadSettings();
+      
+      // Show success message
+      const msg = `Migration complete! ${result.moved_files} files (${result.hardlinks} hardlinks, ${result.copies} copies), ${result.saved_mb.toFixed(2)} MB saved.`;
+      console.log(msg);
+      alert(msg);
     } catch (e) {
       console.error("Migration failed:", e);
+      alert(`Migration failed: ${e}`);
+    } finally {
+      migrating = false;
     }
   }
 </script>
@@ -444,7 +463,13 @@
             <h4 class="text-sm font-medium text-white/90">Run Migration</h4>
             <p class="text-xs text-white/40 mt-1">Hard-link or copy existing per-instance caches into the shared cache.</p>
           </div>
-          <button onclick={runMigrationToSharedCaches} class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm">Migrate Now</button>
+          <button 
+            onclick={runMigrationToSharedCaches} 
+            disabled={migrating}
+            class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {migrating ? "Migrating..." : "Migrate Now"}
+          </button>
         </div>
       </div>
     </div>

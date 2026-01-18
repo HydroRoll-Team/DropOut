@@ -2373,6 +2373,55 @@ async fn assistant_chat_stream(
         .await
 }
 
+/// Migrate instance caches to shared global caches
+#[derive(Serialize)]
+struct MigrationResult {
+    moved_files: usize,
+    hardlinks: usize,
+    copies: usize,
+    saved_bytes: u64,
+    saved_mb: f64,
+}
+
+#[tauri::command]
+async fn migrate_shared_caches(
+    window: Window,
+    instance_state: State<'_, core::instance::InstanceState>,
+    config_state: State<'_, core::config::ConfigState>,
+) -> Result<MigrationResult, String> {
+    emit_log!(window, "Starting migration to shared caches...".to_string());
+
+    let app_handle = window.app_handle();
+    let (moved, hardlinks, copies, saved_bytes) =
+        core::instance::migrate_to_shared_caches(app_handle, &instance_state)?;
+
+    let saved_mb = saved_bytes as f64 / (1024.0 * 1024.0);
+
+    emit_log!(
+        window,
+        format!(
+            "Migration complete: {} files moved ({} hardlinks, {} copies), {:.2} MB saved",
+            moved, hardlinks, copies, saved_mb
+        )
+    );
+
+    // Automatically enable shared caches config
+    let mut config = config_state.config.lock().unwrap().clone();
+    config.use_shared_caches = true;
+    drop(config);
+    *config_state.config.lock().unwrap() = config_state.config.lock().unwrap().clone();
+    config_state.config.lock().unwrap().use_shared_caches = true;
+    config_state.save()?;
+
+    Ok(MigrationResult {
+        moved_files: moved,
+        hardlinks,
+        copies,
+        saved_bytes,
+        saved_mb,
+    })
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
@@ -2479,7 +2528,8 @@ fn main() {
             get_instance,
             set_active_instance,
             get_active_instance,
-            duplicate_instance
+            duplicate_instance,
+            migrate_shared_caches
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
