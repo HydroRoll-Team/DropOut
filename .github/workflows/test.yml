@@ -1,4 +1,4 @@
-name: Test & Build
+name: Unit Test
 
 on:
   push:
@@ -40,7 +40,8 @@ jobs:
             name: "macOS"
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v6
 
       - name: Install Dependencies (Ubuntu)
         if: runner.os == 'Linux' && !matrix.wayland
@@ -67,15 +68,15 @@ jobs:
 
       - name: Install Node.js
         if: github.event_name == 'workflow_dispatch'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22
 
       - name: Install pnpm
         if: github.event_name == 'workflow_dispatch'
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: latest
 
       - name: Install Frontend Dependencies
         if: github.event_name == 'workflow_dispatch'
@@ -111,7 +112,7 @@ jobs:
 
       - name: Upload Artifact (Linux)
         if: runner.os == 'Linux' && github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: dropout-linux-${{ matrix.wayland && 'arch' || 'ubuntu' }}-${{ steps.slug.outputs.sha8 }}
           path: |
@@ -122,7 +123,7 @@ jobs:
 
       - name: Upload Artifact (Windows)
         if: runner.os == 'Windows' && github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: dropout-windows-${{ steps.slug.outputs.sha8 }}
           path: |
@@ -133,7 +134,7 @@ jobs:
 
       - name: Upload Artifact (macOS)
         if: runner.os == 'macOS' && github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: dropout-macos-${{ steps.slug.outputs.sha8 }}
           path: |
