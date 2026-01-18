@@ -82,12 +82,41 @@ async fn start_game(
 
     // Check for active account
     emit_log!(window, "Checking for active account...".to_string());
-    let account = auth_state
+    let mut account = auth_state
         .active_account
         .lock()
         .unwrap()
         .clone()
         .ok_or("No active account found. Please login first.")?;
+
+    // Check if Microsoft account token is expired and refresh if needed
+    if let core::auth::Account::Microsoft(ms_account) = &account {
+        if core::auth::is_token_expired(ms_account.expires_at) {
+            emit_log!(window, "Token expired, refreshing...".to_string());
+            match core::auth::refresh_full_auth(
+                &ms_account
+                    .refresh_token
+                    .clone()
+                    .ok_or("No refresh token available")?,
+            )
+            .await
+            {
+                Ok((refreshed_account, _new_ms_refresh)) => {
+                    let refreshed_account = core::auth::Account::Microsoft(refreshed_account);
+                    *auth_state.active_account.lock().unwrap() = Some(refreshed_account.clone());
+                    account = refreshed_account;
+                    emit_log!(window, "Token refreshed successfully".to_string());
+                }
+                Err(e) => {
+                    emit_log!(window, format!("Token refresh failed: {}", e));
+                    return Err(format!(
+                        "Your login session has expired. Please login again: {}",
+                        e
+                    ));
+                }
+            }
+        }
+    }
 
     emit_log!(window, format!("Account found: {}", account.username()));
 
