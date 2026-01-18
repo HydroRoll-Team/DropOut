@@ -304,7 +304,8 @@ After successful commit, offer push options in user's language:
 After successful push, ask if user wants to create a Pull Request.
 
 **PR Template Selection**:
-- Default language: **English** (use [en-pull_request_template.md](.github/PULL_REQUEST_TEMPLATE/en-pull_request_template.md))
+- Default language: **English** (use [en-pull_request_template.md](../PULL_REQUEST_TEMPLATE/en-pull_request_template.md))
+- If user's instruction language is Chinese: offer Chinese template option (use [cn-pull_request_template.md](../PULL_REQUEST_TEMPLATE/cn-pull_request_template.md))
 - If user's instruction language is Chinese: offer Chinese template option (use [cn-pull_request_template.md](.github/PULL_REQUEST_TEMPLATE/cn-pull_request_template.md))
 - Templates located at: `.github/PULL_REQUEST_TEMPLATE/`
 
