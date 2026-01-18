@@ -82,7 +82,6 @@ jobs:
       - name: Rust Cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: "./src-tauri -> target"
           shared-key: ${{ matrix.target }}
 
       - name: Setup appimagetool (Linux)
@@ -128,7 +127,7 @@ jobs:
             appimagetool squashfs-root "$APPIMAGE"
             rm -rf squashfs-root
           fi
-        working-directory: src-tauri/target/release
+        working-directory: target/release
 
       - name: Upload Artifact (Linux)
         if: runner.os == 'Linux' && github.event_name == 'workflow_dispatch'
@@ -136,9 +135,9 @@ jobs:
         with:
           name: dropout-linux-${{ matrix.wayland && 'arch' || 'ubuntu' }}-${{ steps.slug.outputs.sha8 }}
           path: |
-            src-tauri/target/debug/bundle/appimage/*.AppImage
-            src-tauri/target/debug/bundle/deb/*.deb
-            src-tauri/target/debug/dropout
+            target/debug/bundle/appimage/*.AppImage
+            target/debug/bundle/deb/*.deb
+            target/debug/dropout
           retention-days: 1
 
       - name: Upload Artifact (Windows)
@@ -147,9 +146,9 @@ jobs:
         with:
           name: dropout-windows-${{ steps.slug.outputs.sha8 }}
           path: |
-            src-tauri/target/debug/bundle/msi/*.msi
-            src-tauri/target/debug/bundle/nsis/*.exe
-            src-tauri/target/debug/dropout.exe
+            target/debug/bundle/msi/*.msi
+            target/debug/bundle/nsis/*.exe
+            target/debug/dropout.exe
           retention-days: 1
 
       - name: Upload Artifact (macOS)
@@ -158,8 +157,8 @@ jobs:
         with:
           name: dropout-macos-${{ steps.slug.outputs.sha8 }}
           path: |
-            src-tauri/target/debug/bundle/dmg/*.dmg
-            src-tauri/target/debug/bundle/macos/DropOut.app
+            target/debug/bundle/dmg/*.dmg
+            target/debug/bundle/macos/DropOut.app
           retention-days: 1
 
   # release:

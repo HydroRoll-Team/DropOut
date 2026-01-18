@@ -87,8 +87,6 @@ jobs:
 
       - name: Rust Cache
         uses: swatinem/rust-cache@v2
-        with:
-          workspaces: ./src-tauri
 
       - name: Run Tests
         working-directory: ./src-tauri
