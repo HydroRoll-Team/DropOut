@@ -370,7 +370,7 @@ Key updates: Added Step 7 (push options), Step 8 (PR generation), cross-language
 
 ## 更改类型
 
-- [x] 文档更新
+| `style` | Code style/formatting change |
 - [x] 配置更改
 ...
 ```
