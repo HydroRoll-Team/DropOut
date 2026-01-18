@@ -218,20 +218,41 @@ impl InstanceState {
             .get_instance(id)
             .ok_or_else(|| format!("Instance {} not found", id))?;
 
-        // Create new instance
-        let mut new_instance = self.create_instance(new_name, app_handle)?;
+        // Prepare new instance metadata (but don't save yet)
+        let new_id = uuid::Uuid::new_v4().to_string();
+        let instances_dir = app_handle
+            .path()
+            .app_data_dir()
+            .map_err(|e| e.to_string())?
+            .join("instances");
+        let new_game_dir = instances_dir.join(&new_id);
 
-        // Copy instance properties
-        new_instance.version_id = source_instance.version_id.clone();
-        new_instance.mod_loader = source_instance.mod_loader.clone();
-        new_instance.mod_loader_version = source_instance.mod_loader_version.clone();
-        new_instance.notes = source_instance.notes.clone();
-
-        // Copy directory contents
+        // Copy directory FIRST - if this fails, don't create metadata
         if source_instance.game_dir.exists() {
-            copy_dir_all(&source_instance.game_dir, &new_instance.game_dir)
+            copy_dir_all(&source_instance.game_dir, &new_game_dir)
                 .map_err(|e| format!("Failed to copy instance directory: {}", e))?;
+        } else {
+            // If source dir doesn't exist, create new empty game dir
+            std::fs::create_dir_all(&new_game_dir)
+                .map_err(|e| format!("Failed to create instance directory: {}", e))?;
         }
+
+        // NOW create metadata and save
+        let new_instance = Instance {
+            id: new_id,
+            name: new_name,
+            game_dir: new_game_dir,
+            version_id: source_instance.version_id.clone(),
+            mod_loader: source_instance.mod_loader.clone(),
+            mod_loader_version: source_instance.mod_loader_version.clone(),
+            notes: source_instance.notes.clone(),
+            icon_path: source_instance.icon_path.clone(),
+            created_at: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs() as i64,
+            last_played: None,
+        };
 
         self.update_instance(new_instance.clone())?;
 

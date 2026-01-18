@@ -6,9 +6,9 @@ use uuid::Uuid;
 // This is critical because Microsoft's WAF often blocks requests without a valid UA
 fn get_client() -> reqwest::Client {
     reqwest::Client::builder()
-        .user_agent("DropOut/1.0 (Linux)")
+        .user_agent("DropOut/1.0")
         .build()
-        .unwrap_or_else(|_| get_client())
+        .unwrap_or_else(|_| reqwest::Client::new())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -136,7 +136,6 @@ pub async fn refresh_microsoft_token(refresh_token: &str) -> Result<TokenRespons
 }
 
 /// Check if a Microsoft account token is expired or about to expire
-#[allow(dead_code)]
 pub fn is_token_expired(expires_at: i64) -> bool {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

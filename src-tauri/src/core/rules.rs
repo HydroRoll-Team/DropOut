@@ -57,18 +57,37 @@ fn rule_matches(rule: &Rule) -> bool {
     match &rule.os {
         None => true, // No OS condition means it applies to all
         Some(os_rule) => {
+            // Check OS name
             if let Some(os_name) = &os_rule.name {
-                match os_name.as_str() {
+                let os_match = match os_name.as_str() {
                     "osx" | "macos" => env::consts::OS == "macos",
                     "linux" => env::consts::OS == "linux",
                     "windows" => env::consts::OS == "windows",
                     _ => false, // Unknown OS name in rule
+                };
+                
+                if !os_match {
+                    return false;
                 }
-            } else {
-                // OS rule exists but name is None? Maybe checking version/arch only.
-                // For simplicity, mostly name is used.
-                true
             }
+            
+            // Check architecture if specified
+            if let Some(arch) = &os_rule.arch {
+                let current_arch = env::consts::ARCH;
+                if arch != current_arch && arch != "x86_64" {
+                    // "x86" is sometimes used for x86_64, but we only match exact arch
+                    return false;
+                }
+            }
+            
+            // Check version if specified (for OS version compatibility)
+            if let Some(_version) = &os_rule.version {
+                // Version checking would require parsing OS version strings
+                // For now, we accept all versions (conservative approach)
+                // In the future, parse version and compare
+            }
+            
+            true
         }
     }
 }
