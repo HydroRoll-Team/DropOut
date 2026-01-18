@@ -97,6 +97,43 @@ pub async fn fetch_vanilla_version(
     Ok(resp)
 }
 
+/// Find the root vanilla version by following the inheritance chain.
+///
+/// For modded versions (Fabric, Forge), this walks up the `inheritsFrom`
+/// chain to find the base vanilla Minecraft version.
+///
+/// # Arguments
+/// * `game_dir` - The .minecraft directory path
+/// * `version_id` - The version ID to start from
+///
+/// # Returns
+/// The ID of the root vanilla version (the version without `inheritsFrom`)
+pub async fn find_root_version(
+    game_dir: &std::path::Path,
+    version_id: &str,
+) -> Result<String, Box<dyn Error + Send + Sync>> {
+    let mut current_id = version_id.to_string();
+
+    // Keep following the inheritance chain
+    loop {
+        let version = match load_local_version(game_dir, &current_id).await {
+            Ok(v) => v,
+            Err(_) => {
+                // If not found locally, assume it's a vanilla version (root)
+                return Ok(current_id);
+            }
+        };
+
+        // If this version has no parent, it's the root
+        if let Some(parent_id) = version.inherits_from {
+            current_id = parent_id;
+        } else {
+            // This is the root
+            return Ok(current_id);
+        }
+    }
+}
+
 /// Load a version, checking local first, then fetching from remote if needed.
 ///
 /// For modded versions (those with `inheritsFrom`), this will also resolve
