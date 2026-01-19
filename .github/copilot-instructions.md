@@ -236,7 +236,7 @@ Uses **Device Code Flow** (no redirect needed):
 - **Fabric Meta**: `https://meta.fabricmc.net/v2/`
 - **Forge Maven**: `https://maven.minecraftforge.net/`
 - **Adoptium**: `https://api.adoptium.net/v3/`
-- **GitHub Releases**: `https://api.github.com/repos/HydroRoll-Team/DropOut/releases`
+- **GitHub Releases**: `https://api.github.com/repos/HsiangNianian/DropOut/releases`
 
 ### Native Dependencies
 - **Linux**: `libwebkit2gtk-4.1-dev`, `libgtk-3-dev` (see [test.yml](../.github/workflows/test.yml))
