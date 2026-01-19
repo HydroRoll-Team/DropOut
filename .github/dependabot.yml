@@ -12,13 +12,9 @@ multi-ecosystem-groups:
 
 updates:
   - package-ecosystem: "npm"
-    directory: "/packages/ui"
+    directory: "/"
     multi-ecosystem-group: "infrastructure"
 
   - package-ecosystem: "cargo"
     directory: "/src-tauri"
-    multi-ecosystem-group: "infrastructure"
-
-  - package-ecosystem: "uv"
-    directory: "/"
     multi-ecosystem-group: "infrastructure"
