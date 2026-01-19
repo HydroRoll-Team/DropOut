@@ -54,7 +54,7 @@ ui/                 # Svelte 5 frontend
 ```bash
 cargo tauri dev  # Starts frontend dev server (Vite on :5173) + Tauri window
 ```
-- Frontend uses **standard Vite 7.2** (not Rolldown fork) with hot reload
+- Frontend uses a **Rolldown-based Vite 7.2 fork** (`npm:rolldown-vite@7.2.5`) with hot reload
 - Backend recompiles on Rust file changes
 - Console shows both Rust stdout and frontend Vite logs
 - **Vite Config**: Uses `usePolling: true` for watch compatibility with Tauri
