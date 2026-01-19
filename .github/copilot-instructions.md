@@ -3,22 +3,22 @@
 ## Architecture Overview
 
 **DropOut** is a Tauri v2 desktop application combining:
-- **Backend (Rust)**: Game launching, asset management, authentication, mod loader installation
+- **Backend (Rust)**: Game launching, asset management, authentication, mod loader installation, instance management
 - **Frontend (Svelte 5)**: Reactive UI with Tailwind CSS 4 and particle effects
 - **Communication**: Tauri commands (invoke) and events (emit/listen)
-- **Pre-commit Hooks**: Python-based tooling for JSON/TOML validation (managed via `pyproject.toml`)
+- **Pre-commit Hooks**: pre-commit framework with hooks for JSON/TOML validation, Ruff for Python, Rust fmt/clippy
 
 **Key Data Flow**: Frontend invokes Rust commands → Rust processes/downloads → Rust emits progress events → Frontend updates UI via listeners
 
-**Version Management**: Uses `_version.py` for single source of truth, synced to `Cargo.toml` (0.1.24) and `tauri.conf.json`
+**Version Management**: Manual version synchronization across `Cargo.toml` (0.2.0-alpha.1), `ui/package.json`, and `tauri.conf.json` - update all three when bumping versions
 
 ## Project Structure
 
 ```
 src-tauri/          # Rust backend
   src/
-    main.rs         # Tauri commands, game launch logic, event emissions
-    core/           # Core modules (auth, downloader, fabric, forge, java, etc.)
+    main.rs         # Tauri commands, game launch logic, event emissions, instance management
+    core/           # Core modules (auth, downloader, fabric, forge, java, instance, etc.)
       mod.rs        # Module declarations
       auth.rs       # Microsoft OAuth + offline auth via Device Code Flow
       downloader.rs # Concurrent downloads with progress tracking, resumable downloads
@@ -26,6 +26,7 @@ src-tauri/          # Rust backend
       forge.rs      # Forge installer execution and profile generation
       java.rs       # Java detection, Adoptium download/install, catalog management
       config.rs     # LauncherConfig (memory, java path, download threads)
+      instance.rs   # Instance/profile management with isolated game directories
       game_version.rs  # Minecraft version JSON parsing
       manifest.rs   # Mojang version manifest fetching
       maven.rs      # Maven artifact URL resolution for mod loaders
@@ -33,15 +34,17 @@ src-tauri/          # Rust backend
       version_merge.rs # Parent version inheritance merging
     utils/
       zip.rs        # Native library extraction
+      path.rs       # Path normalization utilities
 ui/                 # Svelte 5 frontend
   src/
     App.svelte      # Main app component, enforces dark mode
     stores/         # Svelte 5 runes state management ($state, $effect)
       auth.svelte.ts    # Authentication state with device code polling
       game.svelte.ts    # Game state (running, logs)
+      instances.svelte.ts # Instance management state
       settings.svelte.ts  # Settings + Java detection
       ui.svelte.ts      # UI state (toasts, modals, active view)
-    components/     # UI components (HomeView, VersionsView, SettingsView, etc.)
+    components/     # UI components (HomeView, VersionsView, SettingsView, InstancesView, etc.)
     lib/            # Reusable components (DownloadMonitor, GameConsole)
 ```
 
@@ -51,17 +54,17 @@ ui/                 # Svelte 5 frontend
 ```bash
 cargo tauri dev  # Starts frontend dev server (Vite on :5173) + Tauri window
 ```
-- Frontend uses **Rolldown-based Vite fork** (`npm:rolldown-vite@7.2.5`) with hot reload
+- Frontend uses **standard Vite 7.2** (not Rolldown fork) with hot reload
 - Backend recompiles on Rust file changes
 - Console shows both Rust stdout and frontend Vite logs
 - **Vite Config**: Uses `usePolling: true` for watch compatibility with Tauri
 - **HMR**: WebSocket on `ws://localhost:5173`
 
 ### Pre-commit Checks
-- Uses **pre-commit** with Python (configured in `pyproject.toml`)
-- Hooks: JSON/TOML/YAML validation, Ruff for Python files
+- Uses **pre-commit** framework (configured in `.pre-commit-config.yaml`)
+- Hooks: JSON/TOML/YAML validation, Ruff for Python (if any), Rust fmt/clippy
 - Run manually: `pre-commit run --all-files`
-- **IMPORTANT**: All Python tooling for CI/validation lives here, NOT for app logic
+- **IMPORTANT**: Python is only used for pre-commit hooks, NOT for app logic
 
 ### Building
 ```bash
@@ -85,7 +88,7 @@ pnpm format        # OxFmt for formatting (--check for CI)
 ## Project-Specific Patterns & Conventions
 
 ### Tauri Command Pattern
-Commands in [`main.rs`](../src-tauri/src/main.rs) follow this structure:
+Commands in `/src-tauri/src/main.rs` follow this structure:
 ```rust
 #[tauri::command]
 async fn command_name(
@@ -164,9 +167,18 @@ export const authState = new AuthState();
 
 ### Version Inheritance System
 Modded versions (Fabric/Forge) use `inheritsFrom` field:
-- [`version_merge.rs`](../src-tauri/src/core/version_merge.rs): Merges parent vanilla JSON with mod loader JSON
-- [`manifest.rs`](../src-tauri/src/core/manifest.rs): `load_version()` recursively resolves inheritance
+- `/src-tauri/src/core/version_merge.rs`: Merges parent vanilla JSON with mod loader JSON
+- `/src-tauri/src/core/manifest.rs`: `load_version()` recursively resolves inheritance
 - Libraries, assets, arguments are merged from parent + modded version
+
+### Instance Management System
+`/src-tauri/src/core/instance.rs` provides multi-instance/profile support:
+- **Isolated environments**: Each instance has separate versions/, libraries/, assets/, mods/, saves/
+- **Shared caches**: Optional shared caches for versions/libraries/assets to save disk space
+- **Migration**: `migrate_to_shared_caches()` converts duplicates to hardlinks/copies
+- **Instance state**: Stored in `instances.json` with metadata (version_id, mod_loader, memory_override)
+- **Active instance**: Single active instance tracked, all game operations target it
+- **Legacy migration**: Automatically migrates from old single game directory to instances
 
 ### Microsoft Authentication Flow
 Uses **Device Code Flow** (no redirect needed):
@@ -174,12 +186,12 @@ Uses **Device Code Flow** (no redirect needed):
 2. User visits URL in browser, enters code
 3. Frontend polls `complete_microsoft_login()` with device code
 4. Rust exchanges code → MS token → Xbox Live → XSTS → Minecraft token
-5. Stores MS refresh token for auto-refresh (see [`auth.rs`](../src-tauri/src/core/auth.rs))
+5. Stores MS refresh token for auto-refresh (see `/src-tauri/src/core/auth.rs`)
 
 **Client ID**: Uses ATLauncher's public client ID (`c36a9fb6-4f2a-41ff-90bd-ae7cc92031eb`)
 
 ### Download System
-[`downloader.rs`](../src-tauri/src/core/downloader.rs) features:
+`/src-tauri/src/core/downloader.rs` features:
 - **Concurrent downloads** with semaphore (configurable threads)
 - **Resumable downloads**: `.part` + `.part.meta` files track progress
 - **Multi-segment downloads**: Large files split into segments downloaded in parallel
@@ -188,12 +200,21 @@ Uses **Device Code Flow** (no redirect needed):
 - **Queue persistence**: Java downloads saved to `download_queue.json` for resumption
 
 ### Java Management
-[`java.rs`](../src-tauri/src/core/java.rs):
+`/src-tauri/src/core/java.rs`:
 - **Auto-detection**: Scans `/usr/lib/jvm`, `/Library/Java`, `JAVA_HOME`, `PATH`
 - **Adoptium API**: Fetches available JDK/JRE versions for current OS/arch
 - **Catalog caching**: `java_catalog.json` cached for 24 hours
 - **Installation**: Downloads, extracts to `app_data_dir/java/<version>`
 - **Cancellation**: Global `AtomicBool` flag for download cancellation
+
+### AI Assistant System
+`/src-tauri/src/core/assistant.rs`:
+- **Dual provider support**: Ollama (local) and OpenAI (remote) backends
+- **Game log context**: Automatically includes recent game logs for troubleshooting
+- **Streaming**: Supports streaming responses via Tauri events
+- **Model listing**: Can query available models from both providers
+- **Health checks**: Validates provider connectivity before chat
+- **Configuration**: Stored in config with endpoint, API key, model selection
 
 ### Error Handling
 - Commands return `Result<T, String>` (String for JS-friendly errors)
@@ -215,7 +236,7 @@ Uses **Device Code Flow** (no redirect needed):
 - **Fabric Meta**: `https://meta.fabricmc.net/v2/`
 - **Forge Maven**: `https://maven.minecraftforge.net/`
 - **Adoptium**: `https://api.adoptium.net/v3/`
-- **GitHub Releases**: `https://api.github.com/repos/HsiangNianian/DropOut/releases`
+- **GitHub Releases**: `https://api.github.com/repos/HydroRoll-Team/DropOut/releases`
 
 ### Native Dependencies
 - **Linux**: `libwebkit2gtk-4.1-dev`, `libgtk-3-dev` (see [test.yml](../.github/workflows/test.yml))
@@ -231,9 +252,9 @@ Uses **Device Code Flow** (no redirect needed):
 
 ### Adding a New UI View
 1. Create component in `ui/src/components/NewView.svelte`
-2. Import in [`App.svelte`](../ui/src/App.svelte)
-3. Add navigation in [`Sidebar.svelte`](../ui/src/components/Sidebar.svelte)
-4. Update `uiState.activeView` in [`ui.svelte.ts`](../ui/src/stores/ui.svelte.ts)
+2. Import in `/ui/src/App.svelte`
+3. Add navigation in `/ui/src/components/Sidebar.svelte`
+4. Update `uiState.activeView` in `/ui/src/stores/ui.svelte.ts`
 
 ### Emitting Progress Events
 Use `emit_log!` macro for launcher logs:
@@ -246,19 +267,19 @@ window.emit("custom-event", payload)?;
 ```
 
 ### Handling Placeholders in Arguments
-Game arguments may contain `${variable}` placeholders. Use the `has_unresolved_placeholder()` helper to skip malformed arguments (see [`main.rs:57-67`](../src-tauri/src/main.rs#L57-L67)).
+Game arguments may contain `${variable}` placeholders. Use the `has_unresolved_placeholder()` helper to skip malformed arguments (see `/src-tauri/src/main.rs#L57-L67`).
 
 ## Important Notes
 
-- **Dark mode enforced**: [`App.svelte`](../ui/src/App.svelte) force-adds `dark` class regardless of system preference
+- **Dark mode enforced**: `/ui/src/App.svelte` force-adds `dark` class regardless of system preference
 - **Svelte 5 syntax**: Use `$state`, `$derived`, `$effect` (not `writable` stores)
 - **No CREATE_NO_WINDOW on non-Windows**: Use `#[cfg(target_os = "windows")]` for Windows-specific code
 - **Version IDs**: Fabric uses `fabric-loader-<loader>-<game>`, Forge uses `<game>-forge-<loader>`
-- **Mod loader libraries**: Don't have `downloads.artifact`, use Maven resolution via [`maven.rs`](../src-tauri/src/core/maven.rs)
+- **Mod loader libraries**: Don't have `downloads.artifact`, use Maven resolution via `/src-tauri/src/core/maven.rs`
 - **Native extraction**: Extract to `versions/<version>/natives/`, exclude META-INF
-- **Classpath order**: Libraries → Client JAR (see [`main.rs:437-453`](../src-tauri/src/main.rs#L437-L453))
-- **Version management**: Single source in `_version.py`, synced to Cargo.toml and tauri.conf.json
-- **Frontend dependencies**: Must use pnpm 9 + Node 22 (uses Rolldown-based Vite fork)
+- **Classpath order**: Libraries → Client JAR (see `/src-tauri/src/main.rs#L437-L453`)
+- **Version management**: Manual version synchronization across `Cargo.toml` (0.2.0-alpha.1), `ui/package.json`, and `tauri.conf.json` - update all three when bumping versions
+- **Frontend dependencies**: Must use pnpm 9 + Node 22 (uses standard Vite 7.2)
 - **Store files**: Must have `.svelte.ts` extension, not `.ts`
 
 ## Debugging Tips
@@ -267,12 +288,12 @@ Game arguments may contain `${variable}` placeholders. Use the `has_unresolved_p
 - **Frontend logs**: Browser devtools (Ctrl+Shift+I in Tauri window)
 - **Game logs**: Listen to `game-stdout`/`game-stderr` events
 - **Download issues**: Check `download-progress` events, validate SHA1 hashes
-- **Auth issues**: MS WAF blocks requests without User-Agent (see [`auth.rs:6-12`](../src-tauri/src/core/auth.rs#L6-L12))
+- **Auth issues**: MS WAF blocks requests without User-Agent (see `/src-tauri/src/core/auth.rs#L6-L12`)
 
 ## Version Compatibility
 
 - **Rust**: Edition 2021, requires Tauri v2 dependencies
-- **Node.js**: 22+ with pnpm 9+ for frontend (uses Rolldown-based Vite fork `npm:rolldown-vite@7.2.5`)
+- **Node.js**: 22+ with pnpm 9+ for frontend (standard Vite 7.2)
 - **Tauri**: v2.9+
 - **Svelte**: v5.46+ (runes mode)
 - **Java**: Supports detection of Java 8-23+, recommends Java 17+ for modern Minecraft
@@ -287,3 +308,13 @@ Follow instructions in [`.github/instructions/commit.instructions.md`](.github/i
 - **Language**: Commit messages ALWAYS in English
 - **Confirmation**: ALWAYS ask before committing (unless "commit directly" requested)
 - See [Conventional Commits spec](.github/references/git/conventional-commit.md) for details
+
+## Code Review Instructions
+
+When user requests PR review (keywords: "review PR", "code review", "审查 PR", "代码审查") → Follow <a><root>/.github/agents/pr-review.agent.md</a>
+
+**Quick Reference**: <a><root>/.github/instructions/code-review.instructions.md</a>
+
+**High-Signal Only**: Report ONLY compilation errors, deterministic logic errors, and unambiguous instruction violations (100% certainty standard)
+
+**Multi-Language**: Detect user's language → output in user's language, but ALL agent/tool interactions in English
