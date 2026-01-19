@@ -5,7 +5,7 @@ on:
     branches: ["main"]
     paths-ignore:
       - "**.md"
-      - "ui/**"
+      - "packages/**"
   pull_request:
     branches: ["main"]
   workflow_dispatch:
@@ -78,7 +78,6 @@ jobs:
 
       - name: Install Frontend Dependencies
         if: github.event_name == 'workflow_dispatch'
-        working-directory: ./ui
         run: pnpm install
 
       - name: Install Tauri CLI

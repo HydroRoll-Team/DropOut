@@ -5,7 +5,7 @@ edition = "2021"
 authors = ["HsiangNianian"]
 description = "The DropOut Minecraft Game Launcher"
 license = "MIT"
-repository = "https://github.com/HsiangNianian/DropOut"
+repository = "https://github.com/HydroRoll-Team/DropOut"
 publish = false
 
 [dependencies]

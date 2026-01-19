@@ -118,7 +118,7 @@ async fn start_game(
         }
     }
 
-    emit_log!(window, format!("Account found: {}", account.username()));
+    emit_log!(window, "Account found".to_string());
 
     let config = config_state.config.lock().unwrap().clone();
     emit_log!(window, format!("Java path: {}", config.java_path));
@@ -2141,7 +2141,7 @@ struct GithubRelease {
 async fn get_github_releases() -> Result<Vec<GithubRelease>, String> {
     let client = reqwest::Client::new();
     let res = client
-        .get("https://api.github.com/repos/HsiangNianian/DropOut/releases")
+        .get("https://api.github.com/repos/HydroRoll-Team/DropOut/releases")
         .header("User-Agent", "DropOut-Launcher")
         .send()
         .await

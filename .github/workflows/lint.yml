@@ -4,7 +4,7 @@ on:
   push:
     branches: ["main", "dev"]
     paths:
-      - "ui/**"
+      - "packages/**"
   workflow_dispatch:
 
 permissions:
@@ -27,16 +27,15 @@ jobs:
         with:
           node-version: 22
           cache: "pnpm"
-          cache-dependency-path: "ui/pnpm-lock.yaml"
+          cache-dependency-path: "pnpm-lock.yaml"
 
       - run: pnpm install
-        working-directory: ui
 
       - run: pnpm format
-        working-directory: ui
+        working-directory: packages/ui
 
       - run: pnpm lint:fix
-        working-directory: ui
+        working-directory: packages/ui
 
       - name: Commit changes
         uses: stefanzweifel/git-auto-commit-action@v5

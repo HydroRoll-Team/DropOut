@@ -279,7 +279,7 @@ Game arguments may contain `${variable}` placeholders. Use the `has_unresolved_p
 - **Native extraction**: Extract to `versions/<version>/natives/`, exclude META-INF
 - **Classpath order**: Libraries → Client JAR (see `/src-tauri/src/main.rs#L437-L453`)
 - **Version management**: Manual version synchronization across `Cargo.toml` (0.2.0-alpha.1), `ui/package.json`, and `tauri.conf.json` - update all three when bumping versions
-- **Frontend dependencies**: Must use pnpm 9 + Node 22 (uses standard Vite 7.2)
+- **Frontend dependencies**: Must use pnpm 9 + Node 22 (uses Rolldown-based Vite fork `npm:rolldown-vite@7.2.5`)
 - **Store files**: Must have `.svelte.ts` extension, not `.ts`
 
 ## Debugging Tips
@@ -293,7 +293,7 @@ Game arguments may contain `${variable}` placeholders. Use the `has_unresolved_p
 ## Version Compatibility
 
 - **Rust**: Edition 2021, requires Tauri v2 dependencies
-- **Node.js**: 22+ with pnpm 9+ for frontend (standard Vite 7.2)
+- **Node.js**: 22+ with pnpm 9+ for frontend (uses Rolldown-based Vite fork `npm:rolldown-vite@7.2.5`)
 - **Tauri**: v2.9+
 - **Svelte**: v5.46+ (runes mode)
 - **Java**: Supports detection of Java 8-23+, recommends Java 17+ for modern Minecraft

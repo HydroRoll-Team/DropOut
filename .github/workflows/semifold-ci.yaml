@@ -73,7 +73,7 @@ jobs:
         with:
           node-version: 22
           cache: "pnpm"
-          cache-dependency-path: "ui/pnpm-lock.yaml"
+          cache-dependency-path: "pnpm-lock.yaml"
 
       - name: Install Node.js Dependencies
         run: pnpm install
@@ -182,7 +182,7 @@ jobs:
         with:
           node-version: 22
           cache: "pnpm"
-          cache-dependency-path: "ui/pnpm-lock.yaml"
+          cache-dependency-path: "pnpm-lock.yaml"
       - name: Install Node.js Dependencies
         run: pnpm install
       - name: Download build artifacts

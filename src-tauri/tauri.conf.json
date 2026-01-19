@@ -6,7 +6,7 @@
     "beforeDevCommand": "pnpm --filter @dropout/ui dev",
     "beforeBuildCommand": "pnpm --filter @dropout/ui build",
     "devUrl": "http://localhost:5173",
-    "frontendDist": "../ui/dist"
+    "frontendDist": "../packages/ui/dist"
   },
   "app": {
     "windows": [

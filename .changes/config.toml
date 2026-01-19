@@ -10,7 +10,7 @@ perf = "Performance Improvements"
 refactor = "Refactors"
 
 [packages."@dropout/ui"]
-path = "ui"
+path = "packages/ui"
 resolver = "nodejs"
 version-mode = { pre-release.tag = "alpha" }
 
