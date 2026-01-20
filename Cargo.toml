@@ -1,0 +1,9 @@
+[workspace]
+members = ["src-tauri"]
+resolver = "3"
+
+[profile.dev]
+opt-level = 0
+
+[profile.release]
+opt-level = 3

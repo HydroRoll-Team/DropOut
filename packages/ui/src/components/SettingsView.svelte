@@ -123,6 +123,34 @@
     settingsState.settings.custom_background_path = undefined;
     settingsState.saveSettings();
   }
+
+  let migrating = $state(false);
+  async function runMigrationToSharedCaches() {
+    if (migrating) return;
+    migrating = true;
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const result = await invoke<{
+        moved_files: number;
+        hardlinks: number;
+        copies: number;
+        saved_mb: number;
+      }>("migrate_shared_caches");
+      
+      // Reload settings to reflect changes
+      await settingsState.loadSettings();
+      
+      // Show success message
+      const msg = `Migration complete! ${result.moved_files} files (${result.hardlinks} hardlinks, ${result.copies} copies), ${result.saved_mb.toFixed(2)} MB saved.`;
+      console.log(msg);
+      alert(msg);
+    } catch (e) {
+      console.error("Migration failed:", e);
+      alert(`Migration failed: ${e}`);
+    } finally {
+      migrating = false;
+    }
+  }
 </script>
 
 <div class="h-full flex flex-col p-6 overflow-hidden">
@@ -396,6 +424,124 @@
             />
             <p class="text-xs text-white/30 mt-2">Higher values usually mean faster downloads but use more CPU/Network.</p>
         </div>
+    </div>
+
+    <!-- Storage & Caches -->
+    <div class="dark:bg-[#09090b] bg-white p-6 rounded-sm border dark:border-white/10 border-gray-200 shadow-sm">
+      <h3 class="text-xs font-bold uppercase tracking-widest text-white/40 mb-6 flex items-center gap-2">Storage & Version Caches</h3>
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h4 class="text-sm font-medium text-white/90" id="shared-caches-label">Use Shared Caches</h4>
+            <p class="text-xs text-white/40 mt-1">Store versions/libraries/assets in a global cache shared by all instances.</p>
+          </div>
+          <button
+            aria-labelledby="shared-caches-label"
+            onclick={() => { settingsState.settings.use_shared_caches = !settingsState.settings.use_shared_caches; settingsState.saveSettings(); }}
+            class="w-11 h-6 rounded-full transition-colors duration-200 ease-in-out relative focus:outline-none {settingsState.settings.use_shared_caches ? 'bg-indigo-500' : 'bg-white/10'}"
+          >
+            <div class="absolute top-1 left-1 bg-white w-4 h-4 rounded-full shadow-sm transition-transform duration-200 ease-in-out {settingsState.settings.use_shared_caches ? 'translate-x-5' : 'translate-x-0'}"></div>
+          </button>
+        </div>
+
+        <div class="flex items-center justify-between">
+          <div>
+            <h4 class="text-sm font-medium text-white/90" id="legacy-storage-label">Keep Legacy Per-Instance Storage</h4>
+            <p class="text-xs text-white/40 mt-1">Do not migrate existing instance caches; keep current layout.</p>
+          </div>
+          <button
+            aria-labelledby="legacy-storage-label"
+            onclick={() => { settingsState.settings.keep_legacy_per_instance_storage = !settingsState.settings.keep_legacy_per_instance_storage; settingsState.saveSettings(); }}
+            class="w-11 h-6 rounded-full transition-colors duration-200 ease-in-out relative focus:outline-none {settingsState.settings.keep_legacy_per_instance_storage ? 'bg-indigo-500' : 'bg-white/10'}"
+          >
+            <div class="absolute top-1 left-1 bg-white w-4 h-4 rounded-full shadow-sm transition-transform duration-200 ease-in-out {settingsState.settings.keep_legacy_per_instance_storage ? 'translate-x-5' : 'translate-x-0'}"></div>
+          </button>
+        </div>
+
+        <div class="flex items-center justify-between pt-2 border-t border-white/10">
+          <div>
+            <h4 class="text-sm font-medium text-white/90">Run Migration</h4>
+            <p class="text-xs text-white/40 mt-1">Hard-link or copy existing per-instance caches into the shared cache.</p>
+          </div>
+          <button 
+            onclick={runMigrationToSharedCaches} 
+            disabled={migrating}
+            class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {migrating ? "Migrating..." : "Migrate Now"}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feature Flags -->
+    <div class="dark:bg-[#09090b] bg-white p-6 rounded-sm border dark:border-white/10 border-gray-200 shadow-sm">
+      <h3 class="text-xs font-bold uppercase tracking-widest text-white/40 mb-6 flex items-center gap-2">Feature Flags (Launcher Arguments)</h3>
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h4 class="text-sm font-medium text-white/90" id="demo-user-label">Demo User</h4>
+            <p class="text-xs text-white/40 mt-1">Enable demo-related arguments when rules require them.</p>
+          </div>
+          <button
+            aria-labelledby="demo-user-label"
+            onclick={() => { settingsState.settings.feature_flags.demo_user = !settingsState.settings.feature_flags.demo_user; settingsState.saveSettings(); }}
+            class="w-11 h-6 rounded-full transition-colors duration-200 ease-in-out relative focus:outline-none {settingsState.settings.feature_flags.demo_user ? 'bg-indigo-500' : 'bg-white/10'}"
+          >
+            <div class="absolute top-1 left-1 bg-white w-4 h-4 rounded-full shadow-sm transition-transform duration-200 ease-in-out {settingsState.settings.feature_flags.demo_user ? 'translate-x-5' : 'translate-x-0'}"></div>
+          </button>
+        </div>
+
+        <div class="flex items-center justify-between">
+          <div>
+            <h4 class="text-sm font-medium text-white/90" id="quick-play-label">Quick Play</h4>
+            <p class="text-xs text-white/40 mt-1">Enable quick play singleplayer/multiplayer arguments.</p>
+          </div>
+          <button
+            aria-labelledby="quick-play-label"
+            onclick={() => { settingsState.settings.feature_flags.quick_play_enabled = !settingsState.settings.feature_flags.quick_play_enabled; settingsState.saveSettings(); }}
+            class="w-11 h-6 rounded-full transition-colors duration-200 ease-in-out relative focus:outline-none {settingsState.settings.feature_flags.quick_play_enabled ? 'bg-indigo-500' : 'bg-white/10'}"
+          >
+            <div class="absolute top-1 left-1 bg-white w-4 h-4 rounded-full shadow-sm transition-transform duration-200 ease-in-out {settingsState.settings.feature_flags.quick_play_enabled ? 'translate-x-5' : 'translate-x-0'}"></div>
+          </button>
+        </div>
+
+        {#if settingsState.settings.feature_flags.quick_play_enabled}
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pl-2 border-l-2 border-white/10">
+            <div>
+              <label class="block text-sm font-medium text-white/70 mb-2">Singleplayer World Path</label>
+              <input
+                type="text"
+                bind:value={settingsState.settings.feature_flags.quick_play_path}
+                placeholder="/path/to/saves/MyWorld"
+                class="bg-black/40 text-white w-full px-4 py-3 rounded-xl border border-white/10 focus:border-indigo-500/50 outline-none font-mono text-xs transition-colors"
+              />
+            </div>
+            <div class="flex items-center justify-between">
+              <div>
+                <h4 class="text-sm font-medium text-white/90" id="qp-singleplayer-label">Prefer Singleplayer</h4>
+                <p class="text-xs text-white/40 mt-1">If enabled, use singleplayer quick play path.</p>
+              </div>
+              <button
+                aria-labelledby="qp-singleplayer-label"
+                onclick={() => { settingsState.settings.feature_flags.quick_play_singleplayer = !settingsState.settings.feature_flags.quick_play_singleplayer; settingsState.saveSettings(); }}
+                class="w-11 h-6 rounded-full transition-colors duration-200 ease-in-out relative focus:outline-none {settingsState.settings.feature_flags.quick_play_singleplayer ? 'bg-indigo-500' : 'bg-white/10'}"
+              >
+                <div class="absolute top-1 left-1 bg-white w-4 h-4 rounded-full shadow-sm transition-transform duration-200 ease-in-out {settingsState.settings.feature_flags.quick_play_singleplayer ? 'translate-x-5' : 'translate-x-0'}"></div>
+              </button>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-white/70 mb-2">Multiplayer Server Address</label>
+              <input
+                type="text"
+                bind:value={settingsState.settings.feature_flags.quick_play_multiplayer_server}
+                placeholder="example.org:25565"
+                class="bg-black/40 text-white w-full px-4 py-3 rounded-xl border border-white/10 focus:border-indigo-500/50 outline-none font-mono text-xs transition-colors"
+              />
+            </div>
+          </div>
+        {/if}
+      </div>
     </div>
 
     <!-- Debug / Logs -->

@@ -855,22 +855,19 @@ fn parse_java_version(version: &str) -> u32 {
     // - New format: 17.0.1, 11.0.5+10 (Java 11+)
     // - Format with build: 21.0.3+13-Ubuntu-0ubuntu0.24.04.1
     // - Format with underscores: 1.8.0_411
-    
+
     // First, strip build metadata (everything after '+')
     let version_only = version.split('+').next().unwrap_or(version);
-    
+
     // Remove trailing junk (like "-Ubuntu-0ubuntu0.24.04.1")
-    let version_only = version_only
-        .split('-')
-        .next()
-        .unwrap_or(version_only);
-    
+    let version_only = version_only.split('-').next().unwrap_or(version_only);
+
     // Replace underscores with dots (1.8.0_411 -> 1.8.0.411)
     let normalized = version_only.replace('_', ".");
-    
+
     // Split by dots
     let parts: Vec<&str> = normalized.split('.').collect();
-    
+
     if let Some(first) = parts.first() {
         if *first == "1" {
             // Old format: 1.8.0 -> major is 8

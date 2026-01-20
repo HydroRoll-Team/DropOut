@@ -1,0 +1,40 @@
+{
+  "name": "@dropout/workspace",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Dropout, the next-generation Minecraft game launcher",
+  "scripts": {
+    "bump-tauri": "tsx scripts/bump-tauri.ts",
+    "prepare": "prek install"
+  },
+  "keywords": [
+    "dropout",
+    "minecraft",
+    "launcher",
+    "game",
+    "mod",
+    "modpack"
+  ],
+  "license": "MIT",
+  "packageManager": "pnpm@10.27.0",
+  "dependencies": {
+    "consola": "^3.4.2",
+    "toml": "^3.0.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.11",
+    "@j178/prek": "^0.2.29",
+    "@tauri-apps/cli": "^2.9.6",
+    "@types/node": "^24.10.9",
+    "tsx": "^4.21.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "vite": "npm:rolldown-vite@^7"
+    },
+    "onlyBuiltDependencies": [
+      "@j178/prek",
+      "esbuild"
+    ]
+  }
+}

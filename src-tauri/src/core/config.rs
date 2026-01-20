@@ -42,6 +42,34 @@ impl Default for AssistantConfig {
     }
 }
 
+/// Feature-gated arguments configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct FeatureFlags {
+    /// Demo user: enables demo-related arguments when rules require it
+    pub demo_user: bool,
+    /// Quick Play: enable quick play arguments
+    pub quick_play_enabled: bool,
+    /// Quick Play singleplayer world path (if provided)
+    pub quick_play_path: Option<String>,
+    /// Quick Play singleplayer flag
+    pub quick_play_singleplayer: bool,
+    /// Quick Play multiplayer server address (optional)
+    pub quick_play_multiplayer_server: Option<String>,
+}
+
+impl Default for FeatureFlags {
+    fn default() -> Self {
+        Self {
+            demo_user: false,
+            quick_play_enabled: false,
+            quick_play_path: None,
+            quick_play_singleplayer: true,
+            quick_play_multiplayer_server: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct LauncherConfig {
@@ -59,6 +87,11 @@ pub struct LauncherConfig {
     pub log_upload_service: String, // "paste.rs" or "pastebin.com"
     pub pastebin_api_key: Option<String>,
     pub assistant: AssistantConfig,
+    // Storage management
+    pub use_shared_caches: bool, // Use global shared versions/libraries/assets
+    pub keep_legacy_per_instance_storage: bool, // Keep old per-instance caches (no migration)
+    // Feature-gated argument flags
+    pub feature_flags: FeatureFlags,
 }
 
 impl Default for LauncherConfig {
@@ -78,6 +111,9 @@ impl Default for LauncherConfig {
             log_upload_service: "paste.rs".to_string(),
             pastebin_api_key: None,
             assistant: AssistantConfig::default(),
+            use_shared_caches: false,
+            keep_legacy_per_instance_storage: true,
+            feature_flags: FeatureFlags::default(),
         }
     }
 }

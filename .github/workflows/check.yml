@@ -3,11 +3,11 @@ name: UI Checker
 on:
   push:
     paths:
-      - "ui/**"
+      - "packages/**"
       - ".github/workflows/check.yml"
   pull_request:
     paths:
-      - "ui/**"
+      - "packages/**"
       - ".github/workflows/check.yml"
   workflow_dispatch:
 
@@ -17,29 +17,26 @@ jobs:
       contents: read
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      
+      - name: Checkout
+        uses: actions/checkout@v6
+
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - name: Install Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: "pnpm"
-          cache-dependency-path: "ui/pnpm-lock.yaml"
+          cache-dependency-path: "pnpm-lock.yaml"
 
       - run: pnpm install
-        working-directory: ui
 
       - run: pnpm check
-        working-directory: ui
+        working-directory: packages/ui
 
       - run: pnpm lint
-        working-directory: ui
+        working-directory: packages/ui
 
       - run: pnpm format
-        working-directory: ui
-        
+        working-directory: packages/ui

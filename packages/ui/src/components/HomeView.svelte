@@ -108,7 +108,7 @@
 
       // GitHub commit hash linking (simple version for 7-40 hex chars inside backticks)
       processed = processed.replace(/`([0-9a-f]{7,40})`/g, (match, hash) => {
-          return `<a href="https://github.com/HsiangNianian/DropOut/commit/${hash}" target="_blank" class="text-emerald-500 hover:underline font-mono bg-emerald-500/10 px-1 rounded text-[10px] py-0.5 transition-colors border border-emerald-500/20 hover:border-emerald-500/50">${hash.substring(0, 7)}</a>`;
+          return `<a href="https://github.com/HydroRoll-Team/DropOut/commit/${hash}" target="_blank" class="text-emerald-500 hover:underline font-mono bg-emerald-500/10 px-1 rounded text-[10px] py-0.5 transition-colors border border-emerald-500/20 hover:border-emerald-500/50">${hash.substring(0, 7)}</a>`;
       });
       
       // Auto-link users (@user)

@@ -217,7 +217,10 @@
     if (!versionToDelete) return;
 
     try {
-      await invoke("delete_version", { versionId: versionToDelete });
+      await invoke("delete_version", { 
+        instanceId: instancesState.activeInstanceId,
+        versionId: versionToDelete 
+      });
       // Clear selection if deleted version was selected
       if (gameState.selectedVersion === versionToDelete) {
         gameState.selectedVersion = "";
@@ -253,6 +256,7 @@
     isLoadingMetadata = true;
     try {
       const metadata = await invoke<VersionMetadata>("get_version_metadata", {
+        instanceId: instancesState.activeInstanceId,
         versionId,
       });
       selectedVersionMetadata = metadata;

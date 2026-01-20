@@ -4,7 +4,7 @@ on:
   push:
     branches: ["main", "dev"]
     paths:
-      - "ui/**"
+      - "packages/**"
   workflow_dispatch:
 
 permissions:
@@ -15,30 +15,27 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: "pnpm"
-          cache-dependency-path: "ui/pnpm-lock.yaml"
+          cache-dependency-path: "pnpm-lock.yaml"
 
       - run: pnpm install
-        working-directory: ui
 
       - run: pnpm format
-        working-directory: ui
+        working-directory: packages/ui
 
       - run: pnpm lint:fix
-        working-directory: ui
+        working-directory: packages/ui
 
       - name: Commit changes
         uses: stefanzweifel/git-auto-commit-action@v5

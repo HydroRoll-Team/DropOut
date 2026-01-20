@@ -4,16 +4,38 @@
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/HsiangNianian/DropOut/main.svg)](https://results.pre-commit.ci/latest/github/HsiangNianian/DropOut/main)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![CodeQL Advanced](https://github.com/HsiangNianian/DropOut/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/HsiangNianian/DropOut/actions/workflows/codeql.yml)
-[![Dependabot Updates](https://github.com/HsiangNianian/DropOut/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/HsiangNianian/DropOut/actions/workflows/dependabot/dependabot-updates)
-[![Release](https://github.com/HsiangNianian/DropOut/actions/workflows/release.yml/badge.svg)](https://github.com/HsiangNianian/DropOut/actions/workflows/release.yml)
-[![Test & Build](https://github.com/HsiangNianian/DropOut/actions/workflows/test.yml/badge.svg)](https://github.com/HsiangNianian/DropOut/actions/workflows/test.yml)
+[![CodeQL Advanced](https://github.com/HydroRoll-Team/DropOut/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/HydroRoll-Team/DropOut/actions/workflows/codeql.yml)
+[![Dependabot Updates](https://github.com/HydroRoll-Team/DropOut/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/HydroRoll-Team/DropOut/actions/workflows/dependabot/dependabot-updates)
+[![Semifold CI](https://github.com/HydroRoll-Team/DropOut/actions/workflows/semifold-ci.yaml/badge.svg)](https://github.com/HydroRoll-Team/DropOut/actions/workflows/release.yml)
+[![Test & Build](https://github.com/HydroRoll-Team/DropOut/actions/workflows/test.yml/badge.svg)](https://github.com/HydroRoll-Team/DropOut/actions/workflows/test.yml)
 
-DropOut is a modern, minimalist, and efficient Minecraft launcher built with the latest web and system technologies. It leverages **Tauri v2** to deliver a lightweight application with a robust **Rust** backend and a reactive **Svelte 5** frontend.
+DropOut is a modern, reproducible, and developer-grade Minecraft launcher.
+It is designed not just to launch Minecraft, but to manage Minecraft environments as deterministic, versioned workspaces.
+
+Built with Tauri v2 and Rust, DropOut delivers native performance and minimal resource usage, paired with a modern reactive web UI (currently Svelte 5, migrating to React).
+
+> Minecraft environments are complex systems.
+> DropOut treats them like software projects.
 
 <div align="center">
    <img width="700" src="assets/image.png" alt="DropOut Launcher Interface" />
 </div>
+
+## Why DropOut?
+
+Most Minecraft launchers focus on getting you into the game.
+DropOut focuses on keeping your game stable, debuggable, and reproducible.
+
+- Your instance worked yesterday but broke today?  
+→ DropOut makes it traceable.
+
+- Sharing a modpack means zipping gigabytes?  
+→ DropOut shares exact dependency manifests.
+
+- Java, loader, mods, configs drift out of sync?  
+→ DropOut locks them together.
+
+This launcher is built for players who value control, transparency, and long-term stability.
 
 ## Features
 
@@ -99,13 +121,16 @@ Download the latest release for your platform from the [Releases](https://github
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+DropOut is built with long-term maintainability in mind.
+Contributions are welcome, especially in these areas:
+- Instance system design
+- Mod compatibility tooling
+- UI/UX improvements
+- Cross-launcher migration tools
 
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+Standard GitHub workflow applies:
+fork → feature branch → pull request.
+
 
 ## License
 

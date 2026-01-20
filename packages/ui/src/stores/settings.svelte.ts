@@ -42,6 +42,15 @@ export class SettingsState {
       tts_enabled: false,
       tts_provider: "disabled",
     },
+    use_shared_caches: false,
+    keep_legacy_per_instance_storage: true,
+    feature_flags: {
+      demo_user: false,
+      quick_play_enabled: false,
+      quick_play_path: undefined,
+      quick_play_singleplayer: true,
+      quick_play_multiplayer_server: undefined,
+    },
   });
 
   // Convert background path to proper asset URL
