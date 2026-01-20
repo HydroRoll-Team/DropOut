@@ -50,6 +50,7 @@ jobs:
             name: "Windows x86_64 (GNU)"
             target: "x86_64-pc-windows-gnu"
             args: "--target x86_64-pc-windows-gnu --bundles nsis"
+            rustflags: "-C link-arg=-lws2_32"
           - platform: "windows-11-arm"
             name: "Windows arm64"
             target: "aarch64-pc-windows-msvc"
@@ -64,6 +65,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libfuse2
+          if [ "${{ matrix.target }}" = "x86_64-unknown-linux-musl" ]; then
+            sudo apt-get install -y musl-tools pkg-config
+          fi
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -104,6 +108,8 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUSTFLAGS: ${{ matrix.rustflags || '' }}
+          PKG_CONFIG_PATH: ${{ (matrix.target == 'x86_64-unknown-linux-musl') && '/usr/lib/x86_64-linux-musl/pkgconfig' || '' }}
         with:
           args: ${{ matrix.args }}
 
