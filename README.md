@@ -56,6 +56,8 @@ This launcher is built for players who value control, transparency, and long-ter
 
 ## Roadmap
 
+Check our full roadmap at: https://roadmap.sh/r/minecraft-launcher-dev
+
 - [X] **Account Persistence** — Save login state between sessions
 - [X] **Token Refresh** — Auto-refresh expired Microsoft tokens
 - [X] **JVM Arguments Parsing** — Full support for `arguments.jvm` and `arguments.game` parsing
