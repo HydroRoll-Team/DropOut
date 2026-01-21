@@ -6,6 +6,7 @@ use std::process::Command;
 use tauri::AppHandle;
 use tauri::Emitter;
 use tauri::Manager;
+use ts_rs::TS;
 
 use crate::core::downloader::{self, DownloadQueue, JavaDownloadProgress, PendingJavaDownload};
 use crate::utils::zip;
@@ -25,7 +26,11 @@ fn strip_unc_prefix(path: PathBuf) -> PathBuf {
     path
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(
+    export,
+    export_to = "../packages/ui/src/types/generated/JavaInstallation.ts"
+)]
 pub struct JavaInstallation {
     pub path: String,
     pub version: String,
@@ -33,7 +38,12 @@ pub struct JavaInstallation {
 }
 
 /// Java image type: JRE or JDK
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(
+    export,
+    rename_all = "lowercase",
+    export_to = "../packages/ui/src/types/generated/ImageType.ts"
+)]
 #[serde(rename_all = "lowercase")]
 pub enum ImageType {
     Jre,
@@ -56,7 +66,11 @@ impl std::fmt::Display for ImageType {
 }
 
 /// Java release information for UI display
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(
+    export,
+    export_to = "../packages/ui/src/types/generated/JavaReleaseInfo.ts"
+)]
 pub struct JavaReleaseInfo {
     pub major_version: u32,
     pub image_type: String,
@@ -72,7 +86,11 @@ pub struct JavaReleaseInfo {
 }
 
 /// Java catalog containing all available versions
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
+#[ts(
+    export,
+    export_to = "../packages/ui/src/types/generated/JavaCatalog.ts"
+)]
 pub struct JavaCatalog {
     pub releases: Vec<JavaReleaseInfo>,
     pub available_major_versions: Vec<u32>,
@@ -128,7 +146,11 @@ pub struct AvailableReleases {
 }
 
 /// Java download information from Adoptium
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(
+    export,
+    export_to = "../packages/ui/src/types/generated/JavaDownloadInfo.ts"
+)]
 pub struct JavaDownloadInfo {
     pub version: String,
     pub release_name: String,

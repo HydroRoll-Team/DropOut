@@ -11,9 +11,11 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager};
+use ts_rs::TS;
 
 /// Represents a game instance/profile
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../packages/ui/src/types/generated/Instance.ts")]
 pub struct Instance {
     pub id: String,                         // 唯一标识符（UUID）
     pub name: String,                       // 显示名称
@@ -31,14 +33,22 @@ pub struct Instance {
 }
 
 /// Memory settings override for an instance
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(
+    export,
+    export_to = "../packages/ui/src/types/generated/MemoryOverride.ts"
+)]
 pub struct MemoryOverride {
     pub min: u32, // MB
     pub max: u32, // MB
 }
 
 /// Configuration for all instances
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
+#[ts(
+    export,
+    export_to = "../packages/ui/src/types/generated/InstanceConfig.ts"
+)]
 pub struct InstanceConfig {
     pub instances: Vec<Instance>,
     pub active_instance_id: Option<String>, // 当前活动的实例ID

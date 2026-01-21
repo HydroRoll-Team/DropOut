@@ -7,8 +7,13 @@ use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, Window};
 use tokio::io::{AsyncSeekExt, AsyncWriteExt};
 use tokio::sync::Semaphore;
+use ts_rs::TS;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(
+    export,
+    export_to = "../packages/ui/src/types/generated/DownloadTask.ts"
+)]
 pub struct DownloadTask {
     pub url: String,
     pub path: PathBuf,
@@ -19,7 +24,11 @@ pub struct DownloadTask {
 }
 
 /// Metadata for resumable downloads stored in .part.meta file
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(
+    export,
+    export_to = "../packages/ui/src/types/generated/DownloadMetadata.ts"
+)]
 pub struct DownloadMetadata {
     pub url: String,
     pub file_name: String,
@@ -31,7 +40,11 @@ pub struct DownloadMetadata {
 }
 
 /// A download segment for multi-segment parallel downloading
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(
+    export,
+    export_to = "../packages/ui/src/types/generated/DownloadSegment.ts"
+)]
 pub struct DownloadSegment {
     pub start: u64,
     pub end: u64,
@@ -40,7 +53,11 @@ pub struct DownloadSegment {
 }
 
 /// Progress event for Java download
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(
+    export,
+    export_to = "../packages/ui/src/types/generated/JavaDownloadProgress.ts"
+)]
 pub struct JavaDownloadProgress {
     pub file_name: String,
     pub downloaded_bytes: u64,
@@ -52,7 +69,11 @@ pub struct JavaDownloadProgress {
 }
 
 /// Pending download task for queue persistence
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(
+    export,
+    export_to = "../packages/ui/src/types/generated/PendingJavaDownload.ts"
+)]
 pub struct PendingJavaDownload {
     pub major_version: u32,
     pub image_type: String,
@@ -65,7 +86,11 @@ pub struct PendingJavaDownload {
 }
 
 /// Download queue for persistence
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
+#[ts(
+    export,
+    export_to = "../packages/ui/src/types/generated/DownloadQueue.ts"
+)]
 pub struct DownloadQueue {
     pub pending_downloads: Vec<PendingJavaDownload>,
 }
@@ -419,7 +444,11 @@ fn create_new_metadata(
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(
+    export,
+    export_to = "../packages/ui/src/types/generated/ProgressEvent.ts"
+)]
 pub struct ProgressEvent {
     pub file: String,
     pub downloaded: u64,
