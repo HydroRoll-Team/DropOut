@@ -88,7 +88,6 @@ pub fn generate_offline_uuid(username: &str) -> String {
 }
 
 const CLIENT_ID: &str = "fe165602-5410-4441-92f7-326e10a7cb82";
-// const CLIENT_ID: &str = "c36a9fb6-4f2a-41ff-90bd-ae7cc92031eb"; // ATLauncher's Client ID
 const SCOPE: &str = "XboxLive.SignIn XboxLive.offline_access";
 
 #[derive(Debug, Serialize, Deserialize, TS)]
