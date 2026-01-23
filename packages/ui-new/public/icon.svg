@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+    <!-- Background -->
+    <rect width="100%" height="100%" fill="#23272a"/>
+
+    <!-- Grid Pattern -->
+    <defs>
+        <pattern id="smallGrid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#2c2f33" stroke-width="2"/>
+        </pattern>
+        <!-- Glow filter for active connections -->
+        <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+        </filter>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#smallGrid)" />
+
+    <!-- Neural Network Connections (Lines) -->
+    <!-- Only lines between ACTIVE nodes are drawn normally -->
+    
+    <!-- Input (Left) to Hidden (Middle Active) -->
+    <path d="M 100 128 L 256 256" stroke="#43b581" stroke-width="8" stroke-linecap="round" opacity="0.8"/> <!-- Top to Center -->
+    <path d="M 100 256 L 256 256" stroke="#43b581" stroke-width="8" stroke-linecap="round" opacity="1.0" filter="url(#glow)"/> <!-- Mid to Center (Strongest) -->
+    <path d="M 100 384 L 256 256" stroke="#43b581" stroke-width="8" stroke-linecap="round" opacity="0.8"/> <!-- Bot to Center -->
+
+    <!-- Hidden (Middle Active) to Output (Right) -->
+    <path d="M 256 256 L 412 256" stroke="#43b581" stroke-width="8" stroke-linecap="round" opacity="1.0" filter="url(#glow)"/>
+
+    <!-- Disconnected "Ghost" Lines (Optional: faint traces, or just omit to emphasize dropout) -->
+    <!-- Let's omit them to keep it clean and high-contrast, representing true dropout -->
+
+    <!-- Nodes -->
+    
+    <!-- Layer 1: Input (All Active) - x=100 -->
+    <circle cx="100" cy="128" r="30" fill="#7289da" stroke="#ffffff" stroke-width="4"/>
+    <circle cx="100" cy="256" r="30" fill="#7289da" stroke="#ffffff" stroke-width="4"/>
+    <circle cx="100" cy="384" r="30" fill="#7289da" stroke="#ffffff" stroke-width="4"/>
+
+    <!-- Layer 2: Hidden (Dropout Layer) - x=256 -->
+    <!-- Node 1: DROPPED (Ghost) -->
+    <circle cx="256" cy="128" r="28" fill="none" stroke="#4f545c" stroke-width="4" stroke-dasharray="8,6"/>
+    <!-- Node 2: ACTIVE -->
+    <circle cx="256" cy="256" r="32" fill="#43b581" stroke="#ffffff" stroke-width="4"/>
+    <!-- Node 3: DROPPED (Ghost) -->
+    <circle cx="256" cy="384" r="28" fill="none" stroke="#4f545c" stroke-width="4" stroke-dasharray="8,6"/>
+
+    <!-- Layer 3: Output - x=412 -->
+    <circle cx="412" cy="256" r="30" fill="#7289da" stroke="#ffffff" stroke-width="4"/>
+
+</svg>

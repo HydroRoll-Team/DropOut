@@ -3,10 +3,10 @@
   "version": "0.2.0-alpha.1",
   "identifier": "com.dropout.launcher",
   "build": {
-    "beforeDevCommand": "pnpm --filter @dropout/ui dev",
-    "beforeBuildCommand": "pnpm --filter @dropout/ui build",
+    "beforeDevCommand": "pnpm --filter @dropout/ui-new dev",
+    "beforeBuildCommand": "pnpm --filter @dropout/ui-new build",
     "devUrl": "http://localhost:5173",
-    "frontendDist": "../packages/ui/dist"
+    "frontendDist": "../packages/ui-new/dist"
   },
   "app": {
     "windows": [

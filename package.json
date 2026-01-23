@@ -4,6 +4,7 @@
   "private": true,
   "description": "Dropout, the next-generation Minecraft game launcher",
   "scripts": {
+    "generate": "cargo test export_bindings && biome check packages/ui-new/src/types/bindings --fix",
     "bump-tauri": "tsx scripts/bump-tauri.ts",
     "prepare": "prek install"
   },
