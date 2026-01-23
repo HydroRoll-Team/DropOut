@@ -1751,6 +1751,7 @@ async fn get_version_java_version(
 
 /// Version metadata for display in the UI
 #[derive(serde::Serialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../packages/ui-new/src/types/bindings/core.ts")]
 struct VersionMetadata {
     id: String,
@@ -1902,6 +1903,7 @@ async fn get_version_metadata(
 
 /// Installed version info
 #[derive(serde::Serialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../packages/ui-new/src/types/bindings/core.ts")]
 struct InstalledVersion {
     id: String,
@@ -2132,6 +2134,7 @@ async fn install_forge(
 }
 
 #[derive(serde::Serialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../packages/ui-new/src/types/bindings/core.ts")]
 struct GithubRelease {
     tag_name: String,
@@ -2179,6 +2182,7 @@ async fn get_github_releases() -> Result<Vec<GithubRelease>, String> {
 }
 
 #[derive(Serialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../packages/ui-new/src/types/bindings/core.ts")]
 struct PastebinResponse {
     url: String,
@@ -2388,6 +2392,7 @@ async fn assistant_chat_stream(
 
 /// Migrate instance caches to shared global caches
 #[derive(Serialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../packages/ui-new/src/types/bindings/core.ts")]
 struct MigrationResult {
     moved_files: usize,
@@ -2438,6 +2443,7 @@ async fn migrate_shared_caches(
 
 /// File information for instance file browser
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../packages/ui-new/src/types/bindings/core.ts")]
 struct FileInfo {
     name: String,

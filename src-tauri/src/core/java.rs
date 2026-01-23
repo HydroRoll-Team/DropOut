@@ -27,6 +27,7 @@ fn strip_unc_prefix(path: PathBuf) -> PathBuf {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../packages/ui-new/src/types/bindings/java.ts")]
 pub struct JavaInstallation {
     pub path: String,
@@ -64,6 +65,7 @@ impl std::fmt::Display for ImageType {
 
 /// Java release information for UI display
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../packages/ui-new/src/types/bindings/java.ts")]
 pub struct JavaReleaseInfo {
     pub major_version: u32,
@@ -81,6 +83,7 @@ pub struct JavaReleaseInfo {
 
 /// Java catalog containing all available versions
 #[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../packages/ui-new/src/types/bindings/java.ts")]
 pub struct JavaCatalog {
     pub releases: Vec<JavaReleaseInfo>,
@@ -138,6 +141,7 @@ pub struct AvailableReleases {
 
 /// Java download information from Adoptium
 #[derive(Debug, Clone, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../packages/ui-new/src/types/bindings/java.ts")]
 pub struct JavaDownloadInfo {
     pub version: String,

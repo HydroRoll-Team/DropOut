@@ -14,6 +14,7 @@ fn get_client() -> reqwest::Client {
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(tag = "type")]
+#[serde(rename_all = "camelCase")]
 #[ts(
     export,
     tag = "type",
@@ -48,6 +49,7 @@ impl Account {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../packages/ui-new/src/types/bindings/auth.ts")]
 pub struct OfflineAccount {
     pub username: String,
@@ -55,6 +57,7 @@ pub struct OfflineAccount {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../packages/ui-new/src/types/bindings/auth.ts")]
 pub struct MicrosoftAccount {
     pub username: String,
@@ -85,6 +88,7 @@ const CLIENT_ID: &str = "fe165602-5410-4441-92f7-326e10a7cb82";
 const SCOPE: &str = "XboxLive.SignIn XboxLive.offline_access";
 
 #[derive(Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../packages/ui-new/src/types/bindings/auth.ts")]
 pub struct DeviceCodeResponse {
     pub user_code: String,
@@ -96,6 +100,7 @@ pub struct DeviceCodeResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../packages/ui-new/src/types/bindings/auth.ts")]
 pub struct TokenResponse {
     pub access_token: String,
@@ -219,6 +224,7 @@ pub struct MinecraftAuthResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../packages/ui-new/src/types/bindings/auth.ts")]
 pub struct MinecraftProfile {
     pub id: String,

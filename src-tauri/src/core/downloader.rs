@@ -10,6 +10,7 @@ use tokio::sync::Semaphore;
 use ts_rs::TS;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(
     export,
     export_to = "../../packages/ui-new/src/types/bindings/downloader.ts"
@@ -25,6 +26,7 @@ pub struct DownloadTask {
 
 /// Metadata for resumable downloads stored in .part.meta file
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(
     export,
     export_to = "../../packages/ui-new/src/types/bindings/downloader.ts"
@@ -41,6 +43,7 @@ pub struct DownloadMetadata {
 
 /// A download segment for multi-segment parallel downloading
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(
     export,
     export_to = "../../packages/ui-new/src/types/bindings/downloader.ts"
@@ -54,6 +57,7 @@ pub struct DownloadSegment {
 
 /// Progress event for Java download
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(
     export,
     export_to = "../../packages/ui-new/src/types/bindings/downloader.ts"
@@ -70,6 +74,7 @@ pub struct JavaDownloadProgress {
 
 /// Pending download task for queue persistence
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(
     export,
     export_to = "../../packages/ui-new/src/types/bindings/downloader.ts"
@@ -87,6 +92,7 @@ pub struct PendingJavaDownload {
 
 /// Download queue for persistence
 #[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(
     export,
     export_to = "../../packages/ui-new/src/types/bindings/downloader.ts"
@@ -445,6 +451,7 @@ fn create_new_metadata(
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(
     export,
     export_to = "../../packages/ui/src/types/generated/downloader.ts"

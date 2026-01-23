@@ -14,6 +14,7 @@ const FABRIC_META_URL: &str = "https://meta.fabricmc.net/v2";
 
 /// Represents a Fabric loader version from the Meta API.
 #[derive(Debug, Deserialize, Serialize, Clone, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(
     export,
     export_to = "../../packages/ui-new/src/types/bindings/fabric.ts"
@@ -28,6 +29,7 @@ pub struct FabricLoaderVersion {
 
 /// Represents a Fabric intermediary mapping version.
 #[derive(Debug, Deserialize, Serialize, Clone, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(
     export,
     export_to = "../../packages/ui-new/src/types/bindings/fabric.ts"
@@ -40,6 +42,7 @@ pub struct FabricIntermediaryVersion {
 
 /// Represents a combined loader + intermediary version entry.
 #[derive(Debug, Deserialize, Serialize, Clone, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(
     export,
     export_to = "../../packages/ui-new/src/types/bindings/fabric.ts"
@@ -53,6 +56,7 @@ pub struct FabricLoaderEntry {
 
 /// Launcher metadata from Fabric Meta API.
 #[derive(Debug, Deserialize, Serialize, Clone, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(
     export,
     export_to = "../../packages/ui-new/src/types/bindings/fabric.ts"
@@ -66,6 +70,7 @@ pub struct FabricLauncherMeta {
 
 /// Libraries required by Fabric loader.
 #[derive(Debug, Deserialize, Serialize, Clone, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(
     export,
     export_to = "../../packages/ui-new/src/types/bindings/fabric.ts"
@@ -78,6 +83,7 @@ pub struct FabricLibraries {
 
 /// A single Fabric library dependency.
 #[derive(Debug, Deserialize, Serialize, Clone, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(
     export,
     export_to = "../../packages/ui-new/src/types/bindings/fabric.ts"
@@ -90,6 +96,7 @@ pub struct FabricLibrary {
 /// Main class configuration for Fabric.
 /// Can be either a struct with client/server fields or a simple string.
 #[derive(Debug, Deserialize, Serialize, Clone, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(
     export,
     export_to = "../../packages/ui-new/src/types/bindings/fabric.ts",
@@ -120,6 +127,7 @@ impl FabricMainClass {
 
 /// Represents a Minecraft version supported by Fabric.
 #[derive(Debug, Deserialize, Serialize, Clone, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(
     export,
     export_to = "../../packages/ui-new/src/types/bindings/fabric.ts"
@@ -131,6 +139,7 @@ pub struct FabricGameVersion {
 
 /// Information about an installed Fabric version.
 #[derive(Debug, Serialize, Clone, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(
     export,
     export_to = "../../packages/ui-new/src/types/bindings/fabric.ts"

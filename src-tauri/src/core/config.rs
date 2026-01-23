@@ -6,6 +6,7 @@ use tauri::{AppHandle, Manager};
 use ts_rs::TS;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(
     export,
     export_to = "../../packages/ui-new/src/types/bindings/config.ts"
@@ -49,6 +50,7 @@ impl Default for AssistantConfig {
 
 /// Feature-gated arguments configuration
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(
     export,
     export_to = "../../packages/ui-new/src/types/bindings/config.ts"
@@ -80,6 +82,7 @@ impl Default for FeatureFlags {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(
     export,
     export_to = "../../packages/ui-new/src/types/bindings/config.ts"

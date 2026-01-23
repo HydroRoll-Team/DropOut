@@ -7,6 +7,7 @@ use tauri::{Emitter, Window};
 use ts_rs::TS;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(
     export,
     export_to = "../../packages/ui-new/src/types/bindings/assistant.ts"
@@ -57,6 +58,7 @@ pub struct OllamaTagsResponse {
 
 // Simplified model info for frontend
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(
     export,
     export_to = "../../packages/ui-new/src/types/bindings/assistant.ts"
@@ -112,6 +114,7 @@ pub struct OpenAIModelsResponse {
 
 // Streaming response structures
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(
     export,
     export_to = "../../packages/ui-new/src/types/bindings/assistant.ts"
@@ -126,6 +129,7 @@ pub struct GenerationStats {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(
     export,
     export_to = "../../packages/ui-new/src/types/bindings/assistant.ts"

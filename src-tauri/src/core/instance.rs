@@ -15,6 +15,7 @@ use ts_rs::TS;
 
 /// Represents a game instance/profile
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(
     export,
     export_to = "../../packages/ui-new/src/types/bindings/instance.ts"
@@ -37,6 +38,7 @@ pub struct Instance {
 
 /// Memory settings override for an instance
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(
     export,
     export_to = "../../packages/ui-new/src/types/bindings/instance.ts"
@@ -48,6 +50,7 @@ pub struct MemoryOverride {
 
 /// Configuration for all instances
 #[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(
     export,
     export_to = "../../packages/ui-new/src/types/bindings/instance.ts"

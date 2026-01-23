@@ -6,6 +6,7 @@ use crate::core::game_version::GameVersion;
 use ts_rs::TS;
 
 #[derive(Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(
     export,
     export_to = "../../packages/ui-new/src/types/bindings/manifest.ts"
@@ -16,6 +17,7 @@ pub struct VersionManifest {
 }
 
 #[derive(Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(
     export,
     export_to = "../../packages/ui-new/src/types/bindings/manifest.ts"
@@ -26,6 +28,7 @@ pub struct Latest {
 }
 
 #[derive(Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(
     export,
     export_to = "../../packages/ui-new/src/types/bindings/manifest.ts"
