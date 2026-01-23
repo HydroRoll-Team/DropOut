@@ -663,6 +663,7 @@ pub fn detect_java_installations() -> Vec<JavaInstallation> {
     installations
 }
 
+/// TODO: Refactor to use a more robust method
 /// Get list of candidate Java paths to check
 fn get_java_candidates() -> Vec<PathBuf> {
     let mut candidates = Vec::new();
@@ -671,6 +672,7 @@ fn get_java_candidates() -> Vec<PathBuf> {
     let mut cmd = Command::new(if cfg!(windows) { "where" } else { "which" });
     cmd.arg("java");
     #[cfg(target_os = "windows")]
+    // hide console window
     cmd.creation_flags(0x08000000);
 
     if let Ok(output) = cmd.output() {
