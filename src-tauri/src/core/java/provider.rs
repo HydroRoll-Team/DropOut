@@ -1,14 +1,6 @@
 use crate::core::java::{ImageType, JavaCatalog, JavaDownloadInfo};
 use tauri::AppHandle;
 
-/// Trait for Java download providers (Adoptium, Temurin, Corretto, etc.)
-/// 
-/// Implements SOLID principles:
-/// - Single Responsibility: Each provider handles one download source
-/// - Open/Closed: New providers can be added without modifying existing code
-/// - Liskov Substitution: All providers are interchangeable
-/// - Interface Segregation: Minimal required methods
-/// - Dependency Inversion: Code depends on trait, not concrete implementations
 pub trait JavaProvider: Send + Sync {
     /// Fetch the Java catalog (all available versions for this provider)
     async fn fetch_catalog(
@@ -28,6 +20,7 @@ pub trait JavaProvider: Send + Sync {
     async fn available_versions(&self) -> Result<Vec<u32>, String>;
 
     /// Get provider name (e.g., "adoptium", "corretto")
+    #[allow(dead_code)]
     fn provider_name(&self) -> &'static str;
 
     /// Get OS name for this provider's API

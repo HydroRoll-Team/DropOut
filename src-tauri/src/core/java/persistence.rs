@@ -47,6 +47,7 @@ pub fn save_java_config(app_handle: &AppHandle, config: &JavaConfig) -> Result<(
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn add_user_defined_path(app_handle: &AppHandle, path: String) -> Result<(), String> {
     let mut config = load_java_config(app_handle);
     if !config.user_defined_paths.contains(&path) {
@@ -55,23 +56,27 @@ pub fn add_user_defined_path(app_handle: &AppHandle, path: String) -> Result<(),
     save_java_config(app_handle, &config)
 }
 
+#[allow(dead_code)]
 pub fn remove_user_defined_path(app_handle: &AppHandle, path: &str) -> Result<(), String> {
     let mut config = load_java_config(app_handle);
     config.user_defined_paths.retain(|p| p != path);
     save_java_config(app_handle, &config)
 }
 
+#[allow(dead_code)]
 pub fn set_preferred_java_path(app_handle: &AppHandle, path: Option<String>) -> Result<(), String> {
     let mut config = load_java_config(app_handle);
     config.preferred_java_path = path;
     save_java_config(app_handle, &config)
 }
 
+#[allow(dead_code)]
 pub fn get_preferred_java_path(app_handle: &AppHandle) -> Option<String> {
     let config = load_java_config(app_handle);
     config.preferred_java_path
 }
 
+#[allow(dead_code)]
 pub fn update_last_detection_time(app_handle: &AppHandle) -> Result<(), String> {
     let mut config = load_java_config(app_handle);
     config.last_detection_time = std::time::SystemTime::now()

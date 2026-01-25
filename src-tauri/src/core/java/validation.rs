@@ -16,19 +16,21 @@ pub async fn check_java_installation(path: &PathBuf) -> Option<JavaInstallation>
 }
 
 fn check_java_installation_blocking(path: &PathBuf) -> Option<JavaInstallation> {
-	let mut cmd = Command::new(path);
-	cmd.arg("-version");
-	#[cfg(target_os = "windows")]
-	cmd.creation_flags(0x08000000);
+    let mut cmd = Command::new(path);
+    cmd.arg("-version");
+
+    // Hide console window
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(0x08000000);
 
 	let output = cmd.output().ok()?;
 
 	let version_output = String::from_utf8_lossy(&output.stderr);
 
-	let version = parse_version_string(&version_output)?;
-	let arch = extract_architecture(&version_output);
-	let vendor = extract_vendor(&version_output);
-	let is_64bit = version_output.contains("64-Bit");
+    let version = parse_version_string(&version_output)?;
+    let arch = extract_architecture(&version_output);
+    let vendor = extract_vendor(&version_output);
+    let is_64bit = version_output.to_lowercase().contains("64-bit") || arch == "aarch64";
 
 	Some(JavaInstallation {
 		path: path.to_string_lossy().to_string(),
@@ -84,6 +86,7 @@ pub fn extract_architecture(version_output: &str) -> String {
 pub fn extract_vendor(version_output: &str) -> String {
     let lower = version_output.to_lowercase();
 
+    // TODO: Expand with more vendors as needed
     if lower.contains("temurin") || lower.contains("adoptium") {
         "Eclipse Adoptium".to_string()
     } else if lower.contains("openjdk") {
