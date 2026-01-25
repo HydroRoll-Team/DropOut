@@ -42,7 +42,12 @@ pub fn load_java_config(app_handle: &AppHandle) -> JavaConfig {
 pub fn save_java_config(app_handle: &AppHandle, config: &JavaConfig) -> Result<(), String> {
     let config_path = get_java_config_path(app_handle);
     let content = serde_json::to_string_pretty(config).map_err(|e| e.to_string())?;
-    std::fs::create_dir_all(config_path.parent().unwrap()).map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(
+        config_path
+            .parent()
+            .expect("Java config path should have a parent directory"),
+    )
+    .map_err(|e| e.to_string())?;
     std::fs::write(&config_path, content).map_err(|e| e.to_string())?;
     Ok(())
 }
