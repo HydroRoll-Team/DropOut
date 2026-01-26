@@ -1,8 +1,7 @@
 use std::io::Read;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
-use std::thread::sleep;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -24,11 +23,11 @@ pub fn find_sdkman_java() -> Option<PathBuf> {
 fn run_which_command_with_timeout() -> Option<String> {
     let mut cmd = Command::new(if cfg!(windows) { "where" } else { "which" });
     cmd.arg("java");
+    // Hide console window
     #[cfg(target_os = "windows")]
     cmd.creation_flags(0x08000000);
     cmd.stdout(Stdio::piped());
 
-    let start = Instant::now();
     let mut child = cmd.spawn().ok()?;
 
     loop {
@@ -46,12 +45,7 @@ fn run_which_command_with_timeout() -> Option<String> {
                 }
             }
             Ok(None) => {
-                if start.elapsed() >= WHICH_TIMEOUT {
-                    let _ = child.kill();
-                    let _ = child.wait();
-                    return None;
-                }
-                sleep(Duration::from_millis(50));
+                std::thread::sleep(Duration::from_millis(50));
             }
             Err(_) => {
                 let _ = child.kill();

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -86,24 +87,62 @@ pub fn extract_architecture(version_output: &str) -> String {
 pub fn extract_vendor(version_output: &str) -> String {
     let lower = version_output.to_lowercase();
 
-    // TODO: Expand with more vendors as needed
-    if lower.contains("temurin") || lower.contains("adoptium") {
-        "Eclipse Adoptium".to_string()
-    } else if lower.contains("openjdk") {
-        "OpenJDK".to_string()
-    } else if lower.contains("oracle") {
-        "Oracle".to_string()
-    } else if lower.contains("microsoft") {
-        "Microsoft".to_string()
-    } else if lower.contains("zulu") {
-        "Azul Zulu".to_string()
-    } else if lower.contains("corretto") {
-        "Amazon Corretto".to_string()
-    } else if lower.contains("liberica") {
-        "BellSoft Liberica".to_string()
-    } else if lower.contains("graalvm") {
-        "GraalVM".to_string()
-    } else {
-        "Unknown".to_string()
+    let vendor_name: HashMap<&str, &str> = [
+        // Eclipse/Adoptium
+        ("temurin", "Temurin (Eclipse)"),
+        ("adoptium", "Eclipse Adoptium"),
+        // Amazon
+        ("corretto", "Corretto (Amazon)"),
+        ("amzn", "Corretto (Amazon)"),
+        // Alibaba
+        ("dragonwell", "Dragonwell (Alibaba)"),
+        ("albba", "Dragonwell (Alibaba)"),
+        // GraalVM
+        ("graalvm", "GraalVM"),
+        // Oracle
+        ("oracle", "Java SE Development Kit (Oracle)"),
+        // Tencent
+        ("kona", "Kona (Tencent)"),
+        // BellSoft
+        ("liberica", "Liberica (Bellsoft)"),
+        ("mandrel", "Mandrel (Red Hat)"),
+        // Microsoft
+        ("microsoft", "OpenJDK (Microsoft)"),
+        // SAP
+        ("sapmachine", "SapMachine (SAP)"),
+        // IBM
+        ("semeru", "Semeru (IBM)"),
+        ("sem", "Semeru (IBM)"),
+        // Azul
+        ("zulu", "Zulu (Azul Systems)"),
+        // Trava
+        ("trava", "Trava (Trava)"),
+        // Huawei
+        ("bisheng", "BiSheng (Huawei)"),
+        // Generic OpenJDK
+        ("openjdk", "OpenJDK"),
+    ]
+    .iter()
+    .cloned()
+    .collect();
+
+    for (key, name) in vendor_name {
+        if lower.contains(key) {
+            return name.to_string();
+        }
     }
+
+    "Unknown".to_string()
+}
+
+pub fn is_version_compatible(
+    major: u32,
+    required_major_version: Option<u64>,
+    max_major_version: Option<u32>,
+) -> bool {
+    let meets_min = required_major_version
+        .map(|r| major >= r as u32)
+        .unwrap_or(true);
+    let meets_max = max_major_version.map(|m| major <= m).unwrap_or(true);
+    meets_min && meets_max
 }

@@ -362,24 +362,10 @@ pub async fn get_compatible_java(
 ) -> Option<JavaInstallation> {
 	let installations = detect_all_java_installations(app_handle).await;
 
-	if let Some(max_version) = max_major_version {
-		installations.into_iter().find(|java| {
-			let major = validation::parse_java_version(&java.version);
-			let meets_min = if let Some(required) = required_major_version {
-				major >= required as u32
-			} else {
-				true
-			};
-			meets_min && major <= max_version
-		})
-	} else if let Some(required) = required_major_version {
-		installations.into_iter().find(|java| {
-			let major = validation::parse_java_version(&java.version);
-			major >= required as u32
-		})
-	} else {
-		installations.into_iter().next()
-	}
+    installations.into_iter().find(|java| {
+        let major = validation::parse_java_version(&java.version);
+        validation::is_version_compatible(major, required_major_version, max_major_version)
+    })
 }
 
 pub async fn is_java_compatible(
@@ -387,23 +373,13 @@ pub async fn is_java_compatible(
 	required_major_version: Option<u64>,
 	max_major_version: Option<u32>,
 ) -> bool {
-	let java_path_buf = PathBuf::from(java_path);
-	if let Some(java) = validation::check_java_installation(&java_path_buf).await {
-		let major = validation::parse_java_version(&java.version);
-		let meets_min = if let Some(required) = required_major_version {
-			major >= required as u32
-		} else {
-			true
-		};
-		let meets_max = if let Some(max_version) = max_major_version {
-			major <= max_version
-		} else {
-			true
-		};
-		meets_min && meets_max
-	} else {
-		false
-	}
+    let java_path_buf = PathBuf::from(java_path);
+    if let Some(java) = validation::check_java_installation(&java_path_buf).await {
+        let major = validation::parse_java_version(&java.version);
+        validation::is_version_compatible(major, required_major_version, max_major_version)
+    } else {
+        false
+    }
 }
 
 pub async fn detect_all_java_installations(app_handle: &AppHandle) -> Vec<JavaInstallation> {

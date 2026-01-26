@@ -4,7 +4,6 @@ use super::JavaInstallation;
 use crate::core::java::persistence;
 use crate::core::java::validation;
 
-#[allow(dead_code)]
 pub async fn resolve_java_for_launch(
 	app_handle: &AppHandle,
 	instance_java_override: Option<&str>,
@@ -50,25 +49,11 @@ pub async fn resolve_java_for_launch(
 		.find(|java| is_version_compatible(java, required_major_version, max_major_version))
 }
 
-#[allow(dead_code)]
 fn is_version_compatible(
     java: &JavaInstallation,
     required_major_version: Option<u64>,
     max_major_version: Option<u32>,
 ) -> bool {
     let major = validation::parse_java_version(&java.version);
-
-    let meets_min = if let Some(required) = required_major_version {
-        major >= required as u32
-    } else {
-        true
-    };
-
-    let meets_max = if let Some(max_version) = max_major_version {
-        major <= max_version
-    } else {
-        true
-    };
-
-    meets_min && meets_max
+    validation::is_version_compatible(major, required_major_version, max_major_version)
 }

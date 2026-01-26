@@ -171,8 +171,16 @@ impl JavaProvider for AdoptiumProvider {
         // Collect all results concurrently
         let mut releases = Vec::new();
         for task in fetch_tasks {
-            if let Ok(Some(release)) = task.await {
-                releases.push(release);
+            match task.await {
+                Ok(Some(release)) => {
+                    releases.push(release);
+                }
+                Ok(None) => {
+                    // Task completed but returned None, should not happen in current implementation
+                }
+                Err(e) => {
+                    eprintln!("AdoptiumProvider::fetch_catalog task join error: {:?}", e);
+                }
             }
         }
 
