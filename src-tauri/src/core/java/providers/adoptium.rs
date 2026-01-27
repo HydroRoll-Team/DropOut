@@ -198,6 +198,7 @@ impl JavaProvider for AdoptiumProvider {
             available_major_versions: available.available_releases,
             lts_versions: available.available_lts_releases,
             cached_at: now,
+            cache_version: 1,
         };
 
         let _ = super::super::save_catalog_cache(app_handle, &catalog);
