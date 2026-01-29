@@ -34,6 +34,7 @@ pub struct Instance {
     pub jvm_args_override: Option<String>,  // JVM参数覆盖（可选）
     #[serde(default)]
     pub memory_override: Option<MemoryOverride>, // 内存设置覆盖（可选）
+    pub java_path_override: Option<String>, // 实例级Java路径覆盖（可选）
 }
 
 /// Memory settings override for an instance
@@ -127,6 +128,7 @@ impl InstanceState {
             mod_loader_version: None,
             jvm_args_override: None,
             memory_override: None,
+            java_path_override: None,
         };
 
         let mut config = self.instances.lock().unwrap();
@@ -283,6 +285,7 @@ impl InstanceState {
             last_played: None,
             jvm_args_override: source_instance.jvm_args_override.clone(),
             memory_override: source_instance.memory_override.clone(),
+            java_path_override: source_instance.java_path_override.clone(),
         };
 
         self.update_instance(new_instance.clone())?;
