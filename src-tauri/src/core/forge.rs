@@ -12,6 +12,7 @@ use std::error::Error;
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 use std::path::PathBuf;
+use ts_rs::TS;
 
 const FORGE_PROMOTIONS_URL: &str =
     "https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json";
@@ -19,7 +20,12 @@ const FORGE_MAVEN_URL: &str = "https://maven.minecraftforge.net/";
 const FORGE_FILES_URL: &str = "https://files.minecraftforge.net/";
 
 /// Represents a Forge version entry.
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/forge.ts"
+)]
 pub struct ForgeVersion {
     pub version: String,
     pub minecraft_version: String,
@@ -36,11 +42,17 @@ struct ForgePromotions {
 }
 
 /// Information about an installed Forge version.
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Clone, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/forge.ts"
+)]
 pub struct InstalledForgeVersion {
     pub id: String,
     pub minecraft_version: String,
     pub forge_version: String,
+    #[ts(type = "string")]
     pub path: PathBuf,
 }
 
