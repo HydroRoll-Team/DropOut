@@ -1,0 +1,9 @@
+{
+  "title": "Features",
+  "pages": [
+    "index",
+    "authentication",
+    "java",
+    "mod-loaders"
+  ]
+}
