@@ -20,6 +20,11 @@ resolver = "rust"
 version-mode = { pre-release.tag = "alpha" }
 assets = ["artifacts/**/*"]
 
+[packages.dropout-macros]
+path = "crates/macros"
+resolver = "rust"
+version-mode = { pre-release.tag = "alpha" }
+
 [resolver.rust.pre-check]
 url = "https://crates.io/api/v1/crates/{{ package.name }}/{{ package.version }}"
 

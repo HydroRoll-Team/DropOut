@@ -8,11 +8,17 @@
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::path::PathBuf;
+use ts_rs::TS;
 
 const FABRIC_META_URL: &str = "https://meta.fabricmc.net/v2";
 
 /// Represents a Fabric loader version from the Meta API.
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/fabric.ts"
+)]
 pub struct FabricLoaderVersion {
     pub separator: String,
     pub build: i32,
@@ -22,7 +28,12 @@ pub struct FabricLoaderVersion {
 }
 
 /// Represents a Fabric intermediary mapping version.
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/fabric.ts"
+)]
 pub struct FabricIntermediaryVersion {
     pub maven: String,
     pub version: String,
@@ -30,7 +41,12 @@ pub struct FabricIntermediaryVersion {
 }
 
 /// Represents a combined loader + intermediary version entry.
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/fabric.ts"
+)]
 pub struct FabricLoaderEntry {
     pub loader: FabricLoaderVersion,
     pub intermediary: FabricIntermediaryVersion,
@@ -39,7 +55,12 @@ pub struct FabricLoaderEntry {
 }
 
 /// Launcher metadata from Fabric Meta API.
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/fabric.ts"
+)]
 pub struct FabricLauncherMeta {
     pub version: i32,
     pub libraries: FabricLibraries,
@@ -48,7 +69,12 @@ pub struct FabricLauncherMeta {
 }
 
 /// Libraries required by Fabric loader.
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/fabric.ts"
+)]
 pub struct FabricLibraries {
     pub client: Vec<FabricLibrary>,
     pub common: Vec<FabricLibrary>,
@@ -56,7 +82,12 @@ pub struct FabricLibraries {
 }
 
 /// A single Fabric library dependency.
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/fabric.ts"
+)]
 pub struct FabricLibrary {
     pub name: String,
     pub url: Option<String>,
@@ -64,7 +95,13 @@ pub struct FabricLibrary {
 
 /// Main class configuration for Fabric.
 /// Can be either a struct with client/server fields or a simple string.
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/fabric.ts",
+    untagged
+)]
 #[serde(untagged)]
 pub enum FabricMainClass {
     Structured { client: String, server: String },
@@ -89,14 +126,24 @@ impl FabricMainClass {
 }
 
 /// Represents a Minecraft version supported by Fabric.
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/fabric.ts"
+)]
 pub struct FabricGameVersion {
     pub version: String,
     pub stable: bool,
 }
 
 /// Information about an installed Fabric version.
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Clone, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/fabric.ts"
+)]
 pub struct InstalledFabricVersion {
     pub id: String,
     pub minecraft_version: String,
