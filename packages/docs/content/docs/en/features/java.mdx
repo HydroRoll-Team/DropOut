@@ -1,0 +1,395 @@
+---
+title: Java Management
+description: Automatic Java detection, download, and installation
+---
+
+# Java Management
+
+DropOut provides comprehensive Java management, automatically detecting installed versions and downloading new ones as needed.
+
+## Auto-detection
+
+### System Scan
+
+DropOut scans multiple locations for Java installations:
+
+**Linux:**
+- `/usr/lib/jvm/`
+- `/usr/java/`
+- `$JAVA_HOME`
+- `PATH` environment variable
+
+**macOS:**
+- `/Library/Java/JavaVirtualMachines/`
+- `/System/Library/Java/JavaVirtualMachines/`
+- `$JAVA_HOME`
+- `PATH` environment variable
+
+**Windows:**
+- `C:\Program Files\Java\`
+- `C:\Program Files (x86)\Java\`
+- `%JAVA_HOME%`
+- `PATH` environment variable
+- Windows Registry
+
+### Version Detection
+
+For each Java installation found, DropOut:
+1. Runs `java -version` to get version info
+2. Parses major version (8, 11, 17, 21, etc.)
+3. Detects architecture (x64, ARM64)
+4. Identifies vendor (Oracle, Adoptium, etc.)
+
+### Results
+
+All detected Java installations appear in Settings → Java:
+- Version number
+- Installation path
+- Architecture
+- Current selection status
+
+## Java Download
+
+### Adoptium Integration
+
+DropOut integrates with the Eclipse Adoptium API to download high-quality, free JDK/JRE builds.
+
+**Supported Versions:**
+- Java 8 (LTS)
+- Java 11 (LTS)
+- Java 17 (LTS)
+- Java 21 (LTS)
+- Java 23+ (Latest)
+
+**Features:**
+- Automatic platform detection
+- Architecture-specific builds
+- JDK or JRE selection
+- Checksum verification
+
+### Download Process
+
+1. Navigate to Settings → Java
+2. Click "Download Java"
+3. Select version (e.g., Java 17)
+4. Choose JDK or JRE
+5. Click Download
+6. Wait for download and extraction
+
+**Progress Tracking:**
+- Real-time download speed
+- ETA calculation
+- Extraction progress
+- Installation confirmation
+
+### Catalog Management
+
+The Java catalog is cached for 24 hours to improve performance:
+
+```rust
+// Catalog structure
+{
+  "versions": [
+    {
+      "version": "17.0.9+9",
+      "major": 17,
+      "url": "https://api.adoptium.net/...",
+      "sha256": "...",
+      "size": 123456789
+    }
+  ],
+  "last_updated": 1234567890
+}
+```
+
+**Refresh:**
+- Automatic after 24 hours
+- Manual refresh in settings
+- Forced refresh on download failure
+
+## Installation
+
+### Download Directory
+
+Downloaded Java runtimes are installed to:
+
+```
+~/.local/share/com.dropout.launcher/java/  (Linux)
+~/Library/Application Support/com.dropout.launcher/java/  (macOS)
+%APPDATA%/com.dropout.launcher/java/  (Windows)
+```
+
+### Directory Structure
+
+```
+java/
+├── jdk-17.0.9+9/
+│   ├── bin/
+│   │   └── java (or java.exe)
+│   └── lib/
+├── jdk-21.0.1+12/
+│   ├── bin/
+│   └── lib/
+└── download_queue.json
+```
+
+### Extraction
+
+1. Download to `.part` file
+2. Verify checksum
+3. Extract archive:
+   - `.tar.gz` on Linux/macOS
+   - `.zip` on Windows
+4. Move to `java/<version>/` directory
+5. Set executable permissions (Unix)
+
+## Configuration
+
+### Memory Allocation
+
+Configure JVM memory in Settings:
+
+**Minimum Memory:**
+- Default: 1024 MB
+- Recommended: 2048 MB for vanilla
+- Recommended: 4096+ MB for modded
+
+**Maximum Memory:**
+- Default: 4096 MB
+- Adjust based on your system RAM
+- Leave 4GB for OS and other apps
+
+**Format:**
+```bash
+-Xms1024M -Xmx4096M
+```
+
+### Custom JVM Arguments
+
+Add custom JVM arguments for advanced configuration:
+
+**Common Arguments:**
+```bash
+# Garbage collection
+-XX:+UseG1GC
+-XX:+UnlockExperimentalVMOptions
+
+# Performance
+-XX:G1NewSizePercent=20
+-XX:G1ReservePercent=20
+-XX:MaxGCPauseMillis=50
+
+# Memory
+-XX:G1HeapRegionSize=32M
+```
+
+### Java Path Selection
+
+**Auto-select:**
+- DropOut recommends the best Java version for each Minecraft version
+- Java 8 for Minecraft 1.12.2 and older
+- Java 17 for Minecraft 1.18-1.20.4
+- Java 21 for Minecraft 1.20.5+
+
+**Manual selection:**
+1. Go to Settings → Java
+2. Choose from detected installations
+3. Or specify custom path
+
+## Version Recommendations
+
+### Minecraft Version → Java Version
+
+| Minecraft Version | Recommended Java | Minimum Java |
+|-------------------|------------------|--------------|
+| 1.7.10 and older  | Java 8           | Java 8       |
+| 1.8 - 1.12.2      | Java 8           | Java 8       |
+| 1.13 - 1.16.5     | Java 8 or 11     | Java 8       |
+| 1.17 - 1.17.1     | Java 16          | Java 16      |
+| 1.18 - 1.20.4     | Java 17          | Java 17      |
+| 1.20.5+           | Java 21          | Java 21      |
+
+### Modded Minecraft
+
+**Fabric:**
+- Usually matches vanilla requirements
+- Some mods may require newer Java
+
+**Forge:**
+- May require specific Java versions
+- Check mod loader documentation
+- Often requires exact version match
+
+## Troubleshooting
+
+### Java Not Detected
+
+**Issue:** Installed Java not showing up
+
+**Solutions:**
+1. Verify Java is in standard location
+2. Check `JAVA_HOME` environment variable
+3. Add Java `bin` directory to `PATH`
+4. Restart DropOut
+5. Manual path selection
+
+### Download Fails
+
+**Issue:** Java download doesn't complete
+
+**Solutions:**
+1. Check internet connection
+2. Verify disk space
+3. Try different version
+4. Clear download queue
+5. Manual download from Adoptium
+
+### Wrong Java Version
+
+**Issue:** Game crashes due to Java version
+
+**Solutions:**
+1. Check Minecraft version requirements
+2. Download correct Java version
+3. Select appropriate Java in settings
+4. Verify Java path is correct
+
+### OutOfMemoryError
+
+**Issue:** Game crashes with memory error
+
+**Solutions:**
+1. Increase maximum memory allocation
+2. Close other applications
+3. Upgrade system RAM
+4. Use 64-bit Java
+5. Optimize JVM arguments
+
+### Performance Issues
+
+**Issue:** Low FPS or stuttering
+
+**Solutions:**
+1. Adjust memory allocation (not too high!)
+2. Enable G1GC garbage collector
+3. Add performance JVM arguments
+4. Use newer Java version if compatible
+5. Allocate 4-8GB for modpacks
+
+## API Reference
+
+### Tauri Commands
+
+**Detect Java Installations:**
+```typescript
+const javas = await invoke('detect_java_installations');
+// Returns: Array<{ path: string, version: string, major: number }>
+```
+
+**Get Java Catalog:**
+```typescript
+const catalog = await invoke('get_java_catalog');
+// Returns: { versions: Array<JavaVersion>, last_updated: number }
+```
+
+**Download Java:**
+```typescript
+await invoke('download_java', { 
+  version: '17.0.9+9',
+  variant: 'jdk' // or 'jre'
+});
+```
+
+**Cancel Java Download:**
+```typescript
+await invoke('cancel_java_download');
+```
+
+**Set Java Path:**
+```typescript
+await invoke('set_java_path', { path: '/path/to/java' });
+```
+
+### Events
+
+**Download Progress:**
+```typescript
+listen('java-download-progress', (event) => {
+  const { percent, speed, eta } = event.payload;
+});
+```
+
+**Download Complete:**
+```typescript
+listen('java-download-complete', (event) => {
+  const { path, version } = event.payload;
+});
+```
+
+## Best Practices
+
+### For Players
+
+1. **Use Adoptium builds** - Free, high-quality, maintained
+2. **Match Java to Minecraft** - Check version requirements
+3. **Don't over-allocate memory** - Leave RAM for OS
+4. **Keep Java updated** - Security and performance
+5. **Use 64-bit Java** - Required for large memory
+
+### For Developers
+
+1. **Test multiple Java versions** - Ensure compatibility
+2. **Document Java requirements** - Help users
+3. **Handle missing Java** - Graceful fallbacks
+4. **Validate Java path** - Before launching
+5. **Provide clear errors** - When Java is wrong
+
+## Advanced Topics
+
+### Custom Java Installation
+
+To use a custom Java installation:
+
+1. Install Java manually
+2. Note the installation path
+3. In DropOut Settings → Java
+4. Click "Custom Path"
+5. Browse to Java executable
+6. Verify version is correct
+
+### Java for Servers
+
+When running a Minecraft server:
+
+```bash
+# Recommended server JVM arguments
+-Xms4G -Xmx4G \
+-XX:+UseG1GC \
+-XX:+ParallelRefProcEnabled \
+-XX:MaxGCPauseMillis=200 \
+-XX:+UnlockExperimentalVMOptions \
+-XX:+DisableExplicitGC \
+-XX:G1NewSizePercent=30 \
+-XX:G1MaxNewSizePercent=40 \
+-XX:G1HeapRegionSize=8M \
+-XX:G1ReservePercent=20 \
+-XX:G1HeapWastePercent=5 \
+-XX:G1MixedGCCountTarget=4 \
+-XX:InitiatingHeapOccupancyPercent=15 \
+-XX:G1MixedGCLiveThresholdPercent=90 \
+-XX:G1RSetUpdatingPauseTimePercent=5 \
+-XX:SurvivorRatio=32 \
+-XX:+PerfDisableSharedMem \
+-XX:MaxTenuringThreshold=1
+```
+
+### GraalVM
+
+GraalVM is supported for advanced users:
+
+1. Download GraalVM from graalvm.org
+2. Install manually
+3. Add to DropOut as custom Java
+4. May improve performance
+5. Test thoroughly before use
+

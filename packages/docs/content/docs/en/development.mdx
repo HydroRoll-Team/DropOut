@@ -1,0 +1,547 @@
+---
+title: Development Guide
+description: Build, test, and contribute to DropOut
+---
+
+# Development Guide
+
+This guide will help you set up a development environment, build DropOut from source, and contribute to the project.
+
+## Prerequisites
+
+### Required Software
+
+1. **Rust** (latest stable)
+   ```bash
+   # Install via rustup
+   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+   ```
+
+2. **Node.js** (v22+) and **pnpm** (v9+)
+   ```bash
+   # Install Node.js from https://nodejs.org/
+   # Install pnpm
+   npm install -g pnpm@9
+   ```
+
+3. **System Dependencies**
+
+   Follow the [Tauri Prerequisites](https://v2.tauri.app/start/prerequisites/) for your platform:
+
+   **Linux (Debian/Ubuntu):**
+   ```bash
+   sudo apt update
+   sudo apt install libwebkit2gtk-4.1-dev \
+     build-essential \
+     curl \
+     wget \
+     file \
+     libssl-dev \
+     libayatana-appindicator3-dev \
+     librsvg2-dev
+   ```
+
+   **macOS:**
+   ```bash
+   xcode-select --install
+   ```
+
+   **Windows:**
+   - Install [Microsoft Visual C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
+   - Install [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/)
+
+## Getting Started
+
+### Clone the Repository
+
+```bash
+git clone https://github.com/HydroRoll-Team/DropOut.git
+cd DropOut
+```
+
+### Install Dependencies
+
+**Frontend dependencies:**
+```bash
+cd packages/ui
+pnpm install
+cd ../..
+```
+
+**Documentation dependencies:**
+```bash
+cd packages/docs
+pnpm install
+cd ../..
+```
+
+### Development Mode
+
+Run DropOut in development mode with hot reload:
+
+```bash
+cargo tauri dev
+```
+
+This will:
+1. Start the frontend dev server (Vite on port 5173)
+2. Compile the Rust backend
+3. Open the Tauri window
+4. Enable hot reload for frontend changes
+5. Recompile on Rust file changes
+
+**Terminal output:**
+- Frontend logs from Vite
+- Rust stdout/stderr
+- Compilation status
+
+### Building for Production
+
+Build release binaries:
+
+```bash
+cargo tauri build
+```
+
+**Output locations:**
+- **Linux**: `src-tauri/target/release/bundle/`
+  - `.deb` package
+  - `.AppImage` bundle
+- **macOS**: `src-tauri/target/release/bundle/`
+  - `.dmg` installer
+  - `.app` bundle
+- **Windows**: `src-tauri/target/release/bundle/`
+  - `.msi` installer
+  - `.exe` executable
+
+## Project Structure
+
+```
+DropOut/
+├── src-tauri/              # Rust backend
+│   ├── src/
+│   │   ├── main.rs         # Tauri commands & entry point
+│   │   ├── core/           # Core modules
+│   │   │   ├── auth.rs     # Authentication
+│   │   │   ├── downloader.rs # Download manager
+│   │   │   ├── fabric.rs   # Fabric support
+│   │   │   ├── forge.rs    # Forge support
+│   │   │   ├── java.rs     # Java management
+│   │   │   ├── instance.rs # Instance system
+│   │   │   └── ...
+│   │   └── utils/          # Utilities
+│   └── Cargo.toml
+├── packages/
+│   ├── ui/                 # Svelte 5 frontend
+│   │   ├── src/
+│   │   │   ├── App.svelte
+│   │   │   ├── components/
+│   │   │   ├── stores/     # State management
+│   │   │   └── lib/
+│   │   └── package.json
+│   └── docs/               # Documentation site
+│       ├── content/docs/
+│       └── package.json
+├── .github/
+│   └── workflows/          # CI/CD pipelines
+└── scripts/                # Build scripts
+```
+
+## Development Workflows
+
+### Frontend Development
+
+**Start dev server:**
+```bash
+cd packages/ui
+pnpm dev
+```
+
+**Type checking:**
+```bash
+pnpm check
+```
+
+**Linting:**
+```bash
+pnpm lint
+```
+
+**Formatting:**
+```bash
+pnpm format
+```
+
+### Backend Development
+
+**Run Rust tests:**
+```bash
+cargo test
+```
+
+**Check code:**
+```bash
+cargo check
+```
+
+**Format code:**
+```bash
+cargo fmt
+```
+
+**Lint code:**
+```bash
+cargo clippy
+```
+
+### Documentation Development
+
+**Start docs dev server:**
+```bash
+cd packages/docs
+pnpm dev
+```
+
+**Build docs:**
+```bash
+pnpm build
+```
+
+**Type check:**
+```bash
+pnpm types:check
+```
+
+## Code Style
+
+### Rust
+
+Follow standard Rust conventions:
+- Use `cargo fmt` for formatting
+- Use `cargo clippy` for linting
+- Write documentation comments (`///`)
+- Handle errors properly
+- Use async/await for I/O
+
+**Example:**
+```rust
+/// Starts the Microsoft authentication device flow
+#[tauri::command]
+async fn start_microsoft_login(
+    window: Window,
+) -> Result<DeviceCodeResponse, String> {
+    emit_log!(window, "Starting Microsoft login...");
+    
+    start_device_flow()
+        .await
+        .map_err(|e| e.to_string())
+}
+```
+
+### TypeScript/Svelte
+
+Follow the project's conventions:
+- Use Svelte 5 runes (`$state`, `$effect`)
+- Prefer TypeScript over JavaScript
+- Use Biome for formatting and linting
+- Follow component structure
+
+**Example:**
+```typescript
+// stores/auth.svelte.ts
+export class AuthState {
+  currentAccount = $state<Account | null>(null);
+  isLoginModalOpen = $state(false);
+  
+  async login(username: string) {
+    const account = await invoke('offline_login', { username });
+    this.currentAccount = account;
+  }
+}
+```
+
+## Testing
+
+### Unit Tests
+
+**Rust:**
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_generate_offline_uuid() {
+        let uuid = generate_offline_uuid("Player");
+        assert!(uuid.len() > 0);
+    }
+}
+```
+
+**Run:**
+```bash
+cargo test
+```
+
+### Integration Tests
+
+Test the full application:
+1. Build in dev mode: `cargo tauri dev`
+2. Manually test features
+3. Check console for errors
+4. Verify UI behavior
+
+### CI Tests
+
+GitHub Actions runs tests on:
+- Ubuntu (latest)
+- Arch Linux (Wayland)
+- Windows (latest)
+- macOS (ARM64)
+
+View workflow: `.github/workflows/test.yml`
+
+## Debugging
+
+### Frontend Debugging
+
+1. Open DevTools in Tauri window: `Ctrl+Shift+I` (Windows/Linux) or `Cmd+Option+I` (macOS)
+2. Check Console for errors
+3. Use React DevTools or Svelte DevTools
+4. Monitor Network tab for API calls
+
+### Backend Debugging
+
+**Print debugging:**
+```rust
+emit_log!(window, format!("Debug: {}", value));
+println!("Debug: {}", value);
+```
+
+**Rust debugger:**
+```bash
+# Install rust-lldb or rust-gdb
+cargo install rust-gdb
+
+# Debug
+rust-gdb target/debug/dropout
+```
+
+### Logging
+
+**Frontend:**
+```typescript
+console.log("Info message");
+console.error("Error message");
+```
+
+**Backend:**
+```rust
+emit_log!(window, "Status update");
+eprintln!("Error: {}", error);
+```
+
+## Contributing
+
+### Contribution Workflow
+
+1. **Fork** the repository
+2. **Create** a feature branch:
+   ```bash
+   git checkout -b feature/my-feature
+   ```
+3. **Make** your changes
+4. **Test** thoroughly
+5. **Commit** with conventional commits:
+   ```bash
+   git commit -m "feat: add new feature"
+   ```
+6. **Push** to your fork:
+   ```bash
+   git push origin feature/my-feature
+   ```
+7. **Create** a pull request
+
+### Commit Messages
+
+Follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+**Format:**
+```
+<type>[scope]: <description>
+
+[optional body]
+
+[optional footer]
+```
+
+**Types:**
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation
+- `style`: Formatting
+- `refactor`: Code restructuring
+- `perf`: Performance improvement
+- `test`: Adding tests
+- `chore`: Maintenance
+
+**Examples:**
+```bash
+feat(auth): add offline authentication support
+fix(java): resolve detection on Windows
+docs: update installation guide
+refactor(download): simplify progress tracking
+```
+
+### Pull Request Guidelines
+
+**Before submitting:**
+- [ ] Code follows style guidelines
+- [ ] Tests pass locally
+- [ ] Documentation updated if needed
+- [ ] No unnecessary files committed
+- [ ] Commit messages are clear
+
+**PR Description:**
+- Explain what and why
+- Link related issues
+- List breaking changes
+- Add screenshots for UI changes
+
+### Code Review
+
+Maintainers will review your PR for:
+- Code quality and style
+- Test coverage
+- Documentation
+- Performance impact
+- Security implications
+
+Be responsive to feedback and make requested changes.
+
+## Common Tasks
+
+### Adding a Tauri Command
+
+1. **Define command in `main.rs`:**
+   ```rust
+   #[tauri::command]
+   async fn my_command(param: String) -> Result<String, String> {
+       Ok(format!("Received: {}", param))
+   }
+   ```
+
+2. **Register in builder:**
+   ```rust
+   .invoke_handler(tauri::generate_handler![
+       my_command,
+       // ... other commands
+   ])
+   ```
+
+3. **Call from frontend:**
+   ```typescript
+   const result = await invoke('my_command', { param: 'value' });
+   ```
+
+### Adding a UI Component
+
+1. **Create component file:**
+   ```svelte
+   <!-- packages/ui/src/components/MyComponent.svelte -->
+   <script lang="ts">
+     let count = $state(0);
+   </script>
+
+   <button onclick={() => count++}>
+     Count: {count}
+   </button>
+   ```
+
+2. **Import and use:**
+   ```svelte
+   <script>
+     import MyComponent from './components/MyComponent.svelte';
+   </script>
+
+   <MyComponent />
+   ```
+
+### Adding a Store
+
+1. **Create store file:**
+   ```typescript
+   // packages/ui/src/stores/mystore.svelte.ts
+   export class MyState {
+     value = $state(0);
+     
+     increment() {
+       this.value++;
+     }
+   }
+   
+   export const myState = new MyState();
+   ```
+
+2. **Use in components:**
+   ```svelte
+   <script>
+     import { myState } from '../stores/mystore.svelte';
+   </script>
+
+   <button onclick={() => myState.increment()}>
+     {myState.value}
+   </button>
+   ```
+
+## Troubleshooting Development Issues
+
+### Build Failures
+
+**"cannot find -lwebkit2gtk"**
+```bash
+# Install WebKit dependencies
+sudo apt install libwebkit2gtk-4.1-dev
+```
+
+**"pnpm not found"**
+```bash
+# Install pnpm
+npm install -g pnpm@9
+```
+
+**"Rust version too old"**
+```bash
+# Update Rust
+rustup update
+```
+
+### Runtime Issues
+
+**"Failed to load dynamic library"**
+- Rebuild: `cargo clean && cargo tauri dev`
+- Check library paths
+- Verify dependencies installed
+
+**"CORS error"**
+- Normal in dev mode
+- Tauri handles CORS automatically
+
+**"Hot reload not working"**
+- Check Vite config
+- Restart dev server
+- Clear browser cache
+
+## Resources
+
+- [Tauri Documentation](https://v2.tauri.app/)
+- [Svelte 5 Documentation](https://svelte.dev/docs)
+- [Rust Book](https://doc.rust-lang.org/book/)
+- [DropOut Repository](https://github.com/HydroRoll-Team/DropOut)
+
+## Getting Help
+
+- **Issues**: [GitHub Issues](https://github.com/HydroRoll-Team/DropOut/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/HydroRoll-Team/DropOut/discussions)
+- **Documentation**: This site
+
