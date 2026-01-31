@@ -1,4 +1,5 @@
 use std::io::Read;
+use std::path::Path;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::time::Duration;
@@ -6,25 +7,78 @@ use std::time::Duration;
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 
-use super::strip_unc_prefix;
+use crate::core::java::strip_unc_prefix;
 
 const WHICH_TIMEOUT: Duration = Duration::from_secs(2);
 
-/// Finds Java installation from SDKMAN! if available
+/// Scans a directory for Java installations, filtering out symlinks
 ///
-/// Checks the standard SDKMAN! installation path:
-/// `~/.sdkman/candidates/java/current/bin/java`
+/// # Arguments
+/// * `base_dir` - Base directory to scan (e.g., mise or SDKMAN java dir)
+/// * `should_skip` - Predicate to determine if an entry should be skipped
 ///
 /// # Returns
-/// `Some(PathBuf)` if SDKMAN! Java is found and exists, `None` otherwise
+/// First valid Java installation found, or `None`
+fn scan_java_dir<F>(base_dir: &Path, should_skip: F) -> Option<PathBuf>
+where
+    F: Fn(&std::fs::DirEntry) -> bool,
+{
+    std::fs::read_dir(base_dir)
+        .ok()?
+        .flatten()
+        .filter(|entry| {
+            let path = entry.path();
+            // Only consider real directories, not symlinks
+            path.is_dir() && !path.is_symlink() && !should_skip(entry)
+        })
+        .find_map(|entry| {
+            let java_path = entry.path().join("bin/java");
+            if java_path.exists() && java_path.is_file() {
+                Some(java_path)
+            } else {
+                None
+            }
+        })
+}
+
+/// Finds Java installation from SDKMAN! if available
+///
+/// Scans the SDKMAN! candidates directory and returns the first valid Java installation found.
+/// Skips the 'current' symlink to avoid duplicates.
+///
+/// Path: `~/.sdkman/candidates/java/`
+///
+/// # Returns
+/// `Some(PathBuf)` pointing to `bin/java` if found, `None` otherwise
 pub fn find_sdkman_java() -> Option<PathBuf> {
     let home = std::env::var("HOME").ok()?;
-    let sdkman_path = PathBuf::from(&home).join(".sdkman/candidates/java/current/bin/java");
-    if sdkman_path.exists() {
-        Some(sdkman_path)
-    } else {
-        None
+    let sdkman_base = PathBuf::from(&home).join(".sdkman/candidates/java/");
+
+    if !sdkman_base.exists() {
+        return None;
     }
+
+    scan_java_dir(&sdkman_base, |entry| entry.file_name() == "current")
+}
+
+/// Finds Java installation from mise if available
+///
+/// Scans the mise Java installation directory and returns the first valid installation found.
+/// Skips version alias symlinks (e.g., `21`, `21.0`, `latest`, `lts`) to avoid duplicates.
+///
+/// Path: `~/.local/share/mise/installs/java/`
+///
+/// # Returns
+/// `Some(PathBuf)` pointing to `bin/java` if found, `None` otherwise
+pub fn find_mise_java() -> Option<PathBuf> {
+    let home = std::env::var("HOME").ok()?;
+    let mise_base = PathBuf::from(&home).join(".local/share/mise/installs/java/");
+
+    if !mise_base.exists() {
+        return None;
+    }
+
+    scan_java_dir(&mise_base, |_| false) // mise: no additional filtering needed
 }
 
 /// Runs `which` (Unix) or `where` (Windows) command to find Java in PATH with timeout
@@ -150,6 +204,11 @@ pub fn get_java_candidates() -> Vec<PathBuf> {
         if let Some(sdkman_java) = find_sdkman_java() {
             candidates.push(sdkman_java);
         }
+
+        // Check common mise java candidates
+        if let Some(mise_java) = find_mise_java() {
+            candidates.push(mise_java);
+        }
     }
 
     #[cfg(target_os = "macos")]
@@ -195,6 +254,11 @@ pub fn get_java_candidates() -> Vec<PathBuf> {
         // Check common SDKMAN! java candidates
         if let Some(sdkman_java) = find_sdkman_java() {
             candidates.push(sdkman_java);
+        }
+
+        // Check common mise java candidates
+        if let Some(mise_java) = find_mise_java() {
+            candidates.push(mise_java);
         }
     }
 

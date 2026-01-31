@@ -3,72 +3,45 @@
 /**
  * Represents a Minecraft version supported by Fabric.
  */
-export type FabricGameVersion = { version: string; stable: boolean };
+export type FabricGameVersion = { version: string, stable: boolean, };
 
 /**
  * Represents a Fabric intermediary mapping version.
  */
-export type FabricIntermediaryVersion = {
-  maven: string;
-  version: string;
-  stable: boolean;
-};
+export type FabricIntermediaryVersion = { maven: string, version: string, stable: boolean, };
 
 /**
  * Launcher metadata from Fabric Meta API.
  */
-export type FabricLauncherMeta = {
-  version: number;
-  libraries: FabricLibraries;
-  mainClass: FabricMainClass;
-};
+export type FabricLauncherMeta = { version: number, libraries: FabricLibraries, mainClass: FabricMainClass, };
 
 /**
  * Libraries required by Fabric loader.
  */
-export type FabricLibraries = {
-  client: Array<FabricLibrary>;
-  common: Array<FabricLibrary>;
-  server: Array<FabricLibrary>;
-};
+export type FabricLibraries = { client: Array<FabricLibrary>, common: Array<FabricLibrary>, server: Array<FabricLibrary>, };
 
 /**
  * A single Fabric library dependency.
  */
-export type FabricLibrary = { name: string; url: string | null };
+export type FabricLibrary = { name: string, url: string | null, };
 
 /**
  * Represents a combined loader + intermediary version entry.
  */
-export type FabricLoaderEntry = {
-  loader: FabricLoaderVersion;
-  intermediary: FabricIntermediaryVersion;
-  launcherMeta: FabricLauncherMeta;
-};
+export type FabricLoaderEntry = { loader: FabricLoaderVersion, intermediary: FabricIntermediaryVersion, launcherMeta: FabricLauncherMeta, };
 
 /**
  * Represents a Fabric loader version from the Meta API.
  */
-export type FabricLoaderVersion = {
-  separator: string;
-  build: number;
-  maven: string;
-  version: string;
-  stable: boolean;
-};
+export type FabricLoaderVersion = { separator: string, build: number, maven: string, version: string, stable: boolean, };
 
 /**
  * Main class configuration for Fabric.
  * Can be either a struct with client/server fields or a simple string.
  */
-export type FabricMainClass = { client: string; server: string } | string;
+export type FabricMainClass = { client: string, server: string, } | string;
 
 /**
  * Information about an installed Fabric version.
  */
-export type InstalledFabricVersion = {
-  id: string;
-  minecraftVersion: string;
-  loaderVersion: string;
-  path: string;
-};
+export type InstalledFabricVersion = { id: string, minecraftVersion: string, loaderVersion: string, path: string, };

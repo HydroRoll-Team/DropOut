@@ -3,30 +3,14 @@
 /**
  * Represents a game instance/profile
  */
-export type Instance = {
-  id: string;
-  name: string;
-  gameDir: string;
-  versionId: string | null;
-  createdAt: bigint;
-  lastPlayed: bigint | null;
-  iconPath: string | null;
-  notes: string | null;
-  modLoader: string | null;
-  modLoaderVersion: string | null;
-  jvmArgsOverride: string | null;
-  memoryOverride: MemoryOverride | null;
-};
+export type Instance = { id: string, name: string, gameDir: string, versionId: string | null, createdAt: bigint, lastPlayed: bigint | null, iconPath: string | null, notes: string | null, modLoader: string | null, modLoaderVersion: string | null, jvmArgsOverride: string | null, memoryOverride: MemoryOverride | null, javaPathOverride: string | null, };
 
 /**
  * Configuration for all instances
  */
-export type InstanceConfig = {
-  instances: Array<Instance>;
-  activeInstanceId: string | null;
-};
+export type InstanceConfig = { instances: Array<Instance>, activeInstanceId: string | null, };
 
 /**
  * Memory settings override for an instance
  */
-export type MemoryOverride = { min: number; max: number };
+export type MemoryOverride = { min: number, max: number, };

@@ -5,7 +5,7 @@ use std::process::Command;
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 
-use super::JavaInstallation;
+use crate::core::java::JavaInstallation;
 
 pub async fn check_java_installation(path: &PathBuf) -> Option<JavaInstallation> {
     let path = path.clone();

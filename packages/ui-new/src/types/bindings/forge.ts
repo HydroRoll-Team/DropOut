@@ -3,19 +3,9 @@
 /**
  * Represents a Forge version entry.
  */
-export type ForgeVersion = {
-  version: string;
-  minecraftVersion: string;
-  recommended: boolean;
-  latest: boolean;
-};
+export type ForgeVersion = { version: string, minecraftVersion: string, recommended: boolean, latest: boolean, };
 
 /**
  * Information about an installed Forge version.
  */
-export type InstalledForgeVersion = {
-  id: string;
-  minecraftVersion: string;
-  forgeVersion: string;
-  path: string;
-};
+export type InstalledForgeVersion = { id: string, minecraftVersion: string, forgeVersion: string, path: string, };

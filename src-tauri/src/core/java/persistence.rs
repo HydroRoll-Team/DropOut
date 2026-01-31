@@ -1,4 +1,4 @@
-use super::error::JavaError;
+use crate::core::java::error::JavaError;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
