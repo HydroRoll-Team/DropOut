@@ -1,0 +1,409 @@
+---
+title: 模组加载器
+description: Fabric 和 Forge 安装和管理
+---
+
+# 模组加载器
+
+DropOut 支持两个最流行的 Minecraft 模组加载器：Fabric 和 Forge。两者都可以直接从启动器中轻松安装和管理。
+
+## Fabric 支持
+
+### 概述
+
+Fabric 是一个轻量级、模块化的模组工具链，专注于：
+- 快速更新至新的 Minecraft 版本
+- 干净、极简的 API
+- 强大的开发者社区
+- 优异的性能
+
+### 安装
+
+1. 导航至 **Versions** 选项卡
+2. 点击 **"Install Fabric"**
+3. 选择 Minecraft 版本
+4. 选择 Fabric 加载器版本
+5. 点击 **"Install"**
+6. 等待安装完成
+
+### 工作原理
+
+**Meta API 集成：**
+```rust
+// Fetch available Fabric versions
+let url = format!(
+    "https://meta.fabricmc.net/v2/versions/loader/{}",
+    minecraft_version
+);
+```
+
+**配置文件生成：**
+1. 获取 Fabric 加载器元数据
+2. 下载 Fabric 库
+3. 使用 `inheritsFrom` 生成版本 JSON
+4. 与父级 Minecraft 版本合并
+5. 添加至版本列表
+
+**版本格式：**
+```json
+{
+  "id": "fabric-loader-0.15.0-1.20.4",
+  "inheritsFrom": "1.20.4",
+  "mainClass": "net.fabricmc.loader.impl.launch.knot.KnotClient",
+  "libraries": [...]
+}
+```
+
+### Fabric 版本
+
+**加载器版本：**
+- 最新稳定版（推荐）
+- 用于兼容性的特定版本
+- Beta/快照版本
+
+**游戏版本：**
+- 所有 1.14+ 的 Minecraft 版本
+- 支持快照版本
+- 支持战斗测试版本
+
+### 库管理
+
+Fabric 库从 Maven 解析：
+
+**主库：**
+```
+net.fabricmc:fabric-loader:0.15.0
+```
+
+**依赖项：**
+- `net.fabricmc:tiny-mappings-parser`
+- `net.fabricmc:sponge-mixin`
+- `net.fabricmc:access-widener`
+
+**下载：**
+```rust
+// Maven resolution
+let url = format!(
+    "https://maven.fabricmc.net/{}/{}",
+    artifact_path, filename
+);
+```
+
+### Fabric API
+
+Fabric Loader ≠ Fabric API：
+- **Fabric Loader**: 模组加载器（由 DropOut 安装）
+- **Fabric API**: 库模组（单独下载）
+
+许多模组需要 Fabric API：
+1. 从 [Modrinth](https://modrinth.com/mod/fabric-api) 或 [CurseForge](https://www.curseforge.com/minecraft/mc-mods/fabric-api) 下载
+2. 放置在实例的 `mods/` 文件夹中
+
+## Forge 支持
+
+### 概述
+
+Forge 是原始的、最流行的 Minecraft 模组加载器：
+- 广泛的模组生态系统
+- 成熟的 API
+- 广泛的版本支持
+- 庞大的社区
+
+### 安装
+
+1. 导航至 **Versions** 选项卡
+2. 点击 **"Install Forge"**
+3. 选择 Minecraft 版本
+4. 选择 Forge 版本
+5. 点击 **"Install"**
+6. 等待安装程序运行
+7. 安装完成
+
+### 工作原理
+
+**Forge 安装程序：**
+```rust
+// Download Forge installer
+let installer_url = format!(
+    "https://maven.minecraftforge.net/net/minecraftforge/forge/{}/forge-{}-installer.jar",
+    full_version, full_version
+);
+
+// Run installer
+java -jar forge-installer.jar --installClient
+```
+
+**配置文件解析：**
+1. Forge 安装程序创建版本 JSON
+2. DropOut 解析安装配置文件
+3. 提取库依赖项
+4. 处理处理器（如果有）
+5. 生成启动器配置文件
+
+**版本格式：**
+```json
+{
+  "id": "1.20.4-forge-49.0.26",
+  "inheritsFrom": "1.20.4",
+  "mainClass": "cpw.mods.bootstraplauncher.BootstrapLauncher",
+  "libraries": [...]
+}
+```
+
+### Forge 版本
+
+**发布类型：**
+- **Latest**: 最新的稳定版本
+- **Recommended**: 生产环境中最稳定的版本
+- **Specific**: 版本锁定以确保兼容性
+
+**Minecraft 版本支持：**
+- 旧版本 (1.6.4+)
+- 现代版本 (1.13+)
+- 最新版本 (1.20+)
+
+### 库管理
+
+Forge 有许多库：
+
+**核心库：**
+- `net.minecraftforge:forge:<version>`
+- `net.minecraftforge:fmlloader:<version>`
+- `org.ow2.asm:asm:<version>`
+
+**解析：**
+```rust
+// Forge Maven
+"https://maven.minecraftforge.net/"
+
+// Dependencies may use:
+// - Maven Central
+// - Minecraft Libraries
+```
+
+### Forge 处理器
+
+某些 Forge 版本在安装期间运行"处理器"：
+- 字节码操纵
+- 库修补
+- 映射生成
+
+DropOut 自动处理这些操作。
+
+## 版本继承
+
+Fabric 和 Forge 都使用 Minecraft 的继承系统：
+
+### 父版本
+
+```json
+{
+  "id": "fabric-loader-0.15.0-1.20.4",
+  "inheritsFrom": "1.20.4"  // Parent vanilla version
+}
+```
+
+### 合并过程
+
+**库：**
+```rust
+// Merged from both
+parent_libraries + modded_libraries
+// Duplicates removed
+```
+
+**参数：**
+```rust
+// Combined
+parent_jvm_args + modded_jvm_args
+parent_game_args + modded_game_args
+```
+
+**资源：**
+```rust
+// Inherited from parent
+assets = parent.assets
+```
+
+**主类：**
+```rust
+// Overridden by modded
+main_class = modded.mainClass
+```
+
+## 对比
+
+| 功能 | Fabric | Forge |
+|---------|--------|-------|
+| **性能** | 优异 | 良好 |
+| **更新速度** | 非常快 | 中等 |
+| **模组选择** | 增长中 | 广泛 |
+| **API 简洁性** | 简洁 | 复杂 |
+| **版本支持** | 1.14+ | 1.6.4+ |
+| **开发者友好** | 非常友好 | 中等 |
+| **稳定性** | 优异 | 优异 |
+
+## 安装模组
+
+### Fabric 模组
+
+1. 创建/选择实例
+2. 确保 Fabric 已安装
+3. 从以下位置下载模组：
+   - [Modrinth](https://modrinth.com/)
+   - [CurseForge](https://www.curseforge.com/)
+   - [GitHub Releases](https://github.com/)
+4. 将 `.jar` 文件放置在 `instances/<name>/mods/`
+5. 启动游戏
+
+**兼容性：**
+- 检查 Minecraft 版本
+- 检查 Fabric Loader 版本
+- 检查 Fabric API 需求
+- 阅读模组依赖项
+
+### Forge 模组
+
+1. 创建/选择实例
+2. 确保 Forge 已安装
+3. 从以下位置下载模组：
+   - [CurseForge](https://www.curseforge.com/)
+   - [Modrinth](https://modrinth.com/)
+4. 将 `.jar` 文件放置在 `instances/<name>/mods/`
+5. 启动游戏
+
+**兼容性：**
+- 精确检查 Minecraft 版本
+- 检查 Forge 版本范围
+- 阅读模组依赖项
+- 检查冲突
+
+## 故障排除
+
+### Fabric 问题
+
+**"Fabric Loader not found"**
+- 重新安装 Fabric
+- 检查版本 JSON 是否存在
+- 验证库是否已下载
+
+**"Mixin apply failed"**
+- 模组不兼容
+- 删除冲突的模组
+- 更新 Fabric Loader
+
+**"Fabric API required"**
+- 下载 Fabric API
+- 匹配 Minecraft 版本
+- 放置在 mods 文件夹中
+
+### Forge 问题
+
+**"Forge installer failed"**
+- 验证 Java 安装
+- 检查磁盘空间
+- 尝试旧版本的 Forge
+- 检查日志获取详细信息
+
+**"Missing dependencies"**
+- 安装所需的模组
+- 检查模组版本兼容性
+- 仔细阅读错误消息
+
+**"Class not found"**
+- Forge 版本不匹配
+- 重新安装 Forge
+- 验证库是否已下载
+
+### 常见模组问题
+
+**启动时崩溃：**
+1. 检查崩溃报告
+2. 识别有问题的模组
+3. 删除或更新模组
+4. 使用最少的模组测试
+5. 逐步添加模组回来
+
+**性能问题：**
+1. 安装了太多模组
+2. 增加内存分配
+3. 安装性能模组：
+   - Fabric: Sodium, Lithium
+   - Forge: OptiFine, Magnesium
+4. 删除资源密集型模组
+
+## API 参考
+
+### Tauri 命令
+
+**安装 Fabric：**
+```typescript
+await invoke('install_fabric', {
+  minecraftVersion: '1.20.4',
+  loaderVersion: '0.15.0'
+});
+```
+
+**安装 Forge：**
+```typescript
+await invoke('install_forge', {
+  minecraftVersion: '1.20.4',
+  forgeVersion: '49.0.26'
+});
+```
+
+**列出 Fabric 版本：**
+```typescript
+const versions = await invoke('get_fabric_versions', {
+  minecraftVersion: '1.20.4'
+});
+```
+
+**列出 Forge 版本：**
+```typescript
+const versions = await invoke('get_forge_versions', {
+  minecraftVersion: '1.20.4'
+});
+```
+
+### 事件
+
+**安装进度：**
+```typescript
+listen('mod-loader-progress', (event) => {
+  const { stage, percent } = event.payload;
+  // Stages: "downloading", "installing", "processing", "complete"
+});
+```
+
+## 最佳实践
+
+### 对于玩家
+
+1. **每个实例选择一个模组加载器**
+2. **精确匹配版本** - Minecraft 和加载器
+3. **安装前阅读模组要求**
+4. **循序渐进** - 逐步添加模组
+5. **备份世界** - 添加模组前备份
+6. **检查兼容性** 列表
+7. **谨慎更新** - 在单独的实例中测试
+
+### 对于模组包创建者
+
+1. **记录版本** - MC、加载器、所有模组
+2. **彻底测试** - 所有功能
+3. **列出依赖项** - 包括 API
+4. **提供更新日志** - 用于更新
+5. **版本锁定** - 为了稳定性
+6. **包含配置** - 预配置
+7. **测试更新** - 发布前测试
+
+## 未来功能
+
+- **模组浏览器** - 从启动器安装模组
+- **自动更新** - 保持模组最新
+- **依赖项解析** - 自动安装需求
+- **冲突检测** - 警告不兼容性
+- **配置文件导出** - 共享模组包配置
+- **CurseForge 集成** - 直接模组包导入
+- **Modrinth 集成** - 模组搜索和安装

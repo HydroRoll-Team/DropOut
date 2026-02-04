@@ -1,9 +1,24 @@
 import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared';
+import { i18n } from './i18n';
 
-export function baseOptions(): BaseLayoutProps {
+export function baseOptions(locale: string): BaseLayoutProps {
+  // 默认语言（zh）不显示前缀，其他语言显示前缀
+  const isDefaultLocale = locale === i18n.defaultLanguage;
+  const localePrefix = isDefaultLocale ? '' : `/${locale}`;
+  
   return {
+    i18n,
     nav: {
-      title: 'React Router',
+      title: 'DropOut',
+      url: localePrefix || '/',
     },
+    githubUrl: 'https://github.com/HydroRoll-Team/DropOut',
+    links: [
+      {
+        type: 'main',
+        text: locale === 'zh' ? '文档' : 'Documentation',
+        url: `${localePrefix}/docs`,
+      },
+    ],
   };
 }

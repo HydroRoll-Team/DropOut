@@ -1,0 +1,266 @@
+---
+title: Authentication
+description: Microsoft OAuth and offline authentication in DropOut
+---
+
+# Authentication
+
+DropOut supports two authentication methods: Microsoft Account (for official Minecraft) and Offline Mode (for testing and offline play).
+
+## Microsoft Authentication
+
+### Overview
+
+DropOut uses the **Device Code Flow** for Microsoft authentication, which:
+- Doesn't require a redirect URL (no browser integration)
+- Works on any device with a browser
+- Provides a simple code-based authentication
+- Fully compliant with Microsoft OAuth 2.0
+
+### Authentication Process
+
+The authentication chain consists of multiple steps:
+
+1. **Device Code** → User authorization
+2. **MS Token** → Access + refresh tokens
+3. **Xbox Live** → Xbox token + UHS
+4. **XSTS** → Security token
+5. **Minecraft** → Game access token
+6. **Profile** → Username + UUID
+
+#### Step 1: Device Code Request
+1. Click "Login with Microsoft"
+2. DropOut requests a device code from Microsoft
+3. You receive:
+   - User code (e.g., `A1B2-C3D4`)
+   - Verification URL (usually `https://microsoft.com/link`)
+   - Device code (used internally)
+
+#### Step 2: User Authorization
+1. Visit the verification URL in any browser
+2. Enter the user code
+3. Sign in with your Microsoft account
+4. Authorize DropOut to access your Minecraft profile
+
+#### Step 3: Token Exchange
+- DropOut polls Microsoft for authorization completion
+- Once authorized, receives an access token and refresh token
+- Refresh token is stored for future logins
+
+#### Step 4: Xbox Live Authentication
+- Microsoft token is exchanged for Xbox Live token
+- Retrieves User Hash (UHS) for next step
+
+#### Step 5: XSTS Authorization
+- Xbox Live token is used to get XSTS token
+- This token is specific to Minecraft services
+
+#### Step 6: Minecraft Login
+- XSTS token is exchanged for Minecraft access token
+- Uses endpoint: `/launcher/login`
+
+#### Step 7: Profile Fetching
+- Retrieves your Minecraft username
+- Fetches your UUID
+- Checks if you own Minecraft
+
+### Token Management
+
+**Access Token:**
+- Short-lived (typically 1 hour)
+- Used for game authentication
+- Automatically refreshed when expired
+
+**Refresh Token:**
+- Long-lived (typically 90 days)
+- Stored securely in `accounts.json`
+- Used to obtain new access tokens
+
+**Auto-refresh:**
+```rust
+// Automatic refresh when token expires
+if account.expires_at < current_time {
+    refresh_full_auth(&account).await?;
+}
+```
+
+### Security Considerations
+
+- Tokens are stored in platform-specific app data directory
+- HTTPS only for all API calls
+- No credentials stored (only tokens)
+- User-Agent header required (bypasses MS WAF)
+
+### Troubleshooting Microsoft Login
+
+**"Device code expired"**
+- Codes expire after 15 minutes
+- Start the login process again
+
+**"Authorization pending"**
+- Normal during the waiting phase
+- Complete authorization in the browser
+
+**"Invalid token"**
+- Token may have expired
+- Log out and log back in
+
+**"You don't own Minecraft"**
+- Verify your Microsoft account owns Minecraft Java Edition
+- Check at https://www.minecraft.net/profile
+
+## Offline Authentication
+
+### Overview
+
+Offline mode creates a local account that doesn't require internet connectivity or a Microsoft account. This is useful for:
+- Testing and development
+- Playing without internet
+- LAN multiplayer
+- Mod development
+
+### Creating an Offline Account
+
+1. Click "Offline Mode" in the login screen
+2. Enter a username (3-16 characters)
+3. Click "Create Account"
+
+### How It Works
+
+**UUID Generation:**
+```rust
+// Deterministic UUID v3 from username
+let uuid = generate_offline_uuid(&username);
+```
+
+- Uses UUID v3 (namespace-based)
+- Deterministic: same username = same UUID
+- No network requests
+
+**Authentication:**
+- Returns `"null"` as access token
+- Minecraft accepts null token in offline mode
+- Username and UUID stored locally
+
+### Limitations
+
+- Cannot join online servers
+- No skin support
+- No cape support
+- No Microsoft account features
+
+### Use Cases
+
+**Development:**
+```bash
+# Testing mod development
+cargo tauri dev
+# Use offline mode to test quickly
+```
+
+**LAN Play:**
+- Join LAN worlds without authentication
+- Host LAN worlds
+
+**Offline Play:**
+- Singleplayer without internet
+- No authentication required
+
+## Account Management
+
+### Switching Accounts
+
+Currently, DropOut supports one active account at a time. Multi-account support is planned.
+
+**To switch accounts:**
+1. Log out of current account
+2. Log in with new account
+
+### Account Storage
+
+Accounts are stored in `accounts.json`:
+
+```json
+{
+  "current_account_id": "uuid-here",
+  "accounts": [
+    {
+      "id": "uuid",
+      "type": "Microsoft",
+      "username": "PlayerName",
+      "access_token": "...",
+      "refresh_token": "...",
+      "expires_at": 1234567890
+    }
+  ]
+}
+```
+
+### Deleting Accounts
+
+To remove an account:
+1. Open Settings
+2. Navigate to Accounts
+3. Click "Log Out"
+4. Or manually delete `accounts.json`
+
+## API Reference
+
+### Tauri Commands
+
+**Start Microsoft Login:**
+```typescript
+const { user_code, verification_uri } = await invoke('start_microsoft_login');
+```
+
+**Complete Microsoft Login:**
+```typescript
+const account = await invoke('complete_microsoft_login', { deviceCode });
+```
+
+**Offline Login:**
+```typescript
+const account = await invoke('offline_login', { username: 'Player' });
+```
+
+**Logout:**
+```typescript
+await invoke('logout');
+```
+
+**Get Current Account:**
+```typescript
+const account = await invoke('get_current_account');
+```
+
+### Events
+
+**Authentication Status:**
+```typescript
+listen('auth-status', (event) => {
+  console.log(event.payload); // "logged_in" | "logged_out"
+});
+```
+
+## Best Practices
+
+### For Players
+
+1. **Use Microsoft Account** for official servers
+2. **Keep tokens secure** - don't share accounts.json
+3. **Refresh tokens regularly** by logging in
+4. **Use offline mode** only for testing
+
+### For Developers
+
+1. **Handle token expiration** gracefully
+2. **Implement retry logic** for network failures
+3. **Cache account data** to reduce API calls
+4. **Validate tokens** before game launch
+
+## Future Enhancements
+
+- **Multi-account support**: Switch between accounts easily
+- **Account profiles**: Save per-account settings
+- **Auto-login**: Remember last account
+- **Token encryption**: Enhanced security for stored tokens

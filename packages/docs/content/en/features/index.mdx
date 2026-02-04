@@ -1,0 +1,176 @@
+---
+title: Features Overview
+description: Comprehensive guide to all DropOut features
+---
+
+# Features Overview
+
+DropOut is packed with features designed for both casual players and power users. This guide covers all major capabilities.
+
+## Core Features
+
+<Cards>
+  <Card 
+    title="Authentication" 
+    href="authentication"
+    description="Microsoft OAuth and offline authentication"
+  />
+  <Card 
+    title="Java Management" 
+    href="java"
+    description="Auto-detection and installation of Java runtimes"
+  />
+  <Card 
+    title="Mod Loaders" 
+    href="mod-loaders"
+    description="Fabric and Forge support with easy installation"
+  />
+  <Card 
+    title="Instances" 
+    href="instances"
+    description="Isolated game environments with independent configs"
+  />
+  <Card 
+    title="Downloads" 
+    href="downloads"
+    description="Fast concurrent downloads with resume support"
+  />
+  <Card 
+    title="AI Assistant" 
+    href="assistant"
+    description="Built-in AI helper for troubleshooting and guidance"
+  />
+</Cards>
+
+## Quick Feature Matrix
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Microsoft Authentication | Complete | OAuth 2.0 with device code flow |
+| Offline Authentication | Complete | Local accounts for offline play |
+| Token Auto-refresh | Complete | Automatic refresh of expired tokens |
+| Java Auto-detection | Complete | Scans system for Java installations |
+| Java Download | Complete | Download Adoptium JDK/JRE versions |
+| Fabric Support | Complete | Install and launch Fabric loader |
+| Forge Support | Complete | Install and launch Forge loader |
+| Instance System | Complete | Isolated game environments |
+| GitHub Integration | Complete | View releases and changelogs |
+| Concurrent Downloads | Complete | Multi-threaded asset downloads |
+| Resume Downloads | Complete | Resume interrupted downloads |
+| AI Assistant | Complete | Built-in troubleshooting helper |
+| Config Editor | Complete | JSON/TOML configuration editor |
+| Custom Resolution | Complete | Set game window dimensions |
+| Memory Allocation | Complete | Customize JVM memory settings |
+| Multi-account | In Progress | Switch between multiple accounts |
+| Mods Manager | Planned | Enable/disable mods in launcher |
+| Launcher Auto-update | Planned | Self-updating mechanism |
+| Custom Game Directory | Planned | Choose game files location |
+| Import Profiles | Planned | Import from MultiMC/Prism |
+
+## Performance Features
+
+### Concurrent Downloads
+- Configurable thread count (default: 10)
+- Parallel asset and library downloads
+- Progress tracking per file
+- ETA calculation
+
+### Resume Support
+- Interrupted downloads auto-resume
+- `.part` files track progress
+- Multi-segment downloads for large files
+- Metadata files for state tracking
+
+### Caching
+- Java catalog cached for 24 hours
+- Version manifests cached locally
+- Asset index caching
+- Library deduplication
+
+## User Interface Features
+
+### Modern Design
+- Dark mode enforced for eye comfort
+- Particle background effects
+- Clean, distraction-free layout
+- Responsive design
+
+### Real-time Feedback
+- Live download progress
+- Game console output
+- Log streaming
+- Toast notifications
+
+### Settings Management
+- Memory allocation slider
+- Resolution customization
+- Java path selection
+- Thread count configuration
+- Custom JVM arguments
+
+## Advanced Features
+
+### Version Inheritance
+Modded versions (Fabric/Forge) automatically inherit from parent vanilla versions:
+- Libraries merged from parent + mod loader
+- Arguments combined and deduplicated
+- Assets inherited from vanilla version
+
+### Native Library Extraction
+- Platform-specific native extraction
+- Automatic cleanup
+- Proper library path configuration
+
+### Rules Engine
+- OS-specific library filtering
+- Feature flag support
+- Architecture detection
+
+### Download Queue Persistence
+- Save incomplete downloads
+- Resume after launcher restart
+- Queue priority management
+
+## Developer Features
+
+### Config Editor
+Built-in JSON/TOML editor with:
+- Syntax highlighting
+- Validation
+- Quick access to all configs
+
+### Log Access
+- Real-time game logs
+- Launcher debug logs
+- Copy/export functionality
+
+### AI Assistant
+- Troubleshooting guidance
+- Error analysis
+- Configuration help
+- Documentation search
+
+## Coming Soon
+
+### Multi-account Management
+- Switch between accounts easily
+- Account profiles
+- Quick switching
+
+### Mods Manager
+- Browse and install mods
+- Enable/disable mods
+- Mod compatibility checking
+- Version management
+
+### Profile Import
+- Import from MultiMC
+- Import from Prism Launcher
+- Import from other launchers
+- Preserve settings and saves
+
+### Launcher Auto-update
+- Background update checks
+- One-click updates
+- Version history
+- Rollback support
