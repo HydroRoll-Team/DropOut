@@ -1,0 +1,266 @@
+---
+title: 身份验证
+description: DropOut 中的 Microsoft OAuth 和离线身份验证
+---
+
+# 身份验证
+
+DropOut 支持两种身份验证方法：Microsoft 账户（用于官方 Minecraft）和离线模式（用于测试和离线游玩）。
+
+## Microsoft 身份验证
+
+### 概述
+
+DropOut 使用 **Device Code Flow** 进行 Microsoft 身份验证，具有以下特点：
+- 无需重定向 URL（无需浏览器集成）
+- 适用于任何拥有浏览器的设备
+- 提供简单的基于代码的身份验证
+- 完全符合 Microsoft OAuth 2.0 标准
+
+### 身份验证流程
+
+身份验证链包含多个步骤：
+
+1. **Device Code** → 用户授权
+2. **MS Token** → 访问令牌 + 刷新令牌
+3. **Xbox Live** → Xbox 令牌 + UHS
+4. **XSTS** → 安全令牌
+5. **Minecraft** → 游戏访问令牌
+6. **Profile** → 用户名 + UUID
+
+#### 第 1 步：设备代码请求
+1. 单击"使用 Microsoft 登录"
+2. DropOut 从 Microsoft 请求设备代码
+3. 您会收到：
+   - 用户代码（例如 `A1B2-C3D4`）
+   - 验证 URL（通常为 `https://microsoft.com/link`）
+   - 设备代码（内部使用）
+
+#### 第 2 步：用户授权
+1. 在任何浏览器中访问验证 URL
+2. 输入用户代码
+3. 使用 Microsoft 账户登录
+4. 授权 DropOut 访问您的 Minecraft 个人资料
+
+#### 第 3 步：令牌交换
+- DropOut 轮询 Microsoft 检查授权完成
+- 授权后接收访问令牌和刷新令牌
+- 刷新令牌被存储以备将来登录使用
+
+#### 第 4 步：Xbox Live 身份验证
+- Microsoft 令牌被交换为 Xbox Live 令牌
+- 检索用户哈希 (UHS) 用于下一步
+
+#### 第 5 步：XSTS 授权
+- Xbox Live 令牌被用来获取 XSTS 令牌
+- 此令牌特定于 Minecraft 服务
+
+#### 第 6 步：Minecraft 登录
+- XSTS 令牌被交换为 Minecraft 访问令牌
+- 使用端点：`/launcher/login`
+
+#### 第 7 步：个人资料获取
+- 检索您的 Minecraft 用户名
+- 获取您的 UUID
+- 检查您是否拥有 Minecraft
+
+### 令牌管理
+
+**访问令牌：**
+- 短期有效（通常为 1 小时）
+- 用于游戏身份验证
+- 过期时自动刷新
+
+**刷新令牌：**
+- 长期有效（通常为 90 天）
+- 安全存储在 `accounts.json` 中
+- 用于获取新的访问令牌
+
+**自动刷新：**
+```rust
+// Automatic refresh when token expires
+if account.expires_at < current_time {
+    refresh_full_auth(&account).await?;
+}
+```
+
+### 安全考虑
+
+- 令牌存储在平台特定的应用数据目录中
+- 所有 API 调用仅使用 HTTPS
+- 不存储凭据（仅存储令牌）
+- 需要 User-Agent 标头（绕过 MS WAF）
+
+### Microsoft 登录故障排除
+
+**"Device code expired"（设备代码已过期）**
+- 代码在 15 分钟后过期
+- 重新开始登录流程
+
+**"Authorization pending"（授权待处理）**
+- 在等待阶段很正常
+- 在浏览器中完成授权
+
+**"Invalid token"（无效令牌）**
+- 令牌可能已过期
+- 登出后重新登录
+
+**"You don't own Minecraft"（您不拥有 Minecraft）**
+- 验证您的 Microsoft 账户拥有 Minecraft Java Edition
+- 在 https://www.minecraft.net/profile 检查
+
+## 离线身份验证
+
+### 概述
+
+离线模式创建一个不需要互联网连接或 Microsoft 账户的本地账户。这对以下情况很有用：
+- 测试和开发
+- 无网络游玩
+- LAN 多人游戏
+- Mod 开发
+
+### 创建离线账户
+
+1. 在登录屏幕单击"离线模式"
+2. 输入用户名（3-16 个字符）
+3. 单击"创建账户"
+
+### 工作原理
+
+**UUID 生成：**
+```rust
+// Deterministic UUID v3 from username
+let uuid = generate_offline_uuid(&username);
+```
+
+- 使用 UUID v3（基于命名空间）
+- 确定性：相同的用户名 = 相同的 UUID
+- 无需网络请求
+
+**身份验证：**
+- 返回 `"null"` 作为访问令牌
+- Minecraft 在离线模式下接受空令牌
+- 用户名和 UUID 本地存储
+
+### 限制
+
+- 无法加入在线服务器
+- 不支持皮肤
+- 不支持披风
+- 无法使用 Microsoft 账户功能
+
+### 用例
+
+**开发：**
+```bash
+# Testing mod development
+cargo tauri dev
+# Use offline mode to test quickly
+```
+
+**LAN 游玩：**
+- 无需身份验证即可加入 LAN 世界
+- 托管 LAN 世界
+
+**离线游玩：**
+- 单人游戏无需网络
+- 无需身份验证
+
+## 账户管理
+
+### 切换账户
+
+目前 DropOut 一次只支持一个活跃账户。多账户支持正在规划中。
+
+**切换账户的步骤：**
+1. 登出当前账户
+2. 使用新账户登录
+
+### 账户存储
+
+账户存储在 `accounts.json` 中：
+
+```json
+{
+  "current_account_id": "uuid-here",
+  "accounts": [
+    {
+      "id": "uuid",
+      "type": "Microsoft",
+      "username": "PlayerName",
+      "access_token": "...",
+      "refresh_token": "...",
+      "expires_at": 1234567890
+    }
+  ]
+}
+```
+
+### 删除账户
+
+删除账户的步骤：
+1. 打开设置
+2. 导航到账户
+3. 单击"登出"
+4. 或手动删除 `accounts.json`
+
+## API 参考
+
+### Tauri 命令
+
+**启动 Microsoft 登录：**
+```typescript
+const { user_code, verification_uri } = await invoke('start_microsoft_login');
+```
+
+**完成 Microsoft 登录：**
+```typescript
+const account = await invoke('complete_microsoft_login', { deviceCode });
+```
+
+**离线登录：**
+```typescript
+const account = await invoke('offline_login', { username: 'Player' });
+```
+
+**登出：**
+```typescript
+await invoke('logout');
+```
+
+**获取当前账户：**
+```typescript
+const account = await invoke('get_current_account');
+```
+
+### 事件
+
+**身份验证状态：**
+```typescript
+listen('auth-status', (event) => {
+  console.log(event.payload); // "logged_in" | "logged_out"
+});
+```
+
+## 最佳实践
+
+### 对于玩家
+
+1. **对官方服务器使用 Microsoft 账户**
+2. **保护令牌安全** - 不要分享 accounts.json
+3. **定期刷新令牌** - 通过登录来刷新
+4. **仅在测试时使用离线模式**
+
+### 对于开发者
+
+1. **优雅地处理令牌过期**
+2. **为网络故障实现重试逻辑**
+3. **缓存账户数据** 以减少 API 调用
+4. **在游戏启动前验证令牌**
+
+## 未来增强
+
+- **多账户支持**：轻松在账户之间切换
+- **账户配置文件**：保存每个账户的设置
+- **自动登录**：记住最后一个账户
+- **令牌加密**：为存储的令牌增强安全性

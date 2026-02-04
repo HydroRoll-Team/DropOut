@@ -1,0 +1,525 @@
+---
+title: Troubleshooting
+description: Common issues and solutions for DropOut launcher
+---
+
+# Troubleshooting
+
+This guide covers common issues and their solutions. If you don't find your issue here, please [open an issue](https://github.com/HydroRoll-Team/DropOut/issues) on GitHub.
+
+## Installation Issues
+
+### Linux: Missing Dependencies
+
+**Issue:** Error about missing libraries during installation
+
+**Solution:**
+```bash
+# Ubuntu/Debian
+sudo apt update
+sudo apt install libwebkit2gtk-4.1-0 libgtk-3-0
+
+# Fedora
+sudo dnf install webkit2gtk4.1 gtk3
+
+# Arch
+sudo pacman -S webkit2gtk gtk3
+```
+
+### macOS: "App is damaged"
+
+**Issue:** macOS says DropOut is damaged and can't be opened
+
+**Solution:**
+1. Open Terminal
+2. Run: `xattr -cr /Applications/DropOut.app`
+3. Try opening again
+4. Or: System Preferences → Security → Allow anyway
+
+### Windows: SmartScreen Warning
+
+**Issue:** Windows SmartScreen blocks the installer
+
+**Solution:**
+1. Click "More info"
+2. Click "Run anyway"
+3. This is normal for new apps without extended validation certificates
+
+## Authentication Issues
+
+### Microsoft Login Fails
+
+**Issue:** Can't complete Microsoft login
+
+**Possible causes and solutions:**
+
+**1. Device code expired:**
+- Codes expire after 15 minutes
+- Start the login process again
+- Complete authorization faster
+
+**2. Network issues:**
+- Check internet connection
+- Disable VPN temporarily
+- Check firewall settings
+- Try different network
+
+**3. Microsoft account issues:**
+- Verify account owns Minecraft Java Edition
+- Check at https://www.minecraft.net/profile
+- Ensure account is not suspended
+
+**4. Browser problems:**
+- Try different browser
+- Clear browser cache
+- Disable ad blockers
+- Use incognito/private mode
+
+### Token Refresh Fails
+
+**Issue:** Token refresh fails, must re-login frequently
+
+**Solution:**
+1. Log out completely
+2. Delete `accounts.json` from app data directory
+3. Log in again
+4. If persists, check Microsoft account status
+
+### Offline Login Not Working
+
+**Issue:** Can't create offline account
+
+**Solution:**
+- Username must be 3-16 characters
+- Use only letters, numbers, underscore
+- No special characters
+- No spaces
+
+## Game Launch Issues
+
+### Java Not Found
+
+**Issue:** "No Java installation found"
+
+**Solutions:**
+
+**1. Auto-detect existing Java:**
+- Settings → Java → Detect Installations
+- If found, select it
+- If not found, proceed to step 2
+
+**2. Download Java via DropOut:**
+- Settings → Java → Download Java
+- Select appropriate version:
+  - Java 8 for Minecraft 1.12.2 and older
+  - Java 17 for Minecraft 1.18-1.20.4
+  - Java 21 for Minecraft 1.20.5+
+
+**3. Manual Java installation:**
+- Download from [Adoptium](https://adoptium.net/)
+- Install to system
+- Restart DropOut
+- Detect again
+
+### Wrong Java Version
+
+**Issue:** Game crashes with "Unsupported class file version"
+
+**Solution:**
+Match Java version to Minecraft version:
+
+| Minecraft Version | Java Version |
+|-------------------|--------------|
+| 1.7.10 and older  | Java 8       |
+| 1.8 - 1.12.2      | Java 8       |
+| 1.13 - 1.16.5     | Java 8 or 11 |
+| 1.17 - 1.17.1     | Java 16      |
+| 1.18 - 1.20.4     | Java 17      |
+| 1.20.5+           | Java 21      |
+
+### OutOfMemoryError
+
+**Issue:** Game crashes with `java.lang.OutOfMemoryError`
+
+**Solutions:**
+
+**1. Increase memory allocation:**
+- Settings → Memory
+- Increase Maximum Memory:
+  - Vanilla: 4GB minimum
+  - Light mods: 6GB
+  - Heavy modpacks: 8-12GB
+- Don't exceed 80% of system RAM
+
+**2. Use 64-bit Java:**
+- Check current Java architecture
+- Download 64-bit Java if needed
+- 32-bit Java limited to ~2GB
+
+**3. Reduce render distance:**
+- In-game Video Settings
+- Lower render distance to 8-12 chunks
+
+**4. Optimize JVM arguments:**
+```bash
+-Xms4G -Xmx8G -XX:+UseG1GC -XX:+UnlockExperimentalVMOptions
+```
+
+### Game Won't Start
+
+**Issue:** Game doesn't launch, no error message
+
+**Check:**
+
+**1. Log output:**
+- Check game console in DropOut
+- Look for error messages
+- Common issues:
+  - Missing files
+  - Corrupted downloads
+  - Mod conflicts
+
+**2. Verify files:**
+- Delete version folder
+- Re-download version
+- Try vanilla first before modded
+
+**3. Check permissions:**
+- Ensure DropOut can write to game directory
+- Check folder permissions
+- On Linux: ensure the launcher directory is only accessible by your user, e.g. `chmod 700 ~/.local/share/com.dropout.launcher`
+
+## Download Issues
+
+### Downloads Fail
+
+**Issue:** Asset or library downloads fail
+
+**Solutions:**
+
+**1. Network issues:**
+- Check internet connection
+- Disable VPN
+- Try different network
+- Check firewall/antivirus
+
+**2. Resume downloads:**
+- DropOut auto-resumes interrupted downloads
+- Close and reopen DropOut
+- Downloads should continue
+
+**3. Clear download cache:**
+- Delete `.part` files in libraries/assets
+- Restart download
+
+**4. Manually download:**
+- Check logs for failing URL
+- Download file manually
+- Place in correct location
+
+### Slow Downloads
+
+**Issue:** Downloads are very slow
+
+**Solutions:**
+
+**1. Adjust thread count:**
+- Settings → Downloads
+- Try different thread counts:
+  - Too low: slow overall
+  - Too high: connection throttling
+  - Recommended: 5-10 threads
+
+**2. Network optimization:**
+- Close bandwidth-heavy apps
+- Use wired connection if possible
+- Check for ISP throttling
+
+**3. Alternative CDN:**
+- Mojang mirrors may be slow
+- Try at different time of day
+
+## Mod Loader Issues
+
+### Fabric Installation Fails
+
+**Issue:** Can't install Fabric loader
+
+**Solutions:**
+
+**1. Check Minecraft version:**
+- Fabric supports 1.14+
+- Older versions not supported
+- Try newer Minecraft version
+
+**2. Network issues:**
+- Check internet connection
+- Fabric Meta API may be down
+- Try again later
+
+**3. Manual installation:**
+- Download Fabric from [fabricmc.net](https://fabricmc.net/)
+- Use official installer
+- Import profile to DropOut
+
+### Forge Installation Fails
+
+**Issue:** Forge installer fails or hangs
+
+**Solutions:**
+
+**1. Java version:**
+- Ensure correct Java version
+- Forge 1.17+ requires Java 16+
+- Older Forge may need Java 8
+
+**2. Installer timeout:**
+- Forge installer can be slow
+- Wait up to 10 minutes
+- Check logs for progress
+
+**3. Disk space:**
+- Ensure sufficient free space
+- Forge needs ~1GB temporarily
+- Check `/tmp` on Linux
+
+**4. Manual installation:**
+- Download Forge installer from [minecraftforge.net](https://files.minecraftforge.net/)
+- Run installer manually
+- Select install client
+- Import profile
+
+### Mod Crashes
+
+**Issue:** Game crashes with mods installed
+
+**Solutions:**
+
+**1. Check compatibility:**
+- Verify mod is for correct Minecraft version
+- Check mod loader version requirements
+- Read mod description for dependencies
+
+**2. Install dependencies:**
+- Fabric mods often need Fabric API
+- Some mods require libraries
+- Check crash log for "missing" errors
+
+**3. Remove conflicting mods:**
+- Disable mods one by one
+- Identify problematic mod
+- Check for known conflicts
+- Update or replace mod
+
+**4. Update mods:**
+- Use latest mod versions
+- Check mod update notes
+- Some updates fix crashes
+
+## Performance Issues
+
+### Low FPS
+
+**Issue:** Game runs slowly or stutters
+
+**Solutions:**
+
+**1. Allocate more memory:**
+- Increase max memory to 6-8GB
+- Don't over-allocate (causes GC pauses)
+
+**2. Install performance mods:**
+- **Fabric**: Sodium, Lithium, Phosphor
+- **Forge**: OptiFine, Magnesium, Rubidium
+
+**3. Optimize settings:**
+- Lower render distance
+- Disable fancy graphics
+- Turn off particles
+- Disable VSync if fps < 60
+
+**4. Update graphics drivers:**
+- Download latest from manufacturer
+- NVIDIA: GeForce Experience
+- AMD: Adrenalin
+- Intel: Graphics Command Center
+
+**5. Close background apps:**
+- Free up system resources
+- Disable overlays (Discord, etc.)
+- Check Task Manager for CPU/RAM hogs
+
+### Launcher Slow to Start
+
+**Issue:** DropOut takes long time to launch
+
+**Solutions:**
+
+**1. Check system resources:**
+- Close unnecessary programs
+- Ensure sufficient RAM available
+- Check CPU usage
+
+**2. Antivirus interference:**
+- Add DropOut to exceptions
+- Temporarily disable to test
+- Some AVs slow down significantly
+
+**3. Corrupted data:**
+- Delete `cache` folder in app data
+- Restart DropOut
+- Will rebuild cache
+
+## UI Issues
+
+### Window Won't Open
+
+**Issue:** DropOut window doesn't appear
+
+**Solutions:**
+
+**1. Check if running:**
+```bash
+# Linux/macOS
+ps aux | grep dropout
+
+# Windows
+tasklist | findstr dropout
+```
+
+**2. Kill and restart:**
+```bash
+# Linux/macOS
+pkill dropout
+
+# Windows
+taskkill /F /IM dropout.exe
+```
+
+**3. Reset window position:**
+- Delete window state config
+- Restart DropOut
+
+### Graphics Glitches
+
+**Issue:** UI looks wrong or has visual artifacts
+
+**Solutions:**
+
+**1. Update graphics drivers:**
+- Install latest drivers
+- Restart system
+
+**2. Disable hardware acceleration:**
+- Check if option exists in settings
+- May reduce performance but fix glitches
+
+**3. Try different monitor:**
+- Multi-monitor setups can cause issues
+- Try on different display
+
+## File System Issues
+
+### Can't Access Game Directory
+
+**Issue:** Errors accessing game files
+
+**Solutions:**
+
+**1. Check permissions:**
+```bash
+# Linux (set secure owner-only permissions)
+sudo chown -R "$USER":"$USER" ~/.local/share/com.dropout.launcher
+chmod -R u+rwX,go-rwx ~/.local/share/com.dropout.launcher
+
+# macOS (set secure owner-only permissions)
+sudo chown -R "$USER":"$USER" ~/Library/Application\ Support/com.dropout.launcher
+chmod -R u+rwX,go-rwx ~/Library/Application\ Support/com.dropout.launcher
+```
+
+**2. Check disk space:**
+- Ensure sufficient free space
+- Minecraft needs 2-10GB depending on mods
+- Clean up old versions
+
+**3. Antivirus blocking:**
+- Add game directory to exceptions
+- Some AVs block file access
+
+### Corrupted Files
+
+**Issue:** Files appear corrupted or invalid
+
+**Solutions:**
+
+**1. Verify checksums:**
+- DropOut verifies SHA1/SHA256
+- Failed verification triggers re-download
+
+**2. Re-download:**
+- Delete corrupted file
+- Launch version again
+- DropOut will re-download
+
+**3. Clear cache:**
+- Delete version folder entirely
+- Re-install from scratch
+
+## Getting More Help
+
+### Collect Debug Information
+
+When reporting issues, include:
+
+**1. System information:**
+- OS and version
+- DropOut version
+- Java version
+
+**2. Logs:**
+- Launcher logs from console
+- Game logs if applicable
+- Error messages (full text)
+
+**3. Steps to reproduce:**
+- What you did
+- What you expected
+- What actually happened
+
+**4. Screenshots:**
+- Error messages
+- UI issues
+- Settings screens
+
+### Report Issues
+
+1. Search [existing issues](https://github.com/HydroRoll-Team/DropOut/issues)
+2. If not found, [create new issue](https://github.com/HydroRoll-Team/DropOut/issues/new)
+3. Use issue template
+4. Provide all requested information
+5. Be patient and responsive
+
+### Community Support
+
+- **GitHub Discussions**: Ask questions
+- **Discord**: Real-time help (if available)
+- **Documentation**: Check all guides
+
+## Known Issues
+
+### Currently Being Worked On
+
+- Multi-account switching (in progress)
+- Custom game directory selection (planned)
+- Launcher auto-update (planned)
+
+### Workarounds Available
+
+**Issue**: Can't switch between accounts easily
+**Workaround**: Log out and log in with different account
+
+**Issue**: No built-in mod manager
+**Workaround**: Manually manage mods in instance folder
+
+**Issue**: Can't import from other launchers
+**Workaround**: Manually copy instance files

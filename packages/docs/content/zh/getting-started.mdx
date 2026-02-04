@@ -1,0 +1,161 @@
+---
+title: 快速开始
+description: 使用 DropOut Minecraft 启动器的快速入门指南
+---
+
+# 快速开始
+
+DropOut 是一个使用 Tauri v2 和 Rust 构建的现代化、可复现、开发者级别的 Minecraft 启动器。本指南将帮助你开始安装和使用 DropOut。
+
+## 安装
+
+### 下载预编译二进制文件
+
+从[发布页面](https://github.com/HsiangNianian/DropOut/releases)下载适合你平台的最新版本。
+
+| 平台           | 文件                    |
+| -------------- | ----------------------- |
+| Linux x86_64   | `.deb`, `.AppImage`     |
+| Linux ARM64    | `.deb`, `.AppImage`     |
+| macOS ARM64    | `.dmg`                  |
+| Windows x86_64 | `.msi`, `.exe`          |
+| Windows ARM64  | `.msi`, `.exe`          |
+
+### Linux 安装
+
+#### 使用 .deb 包
+```bash
+sudo dpkg -i dropout_*.deb
+# 如果需要，修复依赖
+sudo apt-get install -f
+```
+
+#### 使用 AppImage
+```bash
+chmod +x dropout_*.AppImage
+./dropout_*.AppImage
+```
+
+### macOS 安装
+
+1. 打开下载的 `.dmg` 文件
+2. 将 DropOut 拖到应用程序文件夹
+3. 如果看到安全警告，转到系统偏好设置 → 安全性与隐私并允许该应用
+
+### Windows 安装
+
+#### 使用 .msi 安装程序
+1. 双击 `.msi` 文件
+2. 按照安装向导操作
+3. 从开始菜单启动 DropOut
+
+#### 使用 .exe 便携版
+1. 双击 `.exe` 文件
+2. DropOut 将直接运行，无需安装
+
+## 首次启动
+
+首次启动 DropOut 时，你需要：
+
+1. **选择认证方式**
+   - **微软账户**: 推荐用于官方 Minecraft
+   - **离线模式**: 用于测试或离线游戏
+
+2. **配置 Java 运行时**
+   - DropOut 将自动检测已安装的 Java 版本
+   - 如果需要，你可以直接从启动器下载 Java
+
+3. **选择 Minecraft 版本**
+   - 浏览可用的 Minecraft 版本
+   - 选择原版或模组版本（Fabric/Forge）
+
+## 快速入门教程
+
+### 1. 登录
+
+<Cards>
+  <Card 
+    title="微软账户" 
+    description="使用你的官方 Minecraft 账户登录"
+  />
+  <Card 
+    title="离线模式" 
+    description="创建本地配置文件进行离线游戏"
+  />
+</Cards>
+
+**微软登录：**
+1. 点击"使用微软登录"
+2. 将显示设备代码
+3. 访问显示的 URL 并输入代码
+4. 授权应用程序
+5. 返回 DropOut - 你将自动登录
+
+**离线登录：**
+1. 点击"离线模式"
+2. 输入用户名
+3. 点击"创建账户"
+
+### 2. 安装 Minecraft
+
+1. 导航到**版本**标签
+2. 浏览可用的 Minecraft 版本
+3. 点击一个版本进行安装
+4. 等待下载完成
+
+### 3. 启动游戏
+
+1. 转到**主页**标签
+2. 从下拉菜单中选择你想要的版本
+3. 如果需要，调整设置：
+   - 内存分配（RAM）
+   - 窗口分辨率
+   - Java 路径
+4. 点击**"启动游戏"**
+5. 在控制台中监视启动过程
+
+## 下一步
+
+<Cards>
+  <Card 
+    title="功能特性" 
+    href="/docs/features"
+    description="了解 DropOut 提供的所有功能"
+  />
+  <Card 
+    title="实例管理" 
+    href="/docs/features/instances"
+    description="创建隔离的游戏环境"
+  />
+  <Card 
+    title="模组加载器" 
+    href="/docs/features/mod-loaders"
+    description="安装和管理 Fabric 和 Forge"
+  />
+  <Card 
+    title="故障排除" 
+    href="/docs/troubleshooting"
+    description="常见问题和解决方案"
+  />
+</Cards>
+
+## 系统要求
+
+### 最低要求
+- **操作系统**: Windows 10+、macOS 11+ 或 Linux（基于 Debian）
+- **内存**: 4GB（推荐 8GB 用于模组 Minecraft）
+- **存储**: 启动器 + 游戏文件需要 2GB
+- **Java**: 如果找不到，DropOut 会自动安装
+
+### 推荐配置
+- **操作系统**: 你操作系统的最新稳定版本
+- **内存**: 16GB 以获得带模组的最佳性能
+- **存储**: 10GB+ 用于多个版本和模组
+- **Java**: Java 17 或 21（由 DropOut 管理）
+
+## 获取帮助
+
+如果遇到问题：
+- 查看[故障排除指南](/docs/troubleshooting)
+- 在 [GitHub Issues](https://github.com/HsiangNianian/DropOut/issues) 上报告 bug
+- 加入我们的社区讨论
