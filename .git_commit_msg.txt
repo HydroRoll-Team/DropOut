@@ -1,7 +1,0 @@
-refactor(java): add java catalog cache and reorganize providers  
-  
-add src-tauri/src/core/java/cache.rs for Java catalog caching  
-reorganize provider interfaces and move detection/install changes  
-update persistence, adoptium provider and validation  
-  
-Reviewed-by: Raptor mini (Preview)  
