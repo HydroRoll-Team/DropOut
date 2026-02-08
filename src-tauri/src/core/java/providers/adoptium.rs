@@ -94,8 +94,12 @@ impl JavaProvider for AdoptiumProvider {
         force_refresh: bool,
     ) -> Result<JavaCatalog, JavaError> {
         if !force_refresh {
-            if let Some(cached) = crate::core::java::load_cached_catalog(app_handle) {
-                return Ok(cached);
+            match crate::core::java::load_cached_catalog_result(app_handle) {
+                Ok(Some(cached)) => return Ok(cached),
+                Ok(None) => {}
+                Err(err) => {
+                    log::warn!("Failed to load Java catalog cache: {}", err);
+                }
             }
         }
 
@@ -122,9 +126,9 @@ impl JavaProvider for AdoptiumProvider {
         let mut fetch_tasks = Vec::new();
 
         for major_version in &available.available_releases {
-            for image_type in &["jre", "jdk"] {
+            for image_type in [ImageType::Jre, ImageType::Jdk] {
                 let major_version = *major_version;
-                let image_type = image_type.to_string();
+                let image_type = image_type;
                 let url = format!(
                     "{}/assets/latest/{}/hotspot?os={}&architecture={}&image_type={}",
                     ADOPTIUM_API_BASE, major_version, os, arch, image_type
@@ -276,7 +280,7 @@ impl JavaProvider for AdoptiumProvider {
             file_name: asset.binary.package.name,
             file_size: asset.binary.package.size,
             checksum: asset.binary.package.checksum,
-            image_type: asset.binary.image_type,
+            image_type,
         })
     }
 

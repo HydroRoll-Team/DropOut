@@ -33,28 +33,31 @@ fn get_java_config_path(app_handle: &AppHandle) -> PathBuf {
         .join("java_config.json")
 }
 
-pub fn load_java_config(app_handle: &AppHandle) -> JavaConfig {
-    let config_path = get_java_config_path(app_handle);
-    if !config_path.exists() {
-        return JavaConfig::default();
+fn write_file_atomic(path: &PathBuf, content: &str) -> Result<(), JavaError> {
+    let parent = path.parent().ok_or_else(|| {
+        JavaError::InvalidConfig("Java config path has no parent directory".to_string())
+    })?;
+
+    std::fs::create_dir_all(parent)?;
+
+    let tmp_path = path.with_extension("tmp");
+    std::fs::write(&tmp_path, content)?;
+
+    if path.exists() {
+        let _ = std::fs::remove_file(path);
     }
 
-    match std::fs::read_to_string(&config_path) {
-        Ok(content) => match serde_json::from_str(&content) {
-            Ok(config) => config,
-            Err(err) => {
-                // Log the error but don't panic - return default config
-                log::warn!(
-                    "Failed to parse Java config at {}: {}. Using default configuration.",
-                    config_path.display(),
-                    err
-                );
-                JavaConfig::default()
-            }
-        },
+    std::fs::rename(&tmp_path, path)?;
+    Ok(())
+}
+
+pub fn load_java_config(app_handle: &AppHandle) -> JavaConfig {
+    match load_java_config_result(app_handle) {
+        Ok(config) => config,
         Err(err) => {
+            let config_path = get_java_config_path(app_handle);
             log::warn!(
-                "Failed to read Java config at {}: {}. Using default configuration.",
+                "Failed to load Java config at {}: {}. Using default configuration.",
                 config_path.display(),
                 err
             );
@@ -63,16 +66,21 @@ pub fn load_java_config(app_handle: &AppHandle) -> JavaConfig {
     }
 }
 
+pub fn load_java_config_result(app_handle: &AppHandle) -> Result<JavaConfig, JavaError> {
+    let config_path = get_java_config_path(app_handle);
+    if !config_path.exists() {
+        return Ok(JavaConfig::default());
+    }
+
+    let content = std::fs::read_to_string(&config_path)?;
+    let config: JavaConfig = serde_json::from_str(&content)?;
+    Ok(config)
+}
+
 pub fn save_java_config(app_handle: &AppHandle, config: &JavaConfig) -> Result<(), JavaError> {
     let config_path = get_java_config_path(app_handle);
     let content = serde_json::to_string_pretty(config)?;
-
-    std::fs::create_dir_all(config_path.parent().ok_or_else(|| {
-        JavaError::InvalidConfig("Java config path has no parent directory".to_string())
-    })?)?;
-
-    std::fs::write(&config_path, content)?;
-    Ok(())
+    write_file_atomic(&config_path, &content)
 }
 
 #[allow(dead_code)]
