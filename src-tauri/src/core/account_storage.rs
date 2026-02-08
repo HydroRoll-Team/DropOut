@@ -2,23 +2,36 @@ use crate::core::auth::{Account, MicrosoftAccount, OfflineAccount};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+use ts_rs::TS;
 
 /// Stored account data for persistence
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/account_storage.ts"
+)]
 pub struct AccountStore {
     pub accounts: Vec<StoredAccount>,
     pub active_account_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(tag = "type")]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/account_storage.ts"
+)]
 pub enum StoredAccount {
     Offline(OfflineAccount),
     Microsoft(StoredMicrosoftAccount),
 }
 
 /// Microsoft account with refresh token for persistence
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/account_storage.ts"
+)]
 pub struct StoredMicrosoftAccount {
     pub username: String,
     pub uuid: String,
@@ -64,6 +77,11 @@ impl StoredAccount {
     }
 }
 
+#[derive(Debug, Clone, TS)]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/account_storage.ts"
+)]
 pub struct AccountStorage {
     file_path: PathBuf,
 }

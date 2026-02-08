@@ -11,9 +11,15 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager};
+use ts_rs::TS;
 
 /// Represents a game instance/profile
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/instance.ts"
+)]
 pub struct Instance {
     pub id: String,                         // 唯一标识符（UUID）
     pub name: String,                       // 显示名称
@@ -28,17 +34,28 @@ pub struct Instance {
     pub jvm_args_override: Option<String>,  // JVM参数覆盖（可选）
     #[serde(default)]
     pub memory_override: Option<MemoryOverride>, // 内存设置覆盖（可选）
+    pub java_path_override: Option<String>, // 实例级Java路径覆盖（可选）
 }
 
 /// Memory settings override for an instance
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/instance.ts"
+)]
 pub struct MemoryOverride {
     pub min: u32, // MB
     pub max: u32, // MB
 }
 
 /// Configuration for all instances
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/instance.ts"
+)]
 pub struct InstanceConfig {
     pub instances: Vec<Instance>,
     pub active_instance_id: Option<String>, // 当前活动的实例ID
@@ -111,6 +128,7 @@ impl InstanceState {
             mod_loader_version: None,
             jvm_args_override: None,
             memory_override: None,
+            java_path_override: None,
         };
 
         let mut config = self.instances.lock().unwrap();
@@ -267,6 +285,7 @@ impl InstanceState {
             last_played: None,
             jvm_args_override: source_instance.jvm_args_override.clone(),
             memory_override: source_instance.memory_override.clone(),
+            java_path_override: source_instance.java_path_override.clone(),
         };
 
         self.update_instance(new_instance.clone())?;

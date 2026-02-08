@@ -1,0 +1,300 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+:root {
+  --radius: 0.625rem;
+  --background: #f3f4f6; /* bg-gray-100 */
+  --foreground: #18181b; /* zinc-900 */
+  --card: #ffffff;
+  --card-foreground: #18181b;
+  --popover: #ffffff;
+  --popover-foreground: #18181b;
+  --primary: #4f46e5; /* indigo-600 */
+  --primary-foreground: #ffffff;
+  --secondary: #f4f4f5; /* zinc-100 */
+  --secondary-foreground: #18181b;
+  --muted: #f4f4f5; /* zinc-100 */
+  --muted-foreground: #71717a; /* zinc-500 */
+  --accent: #f4f4f5; /* zinc-100 */
+  --accent-foreground: #18181b;
+  --destructive: #ef4444; /* red-500 */
+  --destructive-foreground: #ffffff;
+  --border: #e4e4e7; /* zinc-200 */
+  --input: #ffffff;
+  --ring: #6366f1; /* indigo-500 */
+  --chart-1: #059669; /* emerald-600 */
+  --chart-2: #0d9488; /* teal-600 */
+  --chart-3: #4f46e5; /* indigo-600 */
+  --chart-4: #7c3aed; /* violet-600 */
+  --chart-5: #dc2626; /* red-600 */
+  --sidebar: #ffffff;
+  --sidebar-foreground: #18181b;
+  --sidebar-primary: #4f46e5; /* indigo-600 */
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f4f4f5; /* zinc-100 */
+  --sidebar-accent-foreground: #18181b;
+  --sidebar-border: #e4e4e7; /* zinc-200 */
+  --sidebar-ring: #6366f1; /* indigo-500 */
+}
+
+.dark {
+  --background: #09090b;
+  --foreground: #fafafa; /* zinc-50 */
+  --card: #18181b; /* zinc-900 */
+  --card-foreground: #fafafa;
+  --popover: #18181b;
+  --popover-foreground: #fafafa;
+  --primary: #6366f1; /* indigo-500 */
+  --primary-foreground: #ffffff;
+  --secondary: #27272a; /* zinc-800 */
+  --secondary-foreground: #fafafa;
+  --muted: #27272a; /* zinc-800 */
+  --muted-foreground: #a1a1aa; /* zinc-400 */
+  --accent: #27272a; /* zinc-800 */
+  --accent-foreground: #fafafa;
+  --destructive: #f87171; /* red-400 */
+  --destructive-foreground: #ffffff;
+  --border: #3f3f46; /* zinc-700 */
+  --input: rgba(255, 255, 255, 0.15);
+  --ring: #6366f1; /* indigo-500 */
+  --chart-1: #10b981; /* emerald-500 */
+  --chart-2: #06b6d4; /* cyan-500 */
+  --chart-3: #6366f1; /* indigo-500 */
+  --chart-4: #8b5cf6; /* violet-500 */
+  --chart-5: #f87171; /* red-400 */
+  --sidebar: #09090b;
+  --sidebar-foreground: #fafafa;
+  --sidebar-primary: #6366f1; /* indigo-500 */
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #27272a; /* zinc-800 */
+  --sidebar-accent-foreground: #fafafa;
+  --sidebar-border: #3f3f46; /* zinc-700 */
+  --sidebar-ring: #6366f1; /* indigo-500 */
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  ::selection {
+    @apply bg-indigo-500/30;
+  }
+
+  /* Custom Scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #3f3f46 transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: #3f3f46;
+    border-radius: 4px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: #52525b;
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  /* Input/Form Element Consistency */
+  input[type="text"],
+  input[type="number"],
+  input[type="password"],
+  input[type="email"],
+  textarea {
+    background-color: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition:
+      border-color 0.2s ease,
+      box-shadow 0.2s ease;
+  }
+
+  input[type="text"]:focus,
+  input[type="number"]:focus,
+  input[type="password"]:focus,
+  input[type="email"]:focus,
+  textarea:focus {
+    border-color: rgba(99, 102, 241, 0.5);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+    outline: none;
+  }
+
+  /* Number input - hide spinner */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  input[type="number"] {
+    appearance: textfield;
+    -moz-appearance: textfield;
+  }
+
+  /* Checkbox Styling */
+  input[type="checkbox"] {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border: 1px solid #3f3f46;
+    border-radius: 4px;
+    background-color: #18181b;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.15s ease;
+  }
+
+  input[type="checkbox"]:hover {
+    border-color: #52525b;
+  }
+
+  input[type="checkbox"]:checked {
+    background-color: #4f46e5;
+    border-color: #4f46e5;
+  }
+
+  input[type="checkbox"]:checked::after {
+    content: "";
+    position: absolute;
+    left: 5px;
+    top: 2px;
+    width: 4px;
+    height: 8px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+
+  input[type="checkbox"]:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
+  }
+
+  /* Custom Select/Dropdown Styles */
+  select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2371717a'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    background-size: 1rem;
+    padding-right: 2rem;
+  }
+
+  /* Option styling - works in WebView/Chromium */
+  select option {
+    background-color: #18181b;
+    color: #e4e4e7;
+    padding: 12px 16px;
+    font-size: 13px;
+    border: none;
+  }
+
+  select option:hover,
+  select option:focus {
+    background-color: #3730a3 !important;
+    color: white !important;
+  }
+
+  select option:checked {
+    background: linear-gradient(0deg, #4f46e5 0%, #4f46e5 100%);
+    color: white;
+    font-weight: 500;
+  }
+
+  select option:disabled {
+    color: #52525b;
+    background-color: #18181b;
+  }
+
+  /* Optgroup styling */
+  select optgroup {
+    background-color: #18181b;
+    color: #a1a1aa;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 8px 12px 4px;
+  }
+
+  /* Select focus state */
+  select:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+  }
+
+  /* Global body styles from App.svelte */
+  body {
+    margin: 0;
+    padding: 0;
+    background: #000;
+  }
+
+  /* Window Drag Region */
+  .drag-region {
+    -webkit-app-region: drag;
+    app-region: drag;
+  }
+}
