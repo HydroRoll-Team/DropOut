@@ -1,5 +1,7 @@
 # Drop*O*ut
 
+[English](README.md) | 中文
+
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut.svg?type=small)](https://app.fossa.com/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut?ref=badge_small)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/HsiangNianian/DropOut/main.svg)](https://results.pre-commit.ci/latest/github/HsiangNianian/DropOut/main)
@@ -98,6 +100,7 @@ DropOut 专注于保持你的游戏稳定、可调试和可重现。
    git clone https://github.com/HsiangNianian/DropOut.git
    cd DropOut
    ```
+
 2. **安装前端依赖**
 
    ```bash
@@ -105,12 +108,14 @@ DropOut 专注于保持你的游戏稳定、可调试和可重现。
    pnpm install
    cd ..
    ```
+
 3. **运行开发模式**
 
    ```bash
    # 这将启动前端服务器和 Tauri 应用窗口
    cargo tauri dev
    ```
+
 4. **构建发布版本**
 
    ```bash
@@ -123,6 +128,7 @@ DropOut 专注于保持你的游戏稳定、可调试和可重现。
 
 DropOut 以长期可维护性为目标构建。
 欢迎贡献，尤其在这些领域：
+
 - 实例系统设计
 - 模组兼容性工具
 - UI/UX 改进
@@ -131,12 +137,11 @@ DropOut 以长期可维护性为目标构建。
 标准的 GitHub 工作流程适用：
 fork → 功能分支 → 拉取请求。
 
-
 ## 许可证
+
+根据 MIT 许可证分发。有关更多信息，请参见 `LICENSE`。
 
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut.svg?type=shield&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut?ref=badge_shield&issueType=license)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut.svg?type=shield&issueType=security)](https://app.fossa.com/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut?ref=badge_shield&issueType=security)
 
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut?ref=badge_large)
-
-根据 MIT 许可证分发。有关更多信息，请参见 `LICENSE`。
