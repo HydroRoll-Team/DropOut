@@ -11,7 +11,7 @@
 [![Semifold CI](https://github.com/HydroRoll-Team/DropOut/actions/workflows/semifold-ci.yaml/badge.svg)](https://github.com/HydroRoll-Team/DropOut/actions/workflows/release.yml)
 [![Test & Build](https://github.com/HydroRoll-Team/DropOut/actions/workflows/test.yml/badge.svg)](https://github.com/HydroRoll-Team/DropOut/actions/workflows/test.yml)
 
-DropOut 是一个现代的、可重现的、开发者级别的 Minecraft 启动器。
+DropOut 是一个现代的、可复现的、开发者级别的 Minecraft 启动器。
 它不仅仅是为了启动 Minecraft 而设计的，而是将 Minecraft 环境作为确定性的、版本化的工作空间进行管理。
 
 使用 Tauri v2 和 Rust 构建，DropOut 提供原生性能和最小资源使用，并配有现代响应式 Web UI（目前使用 Svelte 5，正在迁移到 React）。
