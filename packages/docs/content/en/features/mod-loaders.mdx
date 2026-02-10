@@ -1,0 +1,409 @@
+---
+title: Mod Loaders
+description: Fabric and Forge installation and management
+---
+
+# Mod Loaders
+
+DropOut supports the two most popular Minecraft mod loaders: Fabric and Forge. Both can be easily installed and managed directly from the launcher.
+
+## Fabric Support
+
+### Overview
+
+Fabric is a lightweight, modular modding toolchain focused on:
+- Fast updates to new Minecraft versions
+- Clean, minimal API
+- Strong developer community
+- Excellent performance
+
+### Installation
+
+1. Navigate to **Versions** tab
+2. Click **"Install Fabric"**
+3. Select Minecraft version
+4. Choose Fabric loader version
+5. Click **"Install"**
+6. Wait for installation to complete
+
+### How It Works
+
+**Meta API Integration:**
+```rust
+// Fetch available Fabric versions
+let url = format!(
+    "https://meta.fabricmc.net/v2/versions/loader/{}",
+    minecraft_version
+);
+```
+
+**Profile Generation:**
+1. Fetch Fabric loader metadata
+2. Download Fabric libraries
+3. Generate version JSON with `inheritsFrom`
+4. Merge with parent Minecraft version
+5. Add to versions list
+
+**Version Format:**
+```json
+{
+  "id": "fabric-loader-0.15.0-1.20.4",
+  "inheritsFrom": "1.20.4",
+  "mainClass": "net.fabricmc.loader.impl.launch.knot.KnotClient",
+  "libraries": [...]
+}
+```
+
+### Fabric Versions
+
+**Loader Versions:**
+- Latest stable (recommended)
+- Specific versions for compatibility
+- Beta/snapshot versions
+
+**Game Versions:**
+- All Minecraft versions from 1.14+
+- Snapshots supported
+- Combat Test versions
+
+### Library Management
+
+Fabric libraries are resolved from Maven:
+
+**Main Library:**
+```
+net.fabricmc:fabric-loader:0.15.0
+```
+
+**Dependencies:**
+- `net.fabricmc:tiny-mappings-parser`
+- `net.fabricmc:sponge-mixin`
+- `net.fabricmc:access-widener`
+
+**Download:**
+```rust
+// Maven resolution
+let url = format!(
+    "https://maven.fabricmc.net/{}/{}",
+    artifact_path, filename
+);
+```
+
+### Fabric API
+
+Fabric Loader ≠ Fabric API:
+- **Fabric Loader**: Mod loader (installed by DropOut)
+- **Fabric API**: Library mod (download separately)
+
+Many mods require Fabric API:
+1. Download from [Modrinth](https://modrinth.com/mod/fabric-api) or [CurseForge](https://www.curseforge.com/minecraft/mc-mods/fabric-api)
+2. Place in instance's `mods/` folder
+
+## Forge Support
+
+### Overview
+
+Forge is the original and most popular Minecraft mod loader:
+- Extensive mod ecosystem
+- Mature API
+- Wide version support
+- Large community
+
+### Installation
+
+1. Navigate to **Versions** tab
+2. Click **"Install Forge"**
+3. Select Minecraft version
+4. Choose Forge version
+5. Click **"Install"**
+6. Wait for installer to run
+7. Installation complete
+
+### How It Works
+
+**Forge Installer:**
+```rust
+// Download Forge installer
+let installer_url = format!(
+    "https://maven.minecraftforge.net/net/minecraftforge/forge/{}/forge-{}-installer.jar",
+    full_version, full_version
+);
+
+// Run installer
+java -jar forge-installer.jar --installClient
+```
+
+**Profile Parsing:**
+1. Forge installer creates version JSON
+2. DropOut parses install profile
+3. Extracts library dependencies
+4. Processes processors (if any)
+5. Generates launcher profile
+
+**Version Format:**
+```json
+{
+  "id": "1.20.4-forge-49.0.26",
+  "inheritsFrom": "1.20.4",
+  "mainClass": "cpw.mods.bootstraplauncher.BootstrapLauncher",
+  "libraries": [...]
+}
+```
+
+### Forge Versions
+
+**Release Types:**
+- **Latest**: Most recent stable
+- **Recommended**: Most stable for production
+- **Specific**: Version-locked for compatibility
+
+**Minecraft Version Support:**
+- Legacy versions (1.6.4+)
+- Modern versions (1.13+)
+- Latest versions (1.20+)
+
+### Library Management
+
+Forge has many libraries:
+
+**Core Libraries:**
+- `net.minecraftforge:forge:<version>`
+- `net.minecraftforge:fmlloader:<version>`
+- `org.ow2.asm:asm:<version>`
+
+**Resolution:**
+```rust
+// Forge Maven
+"https://maven.minecraftforge.net/"
+
+// Dependencies may use:
+// - Maven Central
+// - Minecraft Libraries
+```
+
+### Forge Processors
+
+Some Forge versions run "processors" during installation:
+- Bytecode manipulation
+- Library patching
+- Mapping generation
+
+DropOut handles these automatically.
+
+## Version Inheritance
+
+Both Fabric and Forge use Minecraft's inheritance system:
+
+### Parent Version
+
+```json
+{
+  "id": "fabric-loader-0.15.0-1.20.4",
+  "inheritsFrom": "1.20.4"  // Parent vanilla version
+}
+```
+
+### Merging Process
+
+**Libraries:**
+```rust
+// Merged from both
+parent_libraries + modded_libraries
+// Duplicates removed
+```
+
+**Arguments:**
+```rust
+// Combined
+parent_jvm_args + modded_jvm_args
+parent_game_args + modded_game_args
+```
+
+**Assets:**
+```rust
+// Inherited from parent
+assets = parent.assets
+```
+
+**Main Class:**
+```rust
+// Overridden by modded
+main_class = modded.mainClass
+```
+
+## Comparison
+
+| Feature | Fabric | Forge |
+|---------|--------|-------|
+| **Performance** | Excellent | Good |
+| **Update Speed** | Very Fast | Moderate |
+| **Mod Selection** | Growing | Extensive |
+| **API Simplicity** | Simple | Complex |
+| **Version Support** | 1.14+ | 1.6.4+ |
+| **Developer Friendly** | Very | Moderate |
+| **Stability** | Excellent | Excellent |
+
+## Installing Mods
+
+### Fabric Mods
+
+1. Create/select instance
+2. Ensure Fabric is installed
+3. Download mods from:
+   - [Modrinth](https://modrinth.com/)
+   - [CurseForge](https://www.curseforge.com/)
+   - [GitHub Releases](https://github.com/)
+4. Place `.jar` files in `instances/<name>/mods/`
+5. Launch game
+
+**Compatibility:**
+- Check Minecraft version
+- Check Fabric Loader version
+- Check for Fabric API requirement
+- Read mod dependencies
+
+### Forge Mods
+
+1. Create/select instance
+2. Ensure Forge is installed
+3. Download mods from:
+   - [CurseForge](https://www.curseforge.com/)
+   - [Modrinth](https://modrinth.com/)
+4. Place `.jar` files in `instances/<name>/mods/`
+5. Launch game
+
+**Compatibility:**
+- Check Minecraft version exactly
+- Check Forge version range
+- Read mod dependencies
+- Check for conflicts
+
+## Troubleshooting
+
+### Fabric Issues
+
+**"Fabric Loader not found"**
+- Reinstall Fabric
+- Check version JSON exists
+- Verify libraries downloaded
+
+**"Mixin apply failed"**
+- Mod incompatibility
+- Remove conflicting mods
+- Update Fabric Loader
+
+**"Fabric API required"**
+- Download Fabric API
+- Match Minecraft version
+- Place in mods folder
+
+### Forge Issues
+
+**"Forge installer failed"**
+- Verify Java installation
+- Check disk space
+- Try older Forge version
+- Check logs for details
+
+**"Missing dependencies"**
+- Install required mods
+- Check mod version compatibility
+- Read error message carefully
+
+**"Class not found"**
+- Forge version mismatch
+- Reinstall Forge
+- Verify libraries downloaded
+
+### General Mod Issues
+
+**Crash on Launch:**
+1. Check crash report
+2. Identify problematic mod
+3. Remove or update mod
+4. Test with minimal mods
+5. Add mods back incrementally
+
+**Performance Problems:**
+1. Too many mods installed
+2. Increase memory allocation
+3. Install performance mods:
+   - Fabric: Sodium, Lithium
+   - Forge: OptiFine, Magnesium
+4. Remove resource-heavy mods
+
+## API Reference
+
+### Tauri Commands
+
+**Install Fabric:**
+```typescript
+await invoke('install_fabric', {
+  minecraftVersion: '1.20.4',
+  loaderVersion: '0.15.0'
+});
+```
+
+**Install Forge:**
+```typescript
+await invoke('install_forge', {
+  minecraftVersion: '1.20.4',
+  forgeVersion: '49.0.26'
+});
+```
+
+**List Fabric Versions:**
+```typescript
+const versions = await invoke('get_fabric_versions', {
+  minecraftVersion: '1.20.4'
+});
+```
+
+**List Forge Versions:**
+```typescript
+const versions = await invoke('get_forge_versions', {
+  minecraftVersion: '1.20.4'
+});
+```
+
+### Events
+
+**Installation Progress:**
+```typescript
+listen('mod-loader-progress', (event) => {
+  const { stage, percent } = event.payload;
+  // Stages: "downloading", "installing", "processing", "complete"
+});
+```
+
+## Best Practices
+
+### For Players
+
+1. **Choose one mod loader** per instance
+2. **Match versions exactly** - Minecraft and loader
+3. **Read mod requirements** before installing
+4. **Start small** - Add mods incrementally
+5. **Backup worlds** before adding mods
+6. **Check compatibility** lists
+7. **Update cautiously** - Test in separate instance
+
+### For Modpack Creators
+
+1. **Document versions** - MC, loader, all mods
+2. **Test thoroughly** - All features
+3. **List dependencies** - Including API
+4. **Provide changelog** - For updates
+5. **Version lock** - For stability
+6. **Include configs** - Pre-configured
+7. **Test updates** - Before release
+
+## Future Features
+
+- **Mod browser** - Install mods from launcher
+- **Automatic updates** - Keep mods current
+- **Dependency resolution** - Auto-install requirements
+- **Conflict detection** - Warn about incompatibilities
+- **Profile export** - Share modpack configurations
+- **CurseForge integration** - Direct modpack import
+- **Modrinth integration** - Mod search and install
