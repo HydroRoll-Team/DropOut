@@ -107,7 +107,7 @@ export default function Home({ params }: Route.ComponentProps) {
               {t.hero.start}
             </a>
             <a
-              className="bg-fd-secondary hover:bg-fd-secondary/80 text-fd-secondary-foreground font-semibold rounded-lg px-6 py-3 transition-colors cursor-pointer"
+              className="bg-fd-secondary hover:bg-fd-secondary/80 text-fd-secondary-foreground font-semibold rounded-lg px-6 py-3 transition-colors cursor-pointer border border-blue-600/50"
               href={`${localePrefix}/docs/features`}
             >
                {t.hero.features}
@@ -129,7 +129,7 @@ export default function Home({ params }: Route.ComponentProps) {
         {/* Features Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
           {t.features.items.map((item, i) => (
-             <div key={i} className="p-6 rounded-lg border border-fd-border bg-fd-card">
+             <div key={i} className="p-6 rounded-lg border border-blue-600/20 bg-fd-card hover:border-blue-600/50 transition-colors">
               <h3 className="font-semibold text-lg mb-2">{item.title}</h3>
               <p className="text-sm text-fd-muted-foreground">
                 {item.desc}

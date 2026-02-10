@@ -40,7 +40,18 @@ const clientLoader = browserCollections.docs.createClientLoader({
         <DocsTitle>{frontmatter.title}</DocsTitle>
         <DocsDescription>{frontmatter.description}</DocsDescription>
         <DocsBody>
-          <Mdx components={{ ...defaultMdxComponents, Card, Cards }} />
+          <Mdx 
+            components={{ 
+              ...defaultMdxComponents, 
+              Card: (props: any) => (
+                <Card 
+                  {...props} 
+                  className={`border-blue-600/20 hover:border-blue-600/50 transition-colors ${props.className || ''}`} 
+                />
+              ), 
+              Cards 
+            }} 
+          />
         </DocsBody>
       </DocsPage>
     );
