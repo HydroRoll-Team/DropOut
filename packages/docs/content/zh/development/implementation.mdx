@@ -1,0 +1,351 @@
+---
+title: 内部实现
+description: DropOut 核心功能的详细实现和技术规范
+---
+
+# 内部实现
+
+本页详细介绍了启动器各个核心模块的技术实现细节、数据结构和处理流程。
+
+## 1. 身份验证系统 (Authentication)
+
+身份验证链包含多个异步步骤，任何一步失败都会中断整个流程。DropOut 采用 Microsoft Device Code Flow 实现免重定向的安全登录。
+
+### 1.1 详细流程
+1.  **设备代码请求**: 
+    - 调用 `https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode`
+    - 获取用户验证码及验证 URL。
+2.  **令牌交换**: 轮询 `/oauth2/v2.0/token` 获取主访问令牌 (Access Token) 和刷新令牌 (Refresh Token)。
+3.  **Xbox Live 认证**: 获取 `Token` 和 `uhs` (User Hash)。
+4.  **XSTS 授权**: 重定向至 `rp://api.minecraftservices.com/`。
+5.  **Minecraft 登录**: 使用 `XBL3.0 x=<uhs>;<xsts_token>` 格式令牌换取最终的游戏 Access Token。
+
+### 1.2 账户存储与安全
+账户数据持久化在 `accounts.json` 中，包含账户类型及加密后的令牌信息：
+```json
+{
+  "active_account_uuid": "...",
+  "accounts": [
+    {
+      "type": "Microsoft",
+      "username": "...",
+      "uuid": "...",
+      "access_token": "...",
+      "refresh_token": "...",
+      "expires_at": 1234567890
+    },
+    { "type": "Offline", "username": "Player", "uuid": "..." }
+  ]
+}
+```
+**离线 UUID**: 使用基于用户名的确定性 UUID v3，确保本地存档和配置的一致性。
+
+```rust
+// core/auth.rs 实现详情
+pub fn generate_offline_uuid(username: &str) -> String {
+    let namespace = Uuid::NAMESPACE_OID;
+    Uuid::new_v3(&namespace, username.as_bytes()).to_string()
+}
+```
+
+### 1.3 身份验证相关接口
+| 命令 / 事件 | 类型 | 说明 |
+| :--- | :--- | :--- |
+| `start_microsoft_login` | Invoke | 启动设备流并返回验证码 |
+| `complete_microsoft_login` | Invoke | 轮询并完成全套身份验证链 |
+| `login_offline` | Invoke | 创建并切换至离线账户 |
+| `auth-progress` | Event | 实时上报认证进度（如 "Xbox Live Auth..."） |
+
+---
+
+## 2. Java 运行环境管理 (Java Runtime)
+
+### 2.1 目录与元数据
+Java 目录 (Catalog) 缓存了来自 Adoptium 的可用版本及其平台特定链接。
+-   **存储**: `java_catalog.json` 记录了各个版本的 SHA256 校验和及文件大小。
+
+```json
+// java_catalog.json 结构示例
+{
+  "releases": [
+    {
+      "major_version": 17,
+      "image_type": "jdk",
+      "version": "17.0.9+9",
+      "download_url": "...",
+      "checksum": "...",
+      "file_size": 123456789
+    }
+  ],
+  "cached_at": 1700000000
+}
+```
+
+-   **检测**: 通过对候选路径执行 `java -version` 命令，解析其 `stderr` 输出中的版本字符串和 64-Bit 标识。
+
+```rust
+// core/java.rs 检测逻辑
+fn check_java_installation(path: &PathBuf) -> Option<JavaInstallation> {
+    let mut cmd = Command::new(path);
+    cmd.arg("-version");
+    // 解析 stderr 输出中的 "version" 关键字信息
+}
+```
+
+### 2.2 自动安装逻辑
+1.  **下载**: 支持断点续传，大型文件通过分片并行下载。
+2.  **解压**: 针对不同操作系统处理压缩包（macOS 处理 .tar.gz 内部的 .app 结构，Windows 处理 .zip）。
+3.  **验证**: 下载后强制进行哈希校验，确保运行时环境的完整性。
+
+### 2.3 Java 管理相关接口
+| 命令 / 事件 | 类型 | 说明 |
+| :--- | :--- | :--- |
+| `detect_java` | Invoke | 扫描系统已安装的 Java 环境 |
+| `download_adoptium_java` | Invoke | 启动异步下载并自动解压配置 |
+| `cancel_java_download` | Invoke | 通过原子标志位取消当前的下载任务 |
+| `java-download-progress` | Event | 报告文件大小、速度、百分比和 ETA |
+
+---
+
+## 3. 游戏启动逻辑与 JVM 优化
+
+### 3.1 内存分配方案
+-   **Xmx & Xms**: 建议将初始内存与最大内存设为一致。
+-   **策略**: 启动器会自动根据系统总内存和 Java 架构提示用户最优分配，且启动器生成的参数具有最高优先级。
+
+### 3.2 G1GC 优化策略
+针对 1.17+ 版本及高负载模组环境，DropOut 默认注入精简的 G1GC 参数链：
+```bash
+-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 
+-XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC 
+```
+
+---
+
+## 4. 模组加载机制 (Mod Loaders)
+
+### 4.1 版本合并 (Inheritance)
+模组加载器通过 `inheritsFrom` 字段链接原版 Minecraft 版本 JSON。
+
+```json
+// 典型的 Fabric 版本配置 (部分)
+{
+  "id": "fabric-loader-0.15.0-1.20.4",
+  "inheritsFrom": "1.20.4",
+  "mainClass": "net.fabricmc.loader.impl.launch.knot.KnotClient",
+  "libraries": [
+    {
+      "name": "net.fabricmc:fabric-loader:0.15.0",
+      "url": "https://maven.fabricmc.net/"
+    }
+  ]
+}
+```
+
+启动阶段执行以下合并：
+1.  **库优先级**: 加载器自身的库（如 Fabric Loader）排在原版库之前。
+2.  **主类覆盖**: `mainClass` 始终取自子级定义（即模组加载器的入口，如 Fabric 的 `KnotClient`）。
+3.  **参数链**: 合并 `jvm` 和 `game` 参数数组，自动剔除不适用的系统规则。
+
+```rust
+// core/version_merge.rs 合并核心实现
+pub fn merge_versions(child: GameVersion, parent: GameVersion) -> GameVersion {
+    let mut merged_libraries = child.libraries;
+    merged_libraries.extend(parent.libraries);
+    // 合并参数逻辑并返回新的 GameVersion 实例
+}
+```
+
+### 4.2 库路径解析 (Maven)
+启动器实现了完整的 Maven 路径转换逻辑：
+`group:artifact:version` → `group_path/artifact/version/artifact-version.jar`
+
+```rust
+// core/maven.rs 坐标转换路径逻辑
+pub fn to_path(&self) -> String {
+    let group_path = self.group.replace('.', "/");
+    format!("{}/{}/{}/{}-{}.{}", 
+        group_path, self.artifact, self.version, 
+        self.artifact, self.version, self.extension
+    )
+}
+```
+
+### 4.3 模组安装接口
+启动器根据不同加载器的特性采用差异化安装策略。
+
+#### Forge 安装逻辑
+对于 Forge，DropOut 会下载官方 Installer 并通过子进程调用 Java 运行标准安装程序，确保这一过程与官方流程完全一致（包括字节码补丁生成）。
+
+```rust
+// core/forge.rs 调用官方安装器 (简化示例)
+Command::new(java_path)
+    .args(&[
+        "-jar", 
+        installer_path.to_str().unwrap(), 
+        "--installClient", 
+        game_dir.to_str().unwrap()
+    ])
+    .output()?;
+```
+
+| 命令 / 事件 | 类型 | 说明 |
+| :--- | :--- | :--- |
+| `install_fabric` | Invoke | 下载 Fabric 库并生成继承 JSON |
+| `install_forge` | Invoke | 运行 Forge Installer 并执行字节码打桩 |
+| `mod-loader-progress` | Event | 报告安装阶段（如 "processing", "complete"） |
+
+---
+
+## 5. 通讯与监控系统
+
+### 5.1 事件总线 (Event Bus)
+后端通过 Tauri 的 `Window` 实例向上层发送异步脉冲。
+
+```rust
+// 后端 emit_log! 宏简化日志外发
+macro_rules! emit_log {
+    ($window:expr, $msg:expr) => {
+        let _ = $window.emit("launcher-log", $msg);
+        println!("[Launcher] {}", $msg);
+    };
+}
+```
+
+-   **`launcher-log`**: 通用的控制台输出流，用于全局操作轨迹记录。
+-   **`game-stdout` / `game-stderr`**: 捕获游戏子进程的标准输出与错误，通过独立线程实时回传前端。
+
+```typescript
+// 前端监听示例 (Svelte 5)
+import { listen } from "@tauri-apps/api/event";
+
+const unlisten = await listen("launcher-log", (event) => {
+    logStore.addLine(event.payload);
+});
+```
+
+-   **`version-installed`**: 异步任务完成后通知 UI 更新版本列表状态。
+
+### 5.2 启动日志脱敏
+为防止敏感信息泄露至第三方日志平台，启动器在记录启动指令前会对令牌进行遮蔽。
+
+```rust
+// 基于 main.rs 的参数遮蔽逻辑 (部分)
+let masked_args: Vec<String> = args.iter().enumerate().map(|(i, arg)| {
+    if i > 0 && (args[i-1] == "--accessToken" || args[i-1] == "--uuid") {
+        "***".to_string()
+    } else {
+        arg.clone()
+    }
+}).collect();
+```
+
+---
+
+## 6. 架构与开发规范
+
+### 6.1 核心架构模式
+
+#### 后端命令模式 (Tauri)
+所有后端功能均封装为异步 Command，并通过 `State` 注入全局状态。
+
+1. **定义命令**:
+```rust
+#[tauri::command]
+async fn start_game(
+    window: Window,
+    auth_state: State<'_, AccountState>,
+    config_state: State<'_, ConfigState>
+) -> Result<String, String> {
+    emit_log!(window, "Starting game launch...");
+    // 业务逻辑...
+    Ok("Success".into())
+}
+```
+
+2. **注册命令 (main.rs)**:
+```rust
+tauri::Builder::default()
+    .invoke_handler(tauri::generate_handler![start_game, ...])
+```
+
+3. **前端调用**:
+```typescript
+import { invoke } from "@tauri-apps/api/core";
+// 参数名需与 Rust 函数参数保持蛇形/驼峰对应
+const result = await invoke("start_game", { versionId: "1.20.4" });
+```
+
+#### 错误处理模式
+所有 Tauri 命令统一返回 `Result<T, String>`，其中 Err 类型固定为 String，以便前端直接展示错误信息。
+
+```rust
+// 统一使用 map_err 将错误转换为 String
+.await
+.map_err(|e| e.to_string())?;
+
+// 前端捕获
+try {
+    await invoke("...")
+} catch (e) {
+    // e 即为 Rust 返回的错误字符串
+    console.error(e); 
+}
+```
+
+#### 前端状态管理 (Svelte 5 Runes)
+前端全线采用 Svelte 5 的 `Runes` 系统 (`$state`, `$effect`) 替代旧版的 `writable` stores。
+
+```typescript
+// ui/src/stores/auth.svelte.ts
+export class AuthState {
+  // 使用 $state 定义响应式数据
+  currentAccount = $state<Account | null>(null);
+  isLoginModalOpen = $state(false);
+
+  constructor() {
+    // 初始化逻辑
+  }
+}
+
+// 导出单例用于全局访问
+export const authState = new AuthState();
+```
+
+#### 前端视图路由 (Manual Routing)
+DropOut 不使用常规的 URL 路由，而是通过全局状态管理当前激活的视图组件。
+
+```typescript
+// ui/src/stores/ui.svelte.ts
+export class UIState {
+    activeView = $state("home"); // "home" | "versions" | "settings"
+    
+    setView(view: string) {
+        this.activeView = view;
+    }
+}
+```
+
+```svelte
+<!-- App.svelte -->
+<script>
+    import { uiState } from "./stores/ui.svelte";
+</script>
+
+{#if uiState.activeView === "home"}
+    <HomeView />
+{:else if uiState.activeView === "settings"}
+    <SettingsView />
+{/if}
+```
+
+### 6.2 开发最佳实践
+1.  **静默刷新**: 在调用 `start_game` 前检查 `expires_at`，若过期则调用 `refresh_full_auth`。
+2.  **UA 伪装**: 微软认证 WAF 会拦截空 UA 请求，务必在 `reqwest` 客户端中模拟真实 UA。
+3.  **日志脱敏**: 启动日志中需屏蔽 `--accessToken` 和 `--uuid` 等敏感参数值。
+
+### 6.3 未来路线图 (Roadmap)
+-   **账户多端同步**: 探索 OS 级加密存储方案以替代现有明文 `accounts.json`。
+-   **自动依赖解析**: 安装模组时自动解析并下载 Modrinth/CurseForge 上的前置库。
+-   **智能冲突检测**: 启动前扫描 `mods/` 文件夹，识别潜在的类冲突或版本不匹配。
+-   **配置文件共享**: 支持一键导出/导入完整的实例配置包（Modpack）。

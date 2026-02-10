@@ -19,50 +19,7 @@ DropOut 使用 **Device Code Flow** 进行 Microsoft 身份验证，具有以下
 
 ### 身份验证流程
 
-身份验证链包含多个步骤：
-
-1. **Device Code** → 用户授权
-2. **MS Token** → 访问令牌 + 刷新令牌
-3. **Xbox Live** → Xbox 令牌 + UHS
-4. **XSTS** → 安全令牌
-5. **Minecraft** → 游戏访问令牌
-6. **Profile** → 用户名 + UUID
-
-#### 第 1 步：设备代码请求
-1. 单击"使用 Microsoft 登录"
-2. DropOut 从 Microsoft 请求设备代码
-3. 您会收到：
-   - 用户代码（例如 `A1B2-C3D4`）
-   - 验证 URL（通常为 `https://microsoft.com/link`）
-   - 设备代码（内部使用）
-
-#### 第 2 步：用户授权
-1. 在任何浏览器中访问验证 URL
-2. 输入用户代码
-3. 使用 Microsoft 账户登录
-4. 授权 DropOut 访问您的 Minecraft 个人资料
-
-#### 第 3 步：令牌交换
-- DropOut 轮询 Microsoft 检查授权完成
-- 授权后接收访问令牌和刷新令牌
-- 刷新令牌被存储以备将来登录使用
-
-#### 第 4 步：Xbox Live 身份验证
-- Microsoft 令牌被交换为 Xbox Live 令牌
-- 检索用户哈希 (UHS) 用于下一步
-
-#### 第 5 步：XSTS 授权
-- Xbox Live 令牌被用来获取 XSTS 令牌
-- 此令牌特定于 Minecraft 服务
-
-#### 第 6 步：Minecraft 登录
-- XSTS 令牌被交换为 Minecraft 访问令牌
-- 使用端点：`/launcher/login`
-
-#### 第 7 步：个人资料获取
-- 检索您的 Minecraft 用户名
-- 获取您的 UUID
-- 检查您是否拥有 Minecraft
+身份验证链包含多个步骤。DropOut 自动处理这些复杂的交换过程，包括与 Microsoft、Xbox Live 和 Minecraft 服务的交互。如果您对详细的 API 实现感兴趣，请参阅[内部实现](/docs/development/implementation#身份验证)。
 
 ### 令牌管理
 
@@ -77,12 +34,7 @@ DropOut 使用 **Device Code Flow** 进行 Microsoft 身份验证，具有以下
 - 用于获取新的访问令牌
 
 **自动刷新：**
-```rust
-// Automatic refresh when token expires
-if account.expires_at < current_time {
-    refresh_full_auth(&account).await?;
-}
-```
+令牌过期时，DropOut 会在您启动游戏时尝试使用刷新令牌自动更新您的登录状态，确保您可以无缝开始游玩。
 
 ### 安全考虑
 
@@ -128,12 +80,8 @@ if account.expires_at < current_time {
 ### 工作原理
 
 **UUID 生成：**
-```rust
-// Deterministic UUID v3 from username
-let uuid = generate_offline_uuid(&username);
-```
+离线模式使用基于用户名的确定性 UUID 生成算法（UUID v3）。这意味着在同一个启动器实例中，相同的用户名始终会获得相同的 UUID，从而保持单人游戏存档的一致性。
 
-- 使用 UUID v3（基于命名空间）
 - 确定性：相同的用户名 = 相同的 UUID
 - 无需网络请求
 
@@ -149,23 +97,6 @@ let uuid = generate_offline_uuid(&username);
 - 不支持披风
 - 无法使用 Microsoft 账户功能
 
-### 用例
-
-**开发：**
-```bash
-# Testing mod development
-cargo tauri dev
-# Use offline mode to test quickly
-```
-
-**LAN 游玩：**
-- 无需身份验证即可加入 LAN 世界
-- 托管 LAN 世界
-
-**离线游玩：**
-- 单人游戏无需网络
-- 无需身份验证
-
 ## 账户管理
 
 ### 切换账户
@@ -178,23 +109,7 @@ cargo tauri dev
 
 ### 账户存储
 
-账户存储在 `accounts.json` 中：
-
-```json
-{
-  "current_account_id": "uuid-here",
-  "accounts": [
-    {
-      "id": "uuid",
-      "type": "Microsoft",
-      "username": "PlayerName",
-      "access_token": "...",
-      "refresh_token": "...",
-      "expires_at": 1234567890
-    }
-  ]
-}
-```
+账户数据存储在应用文件夹的 `accounts.json` 中。该文件包含已登录账户的加密令牌、过期时间和基本的个人资料信息。
 
 ### 删除账户
 
@@ -206,61 +121,11 @@ cargo tauri dev
 
 ## API 参考
 
-### Tauri 命令
-
-**启动 Microsoft 登录：**
-```typescript
-const { user_code, verification_uri } = await invoke('start_microsoft_login');
-```
-
-**完成 Microsoft 登录：**
-```typescript
-const account = await invoke('complete_microsoft_login', { deviceCode });
-```
-
-**离线登录：**
-```typescript
-const account = await invoke('offline_login', { username: 'Player' });
-```
-
-**登出：**
-```typescript
-await invoke('logout');
-```
-
-**获取当前账户：**
-```typescript
-const account = await invoke('get_current_account');
-```
-
-### 事件
-
-**身份验证状态：**
-```typescript
-listen('auth-status', (event) => {
-  console.log(event.payload); // "logged_in" | "logged_out"
-});
-```
+关于身份验证的底层实现、OAuth 2.0 流程细节以及相关的 Tauri 命令接口，请参考开发文档：[实现细节：身份验证](../development/implementation.mdx#身份验证)。
 
 ## 最佳实践
 
-### 对于玩家
-
-1. **对官方服务器使用 Microsoft 账户**
-2. **保护令牌安全** - 不要分享 accounts.json
-3. **定期刷新令牌** - 通过登录来刷新
-4. **仅在测试时使用离线模式**
-
-### 对于开发者
-
-1. **优雅地处理令牌过期**
-2. **为网络故障实现重试逻辑**
-3. **缓存账户数据** 以减少 API 调用
-4. **在游戏启动前验证令牌**
-
-## 未来增强
-
-- **多账户支持**：轻松在账户之间切换
-- **账户配置文件**：保存每个账户的设置
-- **自动登录**：记住最后一个账户
-- **令牌加密**：为存储的令牌增强安全性
+1. **对官方服务器使用 Microsoft 账户**：为了能够加入官方服务器并使用正版皮肤，请务必使用 Microsoft 账户。
+2. **保护令牌安全**：不要向他人分享 `accounts.json` 文件或其内容，因为其中包含您的登录凭据。
+3. **定期刷新令牌**：长时间未使用的离线账户或过期的 Microsoft 令牌可以通过重新登录或启动游戏来刷新。
+4. **仅在测试时使用离线模式**：离线模式不支持皮肤和部分多人游戏功能。
