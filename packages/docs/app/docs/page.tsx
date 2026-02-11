@@ -37,8 +37,9 @@ const clientLoader = browserCollections.docs.createClientLoader({
   component({ toc, frontmatter, default: Mdx }) {
     return (
       <DocsPage toc={toc}>
-        <DocsTitle>{frontmatter.title}</DocsTitle>
-        <DocsDescription>{frontmatter.description}</DocsDescription>
+        {/* 老王说不要这个 */}
+        {/* <DocsTitle>{frontmatter.title}</DocsTitle>
+        <DocsDescription>{frontmatter.description}</DocsDescription> */}
         <DocsBody>
           <Mdx 
             components={{ 
