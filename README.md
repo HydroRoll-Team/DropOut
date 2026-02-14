@@ -1,5 +1,7 @@
 # Drop*O*ut
 
+English | [中文](README.CN.md)
+
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut.svg?type=small)](https://app.fossa.com/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut?ref=badge_small)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/HsiangNianian/DropOut/main.svg)](https://results.pre-commit.ci/latest/github/HsiangNianian/DropOut/main)
@@ -56,7 +58,7 @@ This launcher is built for players who value control, transparency, and long-ter
 
 ## Roadmap
 
-Check our full roadmap at: https://roadmap.sh/r/minecraft-launcher-dev
+Check our full roadmap at: <https://roadmap.sh/r/minecraft-launcher-dev>
 
 - [X] **Account Persistence** — Save login state between sessions
 - [X] **Token Refresh** — Auto-refresh expired Microsoft tokens
@@ -100,6 +102,7 @@ Download the latest release for your platform from the [Releases](https://github
    git clone https://github.com/HsiangNianian/DropOut.git
    cd DropOut
    ```
+
 2. **Install Frontend Dependencies**
 
    ```bash
@@ -107,12 +110,14 @@ Download the latest release for your platform from the [Releases](https://github
    pnpm install
    cd ..
    ```
+
 3. **Run in Development Mode**
 
    ```bash
    # This will start the frontend server and the Tauri app window
    cargo tauri dev
    ```
+
 4. **Build Release Version**
 
    ```bash
@@ -125,6 +130,7 @@ Download the latest release for your platform from the [Releases](https://github
 
 DropOut is built with long-term maintainability in mind.
 Contributions are welcome, especially in these areas:
+
 - Instance system design
 - Mod compatibility tooling
 - UI/UX improvements
@@ -133,12 +139,11 @@ Contributions are welcome, especially in these areas:
 Standard GitHub workflow applies:
 fork → feature branch → pull request.
 
-
 ## License
+
+Distributed under the MIT License. See `LICENSE` for more information.
 
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut.svg?type=shield&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut?ref=badge_shield&issueType=license)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut.svg?type=shield&issueType=security)](https://app.fossa.com/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut?ref=badge_shield&issueType=security)
 
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut?ref=badge_large)
-
-Distributed under the MIT License. See `LICENSE` for more information.
