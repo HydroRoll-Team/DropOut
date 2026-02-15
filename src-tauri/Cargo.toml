@@ -36,6 +36,7 @@ regex = "1.12.2"
 
 [build-dependencies]
 tauri-build = { version = "2.0", features = [] }
+embed-resource = "2.4"
 
 [package.metadata.deb]
 depends = "libgtk-3-0"
