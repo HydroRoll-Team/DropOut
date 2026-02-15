@@ -198,92 +198,54 @@ async fn start_game(
         None
     };
 
-    // Check if configured Java is compatible
+    // Resolve Java using priority-based resolution
+    // Priority: instance override > global config > user preference > auto-detect
+    // TODO: refactor into a separate function
     let app_handle = window.app_handle();
-    let mut java_path_to_use = config.java_path.clone();
-    if !java_path_to_use.is_empty() && java_path_to_use != "java" {
-        let is_compatible =
-            core::java::is_java_compatible(&java_path_to_use, required_java_major, max_java_major);
+    let instance = instance_state
+        .get_instance(&instance_id)
+        .ok_or_else(|| format!("Instance {} not found", instance_id))?;
 
-        if !is_compatible {
-            emit_log!(
-                window,
-                format!(
-                    "Configured Java version may not be compatible. Looking for compatible Java..."
-                )
-            );
-
-            // Try to find a compatible Java version
-            if let Some(compatible_java) =
-                core::java::get_compatible_java(app_handle, required_java_major, max_java_major)
-            {
-                emit_log!(
-                    window,
-                    format!(
-                        "Found compatible Java {} at: {}",
-                        compatible_java.version, compatible_java.path
-                    )
-                );
-                java_path_to_use = compatible_java.path;
-            } else {
-                let version_constraint = if let Some(max) = max_java_major {
-                    if let Some(min) = required_java_major {
-                        if min == max as u64 {
-                            format!("Java {}", min)
-                        } else {
-                            format!("Java {} to {}", min, max)
-                        }
-                    } else {
-                        format!("Java {} (or lower)", max)
-                    }
-                } else if let Some(min) = required_java_major {
-                    format!("Java {} or higher", min)
+    let java_installation = core::java::priority::resolve_java_for_launch(
+        app_handle,
+        instance.java_path_override.as_deref(),
+        Some(&config.java_path),
+        required_java_major,
+        max_java_major,
+    )
+    .await
+    .ok_or_else(|| {
+        let version_constraint = if let Some(max) = max_java_major {
+            if let Some(min) = required_java_major {
+                if min == max as u64 {
+                    format!("Java {}", min)
                 } else {
-                    "any Java version".to_string()
-                };
-
-                return Err(format!(
-                    "No compatible Java installation found. This version requires {}. Please install a compatible Java version in settings.",
-                    version_constraint
-                ));
-            }
-        }
-    } else {
-        // No Java configured, try to find a compatible one
-        if let Some(compatible_java) =
-            core::java::get_compatible_java(app_handle, required_java_major, max_java_major)
-        {
-            emit_log!(
-                window,
-                format!(
-                    "Using Java {} at: {}",
-                    compatible_java.version, compatible_java.path
-                )
-            );
-            java_path_to_use = compatible_java.path;
-        } else {
-            let version_constraint = if let Some(max) = max_java_major {
-                if let Some(min) = required_java_major {
-                    if min == max as u64 {
-                        format!("Java {}", min)
-                    } else {
-                        format!("Java {} to {}", min, max)
-                    }
-                } else {
-                    format!("Java {} (or lower)", max)
+                    format!("Java {} to {}", min, max)
                 }
-            } else if let Some(min) = required_java_major {
-                format!("Java {} or higher", min)
             } else {
-                "any Java version".to_string()
-            };
+                format!("Java {} (or lower)", max)
+            }
+        } else if let Some(min) = required_java_major {
+            format!("Java {} or higher", min)
+        } else {
+            "any Java version".to_string()
+        };
 
-            return Err(format!(
-                "No compatible Java installation found. This version requires {}. Please install a compatible Java version in settings.",
-                version_constraint
-            ));
-        }
-    }
+        format!(
+            "No compatible Java installation found. This version requires {}. Please install a compatible Java version in settings.",
+            version_constraint
+        )
+    })?;
+
+    emit_log!(
+        window,
+        format!(
+            "Using Java {} at: {}",
+            java_installation.version, java_installation.path
+        )
+    );
+
+    let java_path_to_use = java_installation.path;
 
     // 2. Prepare download tasks
     emit_log!(window, "Preparing download tasks...".to_string());
@@ -1555,10 +1517,18 @@ async fn refresh_account(
 
 /// Detect Java installations on the system
 #[tauri::command]
+async fn detect_all_java_installations(
+    app_handle: tauri::AppHandle,
+) -> Result<Vec<core::java::JavaInstallation>, String> {
+    Ok(core::java::detect_all_java_installations(&app_handle).await)
+}
+
+/// Alias for detect_all_java_installations (for backward compatibility)
+#[tauri::command]
 async fn detect_java(
     app_handle: tauri::AppHandle,
 ) -> Result<Vec<core::java::JavaInstallation>, String> {
-    Ok(core::java::detect_all_java_installations(&app_handle))
+    Ok(core::java::detect_all_java_installations(&app_handle).await)
 }
 
 /// Get recommended Java for a specific Minecraft version
@@ -1566,7 +1536,7 @@ async fn detect_java(
 async fn get_recommended_java(
     required_major_version: Option<u64>,
 ) -> Result<Option<core::java::JavaInstallation>, String> {
-    Ok(core::java::get_recommended_java(required_major_version))
+    Ok(core::java::get_recommended_java(required_major_version).await)
 }
 
 /// Get Adoptium Java download info
@@ -1579,7 +1549,9 @@ async fn fetch_adoptium_java(
         "jdk" => core::java::ImageType::Jdk,
         _ => core::java::ImageType::Jre,
     };
-    core::java::fetch_java_release(major_version, img_type).await
+    core::java::fetch_java_release(major_version, img_type)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Download and install Adoptium Java
@@ -1595,13 +1567,17 @@ async fn download_adoptium_java(
         _ => core::java::ImageType::Jre,
     };
     let path = custom_path.map(std::path::PathBuf::from);
-    core::java::download_and_install_java(&app_handle, major_version, img_type, path).await
+    core::java::download_and_install_java(&app_handle, major_version, img_type, path)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Get available Adoptium Java versions
 #[tauri::command]
 async fn fetch_available_java_versions() -> Result<Vec<u32>, String> {
-    core::java::fetch_available_versions().await
+    core::java::fetch_available_versions()
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Fetch Java catalog with platform availability (uses cache)
@@ -1609,7 +1585,9 @@ async fn fetch_available_java_versions() -> Result<Vec<u32>, String> {
 async fn fetch_java_catalog(
     app_handle: tauri::AppHandle,
 ) -> Result<core::java::JavaCatalog, String> {
-    core::java::fetch_java_catalog(&app_handle, false).await
+    core::java::fetch_java_catalog(&app_handle, false)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Refresh Java catalog (bypass cache)
@@ -1617,7 +1595,9 @@ async fn fetch_java_catalog(
 async fn refresh_java_catalog(
     app_handle: tauri::AppHandle,
 ) -> Result<core::java::JavaCatalog, String> {
-    core::java::fetch_java_catalog(&app_handle, true).await
+    core::java::fetch_java_catalog(&app_handle, true)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Cancel current Java download
@@ -2060,7 +2040,7 @@ async fn install_forge(
         config.java_path.clone()
     } else {
         // Try to find a suitable Java installation
-        let javas = core::java::detect_all_java_installations(app_handle);
+        let javas = core::java::detect_all_java_installations(app_handle).await;
         if let Some(java) = javas.first() {
             java.path.clone()
         } else {

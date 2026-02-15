@@ -4,8 +4,14 @@ use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Window};
+use ts_rs::TS;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/assistant.ts"
+)]
 pub struct Message {
     pub role: String,
     pub content: String,
@@ -51,7 +57,12 @@ pub struct OllamaTagsResponse {
 }
 
 // Simplified model info for frontend
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/assistant.ts"
+)]
 pub struct ModelInfo {
     pub id: String,
     pub name: String,
@@ -102,7 +113,12 @@ pub struct OpenAIModelsResponse {
 }
 
 // Streaming response structures
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/assistant.ts"
+)]
 pub struct GenerationStats {
     pub total_duration: u64,
     pub load_duration: u64,
@@ -112,7 +128,12 @@ pub struct GenerationStats {
     pub eval_duration: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/assistant.ts"
+)]
 pub struct StreamChunk {
     pub content: String,
     pub done: bool,

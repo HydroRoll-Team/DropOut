@@ -3,20 +3,36 @@ use std::error::Error;
 use std::path::PathBuf;
 
 use crate::core::game_version::GameVersion;
+use ts_rs::TS;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/manifest.ts"
+)]
 pub struct VersionManifest {
     pub latest: Latest,
     pub versions: Vec<Version>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/manifest.ts"
+)]
 pub struct Latest {
     pub release: String,
     pub snapshot: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/manifest.ts"
+)]
 pub struct Version {
     pub id: String,
     #[serde(rename = "type")]
