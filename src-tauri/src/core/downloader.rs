@@ -4,10 +4,13 @@ use sha1::Digest as Sha1Digest;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager, Window};
 use tokio::io::{AsyncSeekExt, AsyncWriteExt};
 use tokio::sync::Semaphore;
 use ts_rs::TS;
+
+static DOWNLOAD_QUEUE_FILE_LOCK: Mutex<()> = Mutex::new(());
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -102,15 +105,17 @@ pub struct DownloadQueue {
 }
 
 impl DownloadQueue {
-    /// Load download queue from file
-    pub fn load(app_handle: &AppHandle) -> Self {
-        let queue_path = app_handle
+    fn queue_path(app_handle: &AppHandle) -> Result<PathBuf, String> {
+        app_handle
             .path()
             .app_data_dir()
-            .unwrap()
-            .join("download_queue.json");
+            .map(|dir| dir.join("download_queue.json"))
+            .map_err(|e| e.to_string())
+    }
+
+    fn load_from_path(queue_path: &PathBuf) -> Self {
         if queue_path.exists() {
-            if let Ok(content) = std::fs::read_to_string(&queue_path) {
+            if let Ok(content) = std::fs::read_to_string(queue_path) {
                 if let Ok(queue) = serde_json::from_str(&content) {
                     return queue;
                 }
@@ -119,16 +124,91 @@ impl DownloadQueue {
         Self::default()
     }
 
-    /// Save download queue to file
-    pub fn save(&self, app_handle: &AppHandle) -> Result<(), String> {
-        let queue_path = app_handle
-            .path()
-            .app_data_dir()
-            .unwrap()
-            .join("download_queue.json");
+    fn save_atomic_to_path(&self, queue_path: &PathBuf) -> Result<(), String> {
+        let parent = queue_path
+            .parent()
+            .ok_or_else(|| "Download queue path has no parent directory".to_string())?;
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+
         let content = serde_json::to_string_pretty(self).map_err(|e| e.to_string())?;
-        std::fs::write(&queue_path, content).map_err(|e| e.to_string())?;
+        let tmp_path = queue_path.with_extension("json.tmp");
+        std::fs::write(&tmp_path, content).map_err(|e| e.to_string())?;
+
+        if queue_path.exists() {
+            let _ = std::fs::remove_file(queue_path);
+        }
+
+        std::fs::rename(&tmp_path, queue_path).map_err(|e| e.to_string())?;
         Ok(())
+    }
+
+    pub fn update<T, F>(app_handle: &AppHandle, mutator: F) -> Result<T, String>
+    where
+        F: FnOnce(&mut Self) -> T,
+    {
+        let _guard = DOWNLOAD_QUEUE_FILE_LOCK
+            .lock()
+            .map_err(|_| "Download queue lock poisoned".to_string())?;
+        let queue_path = Self::queue_path(app_handle)?;
+        let mut queue = Self::load_from_path(&queue_path);
+        let result = mutator(&mut queue);
+        queue.save_atomic_to_path(&queue_path)?;
+        Ok(result)
+    }
+
+    pub fn list_pending(app_handle: &AppHandle) -> Vec<PendingJavaDownload> {
+        let _guard = match DOWNLOAD_QUEUE_FILE_LOCK.lock() {
+            Ok(guard) => guard,
+            Err(_) => return Vec::new(),
+        };
+
+        let queue_path = match Self::queue_path(app_handle) {
+            Ok(path) => path,
+            Err(_) => return Vec::new(),
+        };
+
+        Self::load_from_path(&queue_path).pending_downloads
+    }
+
+    pub fn add_pending(
+        app_handle: &AppHandle,
+        download: PendingJavaDownload,
+    ) -> Result<(), String> {
+        Self::update(app_handle, |queue| queue.add(download)).map(|_| ())
+    }
+
+    pub fn remove_pending(
+        app_handle: &AppHandle,
+        major_version: u32,
+        image_type: &str,
+    ) -> Result<(), String> {
+        Self::update(app_handle, |queue| queue.remove(major_version, image_type)).map(|_| ())
+    }
+
+    /// Load download queue from file
+    #[allow(dead_code)]
+    pub fn load(app_handle: &AppHandle) -> Self {
+        let _guard = match DOWNLOAD_QUEUE_FILE_LOCK.lock() {
+            Ok(guard) => guard,
+            Err(_) => return Self::default(),
+        };
+
+        let queue_path = match Self::queue_path(app_handle) {
+            Ok(path) => path,
+            Err(_) => return Self::default(),
+        };
+
+        Self::load_from_path(&queue_path)
+    }
+
+    /// Save download queue to file
+    #[allow(dead_code)]
+    pub fn save(&self, app_handle: &AppHandle) -> Result<(), String> {
+        let _guard = DOWNLOAD_QUEUE_FILE_LOCK
+            .lock()
+            .map_err(|_| "Download queue lock poisoned".to_string())?;
+        let queue_path = Self::queue_path(app_handle)?;
+        self.save_atomic_to_path(&queue_path)
     }
 
     /// Add a pending download

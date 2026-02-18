@@ -1,7 +1,32 @@
 use flate2::read::GzDecoder;
 use std::fs;
-use std::path::Path;
+use std::path::{Component, Path, PathBuf};
 use tar::Archive;
+
+fn sanitize_relative_path(entry_path: &Path) -> Result<PathBuf, String> {
+    let mut safe_path = PathBuf::new();
+
+    for component in entry_path.components() {
+        match component {
+            Component::Normal(part) => safe_path.push(part),
+            Component::CurDir => {}
+            Component::ParentDir => {
+                return Err(format!(
+                    "Unsafe archive entry path detected (parent traversal): {}",
+                    entry_path.display()
+                ));
+            }
+            Component::RootDir | Component::Prefix(_) => {
+                return Err(format!(
+                    "Unsafe archive entry path detected (absolute path): {}",
+                    entry_path.display()
+                ));
+            }
+        }
+    }
+
+    Ok(safe_path)
+}
 
 pub fn extract_zip(zip_path: &Path, extract_to: &Path) -> Result<(), String> {
     let file = fs::File::open(zip_path)
@@ -69,9 +94,14 @@ pub fn extract_tar_gz(archive_path: &Path, extract_to: &Path) -> Result<String, 
             .map_err(|e| format!("Failed to get entry path: {}", e))?
             .into_owned();
 
+        let safe_entry_path = sanitize_relative_path(&entry_path)?;
+        if safe_entry_path.as_os_str().is_empty() {
+            continue;
+        }
+
         // Extract the top-level directory name (the first path component)
         if top_level_dir.is_none() {
-            if let Some(first_component) = entry_path.components().next() {
+            if let Some(first_component) = safe_entry_path.components().next() {
                 let component_str = first_component.as_os_str().to_string_lossy().to_string();
                 if !component_str.is_empty() && component_str != "." {
                     top_level_dir = Some(component_str);
@@ -79,7 +109,7 @@ pub fn extract_tar_gz(archive_path: &Path, extract_to: &Path) -> Result<String, 
             }
         }
 
-        let outpath = extract_to.join(&entry_path);
+        let outpath = extract_to.join(&safe_entry_path);
 
         if entry.header().entry_type().is_dir() {
             fs::create_dir_all(&outpath)

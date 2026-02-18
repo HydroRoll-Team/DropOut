@@ -13,7 +13,7 @@ pub mod providers;
 pub mod validation;
 
 pub use cache::{load_cached_catalog_result, save_catalog_cache};
-pub use error::JavaError;
+pub use error::{JavaError, ResumeJavaDownloadFailureReason};
 use ts_rs::TS;
 
 /// Remove the UNC prefix (\\?\) from Windows paths
@@ -65,6 +65,30 @@ pub struct JavaInstallation {
     pub vendor: String,
     pub source: String,
     pub is_64bit: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/java/index.ts"
+)]
+pub struct ResumeJavaDownloadFailure {
+    pub major_version: u32,
+    pub image_type: String,
+    pub install_path: String,
+    pub reason: ResumeJavaDownloadFailureReason,
+    pub error: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/java/index.ts"
+)]
+pub struct ResumeJavaDownloadsResult {
+    pub successful_installations: Vec<JavaInstallation>,
+    pub failed_downloads: Vec<ResumeJavaDownloadFailure>,
+    pub total_pending: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -296,11 +320,13 @@ fn find_java_executable(dir: &PathBuf) -> Option<PathBuf> {
 pub async fn resume_pending_downloads_with<P: JavaProvider>(
     provider: &P,
     app_handle: &AppHandle,
-) -> Result<Vec<JavaInstallation>, String> {
-    let queue = DownloadQueue::load(app_handle);
+) -> Result<ResumeJavaDownloadsResult, String> {
+    let pending_downloads = DownloadQueue::list_pending(app_handle);
     let mut installed = Vec::new();
+    let mut failed = Vec::new();
+    let total_pending = pending_downloads.len();
 
-    for pending in queue.pending_downloads.iter() {
+    for pending in pending_downloads.iter() {
         let image_type = ImageType::parse(&pending.image_type).unwrap_or_else(|| {
             eprintln!(
                 "Unknown image type '{}' in pending download, defaulting to jre",
@@ -326,11 +352,23 @@ pub async fn resume_pending_downloads_with<P: JavaProvider>(
                     "Failed to resume Java {} {} download: {}",
                     pending.major_version, pending.image_type, e
                 );
+
+                failed.push(ResumeJavaDownloadFailure {
+                    major_version: pending.major_version,
+                    image_type: pending.image_type.clone(),
+                    install_path: pending.install_path.clone(),
+                    reason: ResumeJavaDownloadFailureReason::from_error_message(&e),
+                    error: e,
+                });
             }
         }
     }
 
-    Ok(installed)
+    Ok(ResumeJavaDownloadsResult {
+        successful_installations: installed,
+        failed_downloads: failed,
+        total_pending,
+    })
 }
 
 pub fn cancel_current_download() {
@@ -338,8 +376,7 @@ pub fn cancel_current_download() {
 }
 
 pub fn get_pending_downloads(app_handle: &AppHandle) -> Vec<PendingJavaDownload> {
-    let queue = DownloadQueue::load(app_handle);
-    queue.pending_downloads
+    DownloadQueue::list_pending(app_handle)
 }
 
 #[allow(dead_code)]
@@ -348,7 +385,5 @@ pub fn clear_pending_download(
     major_version: u32,
     image_type: &str,
 ) -> Result<(), String> {
-    let mut queue = DownloadQueue::load(app_handle);
-    queue.remove(major_version, image_type);
-    queue.save(app_handle)
+    DownloadQueue::remove_pending(app_handle, major_version, image_type)
 }
