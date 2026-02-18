@@ -1847,7 +1847,7 @@ async fn get_pending_java_downloads(
 #[dropout_macros::api]
 async fn resume_java_downloads(
     app_handle: tauri::AppHandle,
-) -> Result<Vec<core::java::JavaInstallation>, String> {
+) -> Result<core::java::ResumeJavaDownloadsResult, String> {
     let provider = core::java::providers::AdoptiumProvider::new();
     core::java::resume_pending_downloads_with(&provider, &app_handle).await
 }

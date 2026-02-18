@@ -33,21 +33,22 @@ pub async fn download_and_install_java_with_provider<P: JavaProvider>(
     std::fs::create_dir_all(&install_base)
         .map_err(|e| format!("Failed to create installation directory: {}", e))?;
 
-    let mut queue = DownloadQueue::load(app_handle);
-    queue.add(PendingJavaDownload {
-        major_version,
-        image_type: image_type.to_string(),
-        download_url: info.download_url.clone(),
-        file_name: info.file_name.clone(),
-        file_size: info.file_size,
-        checksum: info.checksum.clone(),
-        install_path: install_base.to_string_lossy().to_string(),
-        created_at: std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs(),
-    });
-    queue.save(app_handle)?;
+    DownloadQueue::add_pending(
+        app_handle,
+        PendingJavaDownload {
+            major_version,
+            image_type: image_type.to_string(),
+            download_url: info.download_url.clone(),
+            file_name: info.file_name.clone(),
+            file_size: info.file_size,
+            checksum: info.checksum.clone(),
+            install_path: install_base.to_string_lossy().to_string(),
+            created_at: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
+        },
+    )?;
 
     let archive_path = install_base.join(&info.file_name);
 
@@ -123,8 +124,7 @@ pub async fn download_and_install_java_with_provider<P: JavaProvider>(
         .await
         .ok_or_else(|| "Failed to verify Java installation".to_string())?;
 
-    queue.remove(major_version, &image_type.to_string());
-    queue.save(app_handle)?;
+    DownloadQueue::remove_pending(app_handle, major_version, &image_type.to_string())?;
 
     let _ = app_handle.emit(
         "java-download-progress",
