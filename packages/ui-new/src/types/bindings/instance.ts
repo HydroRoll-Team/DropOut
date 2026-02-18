@@ -16,6 +16,7 @@ export type Instance = {
   modLoaderVersion: string | null;
   jvmArgsOverride: string | null;
   memoryOverride: MemoryOverride | null;
+  javaPathOverride: string | null;
 };
 
 /**

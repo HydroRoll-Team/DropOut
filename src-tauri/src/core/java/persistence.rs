@@ -5,10 +5,7 @@ use tauri::{AppHandle, Manager};
 use ts_rs::TS;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(
-    export,
-    export_to = "../../packages/ui-new/src/types/bindings/java/persistence.ts"
-)]
+#[ts(export, export_to = "java/persistence.ts")]
 pub struct JavaConfig {
     pub user_defined_paths: Vec<String>,
     pub preferred_java_path: Option<String>,

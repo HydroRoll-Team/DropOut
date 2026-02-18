@@ -61,3 +61,13 @@ export type PendingJavaDownload = {
   installPath: string;
   createdAt: bigint;
 };
+
+export type ProgressEvent = {
+  file: string;
+  downloaded: bigint;
+  total: bigint;
+  status: string;
+  completedFiles: number;
+  totalFiles: number;
+  totalDownloadedBytes: bigint;
+};

@@ -2,29 +2,13 @@ use heck::ToLowerCamelCase;
 use proc_macro::TokenStream;
 use quote::quote;
 use std::collections::BTreeSet;
-use syn::{
-    parse::Parse, parse::ParseStream, parse_macro_input, punctuated::Punctuated, token::Comma,
-    Expr, FnArg, Ident, ItemFn, Lit, MetaNameValue, Pat, PathArguments, ReturnType, Type,
-};
+use syn::{parse_macro_input, FnArg, Ident, ItemFn, Pat, PathArguments, ReturnType, Type};
 
 use crate::attr::MacroArgs;
 
 mod attr;
 
-fn get_lit_str_value(nv: &MetaNameValue) -> Option<String> {
-    // In syn v2 MetaNameValue.value is an Expr (usually Expr::Lit). Extract string literal if present.
-    match &nv.value {
-        Expr::Lit(expr_lit) => {
-            if let Lit::Str(s) = &expr_lit.lit {
-                Some(s.value())
-            } else {
-                None
-            }
-        }
-        _ => None,
-    }
-}
-
+const TAURI_NATIVE_TYPES: &[&str] = &["Window", "State", "AppHandle"];
 fn is_tauri_native(ty: &Type) -> bool {
     // Unwrap reference
     let mut t = ty;
@@ -35,7 +19,7 @@ fn is_tauri_native(ty: &Type) -> bool {
     if let Type::Path(p) = t {
         if let Some(seg) = p.path.segments.last() {
             let ident = seg.ident.to_string();
-            if ident == "Window" || ident == "State" {
+            if TAURI_NATIVE_TYPES.contains(&ident.as_ref()) {
                 return true;
             }
         }
@@ -54,14 +38,15 @@ fn extract_ident_from_type(ty: &Type) -> Option<String> {
         // Handle Option<T>, Result, etc.
         if let Some(seg) = p.path.segments.last() {
             let ident = seg.ident.to_string();
-            if ident == "Option" {
-                // extract generic arg (use helper)
-                if let Some(inner) = first_type_arg_from_pathargs(&seg.arguments) {
-                    return extract_ident_from_type(inner);
+            match ident.as_str() {
+                "Option" | "Vec" => {
+                    // extract generic arg (use helper)
+                    if let Some(inner) = first_type_arg_from_pathargs(&seg.arguments) {
+                        return extract_ident_from_type(inner);
+                    }
                 }
-            } else {
                 // For multi-segment like core::java::JavaDownloadInfo we return last segment ident
-                return Some(ident);
+                _ => return Some(ident),
             }
         }
     }
@@ -88,6 +73,12 @@ fn rust_type_to_ts(ty: &Type) -> (String, bool) {
     // Unwrap references
     if let Type::Reference(r) = t {
         t = &*r.elem;
+    }
+
+    if let Type::Tuple(tuple) = t {
+        if tuple.elems.is_empty() {
+            return ("void".to_string(), false);
+        }
     }
 
     if let Type::Path(p) = t {
@@ -172,13 +163,6 @@ pub fn api(attr: TokenStream, item: TokenStream) -> TokenStream {
         Err(err) => return err.into_compile_error().into(),
     };
     let input_fn = parse_macro_input!(item as ItemFn);
-
-    // Extract attribute args: export_to, import_from
-    let export_to = match (meta.export_to, meta.export_to_path) {
-        (Some(to), None) => Some(to),
-        (_, Some(path)) => Some(path),
-        (None, None) => None,
-    };
     let import_from = meta.import_from;
 
     // Analyze function
@@ -232,120 +216,44 @@ pub fn api(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     // Return type
     let (return_ts_promise, return_imports) = get_return_ts(&input_fn.sig.output);
-    for r in return_imports {
-        import_types.insert(r);
-    }
+    eprintln!(
+        "return {} from {} of {}",
+        return_ts_promise,
+        return_imports.iter().cloned().collect::<Vec<_>>().join(","),
+        fn_name
+    );
+    import_types.extend(return_imports);
 
-    // Build TypeScript code string
-    // let mut ts_lines: Vec<String> = Vec::new();
-
-    // ts_lines.push(r#"import { invoke } from "@tauri-apps/api/core""#.to_string());
-
-    // if !import_types.is_empty() {
-    //     if let Some(import_from_str) = import_from.clone() {
-    //         let types_joined = import_types.iter().cloned().collect::<Vec<_>>().join(", ");
-    //         ts_lines.push(format!(
-    //             "import {{ {} }} from \"{}\"",
-    //             types_joined, import_from_str
-    //         ));
-    //     } else {
-    //         // If no import_from provided, still import types from local path? We'll skip if not provided.
-    //     }
-    // }
-
-    // function signature
-    let params_sig = param_defs.join(", ");
-    let params_pass = if param_names.is_empty() {
-        "".to_string()
-    } else {
-        // Build object like { majorVersion, imageType }
-        format!("{}", param_names.join(", "))
-    };
-
-    // Determine return generic for invoke: need the raw type (not Promise<...>)
-    let invoke_generic =
-        if return_ts_promise.starts_with("Promise<") && return_ts_promise.ends_with('>') {
-            &return_ts_promise["Promise<".len()..return_ts_promise.len() - 1]
-        } else {
-            "unknown"
-        };
-
-    let invoke_line = if param_names.is_empty() {
-        format!("    return invoke<{}>(\"{}\")", invoke_generic, fn_name)
-    } else {
-        format!(
-            "    return invoke<{}>(\"{}\", {{ {} }})",
-            invoke_generic, fn_name, params_pass
-        )
-    };
-
-    // ts_lines.push(format!(
-    //     "export async function {}({}): {} {{",
-    //     ts_fn_name, params_sig, return_ts_promise
-    // ));
-    // ts_lines.push(invoke_line);
-    // ts_lines.push("}".to_string());
-
-    // let ts_contents = ts_lines.join("\n") + "\n";
-
+    // Prepare test mod name
+    let test_mod_name = Ident::new(
+        &format!("__dropout_export_tests_{}", fn_name),
+        fn_name_ident.span(),
+    );
     // Prepare test function name
     let test_fn_name = Ident::new(
         &format!("tauri_export_bindings_{}", fn_name),
         fn_name_ident.span(),
     );
 
-    // Generate code for test function that writes the TS string to file
-    let export_to_literal = match export_to {
-        Some(ref s) => s.clone(),
-        None => String::new(),
-    };
-
     // Build tokens
     let original_fn = &input_fn;
-    // let ts_string_literal = ts_contents.clone();
+    let return_ts_promise_lit =
+        syn::LitStr::new(&return_ts_promise, proc_macro2::Span::call_site());
+    let import_from_lit = match &import_from {
+        Some(s) => syn::Ident::new(&format!("Some({})", s), proc_macro2::Span::call_site()),
+        None => syn::Ident::new("None", proc_macro2::Span::call_site()),
+    };
 
-    // let write_stmt = if export_to_literal.is_empty() {
-    //     // No-op: don't write
-    //     // quote! {
-    //     //     // No export_to provided; skipping file write.
-    //     // }
-    //     panic!("No export_to provided")
-    // } else {
-    //     // We'll append to the file to avoid overwriting existing bindings from other macros.
-    //     // Use create(true).append(true)
-    //     let path = export_to_literal.clone();
-    //     let ts_lit = syn::LitStr::new(&ts_string_literal, proc_macro2::Span::call_site());
-    //     quote! {
-    //         {
-    //             // Ensure parent directories exist if possible (best-effort)
-    //             let path = std::path::Path::new(#path);
-    //             if let Some(parent) = path.parent() {
-    //                 let _ = std::fs::create_dir_all(parent);
-    //             }
-    //             // Append generated bindings to file
-    //             match OpenOptions::new().create(true).append(true).open(path) {
-    //                 Ok(mut f) => {
-    //                     let _ = f.write_all(#ts_lit.as_bytes());
-    //                     println!("Successfully wrote to {}", path.display());
-    //                 }
-    //                 Err(e) => {
-    //                     eprintln!("dropout::api binding write failed: {}", e);
-    //                 }
-    //             }
-    //         }
-    //     }
-    // };
     let register_stmt = quote! {
-      ::dropout_core::inventory::submit! {
-        ::dropout_core::ApiInfo {
+      ::inventory::submit! {
+        crate::utils::api::ApiInfo {
           fn_name: #fn_name,
           ts_fn_name: #ts_fn_name,
-          param_names: vec![#(#param_names),*],
-          param_defs: vec![#(#param_defs),*],
-          return_ts_promise: #return_ts_promise,
-          import_types: BTreeSet::from([#(#import_types),*]),
-          import_from: #import_from,
-          export_to: #export_to_literal,
+          param_names: &[#(#param_names),*],
+          param_defs: &[#(#param_defs),*],
+          return_ts_promise: #return_ts_promise_lit,
+          import_types: &[#(#import_types),*],
+          import_from: #import_from_lit,
         }
       }
     };
@@ -354,15 +262,11 @@ pub fn api(attr: TokenStream, item: TokenStream) -> TokenStream {
         #original_fn
 
         #[cfg(test)]
-        mod __dropout_export_tests {
-            use super::*;
-            use std::fs::OpenOptions;
-            use std::io::Write;
+        mod #test_mod_name {
+            use crate::utils::api::*;
 
             #[test]
             fn #test_fn_name() {
-                // Generated TypeScript bindings for function: #fn_name
-                // #write_stmt
                 #register_stmt
             }
         }

@@ -7,10 +7,7 @@ use ts_rs::TS;
 
 #[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(
-    export,
-    export_to = "../../packages/ui-new/src/types/bindings/manifest.ts"
-)]
+#[ts(export, export_to = "manifest.ts")]
 pub struct VersionManifest {
     pub latest: Latest,
     pub versions: Vec<Version>,
@@ -18,10 +15,7 @@ pub struct VersionManifest {
 
 #[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(
-    export,
-    export_to = "../../packages/ui-new/src/types/bindings/manifest.ts"
-)]
+#[ts(export, export_to = "manifest.ts")]
 pub struct Latest {
     pub release: String,
     pub snapshot: String,
@@ -29,10 +23,7 @@ pub struct Latest {
 
 #[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(
-    export,
-    export_to = "../../packages/ui-new/src/types/bindings/manifest.ts"
-)]
+#[ts(export, export_to = "manifest.ts")]
 pub struct Version {
     pub id: String,
     #[serde(rename = "type")]

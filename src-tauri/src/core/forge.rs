@@ -22,10 +22,7 @@ const FORGE_FILES_URL: &str = "https://files.minecraftforge.net/";
 /// Represents a Forge version entry.
 #[derive(Debug, Deserialize, Serialize, Clone, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(
-    export,
-    export_to = "../../packages/ui-new/src/types/bindings/forge.ts"
-)]
+#[ts(export, export_to = "forge.ts")]
 pub struct ForgeVersion {
     pub version: String,
     pub minecraft_version: String,
@@ -44,10 +41,7 @@ struct ForgePromotions {
 /// Information about an installed Forge version.
 #[derive(Debug, Serialize, Clone, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(
-    export,
-    export_to = "../../packages/ui-new/src/types/bindings/forge.ts"
-)]
+#[ts(export, export_to = "forge.ts")]
 pub struct InstalledForgeVersion {
     pub id: String,
     pub minecraft_version: String,

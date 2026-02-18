@@ -19,7 +19,6 @@ assets = [
 bytes = "1.11.0"
 chrono = "0.4"
 dirs = "5.0"
-dropout-core = { path = "../crates/core", version = "0.1.0" }
 dropout-macros = { path = "../crates/macros", version = "0.1.0" }
 env_logger = "0.9"
 flate2 = "1.0"
@@ -48,6 +47,10 @@ toml = "0.5"
 ts-rs = { version = "11.1.0", features = ["serde-compat"] }
 uuid = { version = "1.10.0", features = ["serde", "v3", "v4"] }
 zip = "2.2.2"
+
+[dev-dependencies]
+ctor = "0.6.3"
+inventory = "0.3.21"
 
 [build-dependencies]
 tauri-build = { version = "2.0", features = [] }

@@ -8,10 +8,7 @@ use ts_rs::TS;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(
-    export,
-    export_to = "../../packages/ui-new/src/types/bindings/assistant.ts"
-)]
+#[ts(export, export_to = "assistant.ts")]
 pub struct Message {
     pub role: String,
     pub content: String,
@@ -59,10 +56,7 @@ pub struct OllamaTagsResponse {
 // Simplified model info for frontend
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(
-    export,
-    export_to = "../../packages/ui-new/src/types/bindings/assistant.ts"
-)]
+#[ts(export, export_to = "assistant.ts")]
 pub struct ModelInfo {
     pub id: String,
     pub name: String,
@@ -115,10 +109,7 @@ pub struct OpenAIModelsResponse {
 // Streaming response structures
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(
-    export,
-    export_to = "../../packages/ui-new/src/types/bindings/assistant.ts"
-)]
+#[ts(export, export_to = "assistant.ts")]
 pub struct GenerationStats {
     pub total_duration: u64,
     pub load_duration: u64,
@@ -130,10 +121,7 @@ pub struct GenerationStats {
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(
-    export,
-    export_to = "../../packages/ui-new/src/types/bindings/assistant.ts"
-)]
+#[ts(export, export_to = "assistant.ts")]
 pub struct StreamChunk {
     pub content: String,
     pub done: bool,
@@ -244,7 +232,10 @@ impl GameAssistant {
 
             // Add language instruction if not auto
             if config.response_language != "auto" {
-                system_content = format!("{}\n\nIMPORTANT: Respond in {}. Do not include Pinyin or English translations unless explicitly requested.", system_content, config.response_language);
+                system_content = format!(
+                    "{}\n\nIMPORTANT: Respond in {}. Do not include Pinyin or English translations unless explicitly requested.",
+                    system_content, config.response_language
+                );
             }
 
             // Add log context if available
@@ -456,7 +447,10 @@ impl GameAssistant {
             let mut system_content = config.system_prompt.clone();
 
             if config.response_language != "auto" {
-                system_content = format!("{}\n\nIMPORTANT: Respond in {}. Do not include Pinyin or English translations unless explicitly requested.", system_content, config.response_language);
+                system_content = format!(
+                    "{}\n\nIMPORTANT: Respond in {}. Do not include Pinyin or English translations unless explicitly requested.",
+                    system_content, config.response_language
+                );
             }
 
             if !context.is_empty() {

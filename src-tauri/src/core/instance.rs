@@ -16,10 +16,7 @@ use ts_rs::TS;
 /// Represents a game instance/profile
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(
-    export,
-    export_to = "../../packages/ui-new/src/types/bindings/instance.ts"
-)]
+#[ts(export, export_to = "instance.ts")]
 pub struct Instance {
     pub id: String,                         // 唯一标识符（UUID）
     pub name: String,                       // 显示名称
@@ -40,10 +37,7 @@ pub struct Instance {
 /// Memory settings override for an instance
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(
-    export,
-    export_to = "../../packages/ui-new/src/types/bindings/instance.ts"
-)]
+#[ts(export, export_to = "instance.ts")]
 pub struct MemoryOverride {
     pub min: u32, // MB
     pub max: u32, // MB
@@ -52,10 +46,7 @@ pub struct MemoryOverride {
 /// Configuration for all instances
 #[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(
-    export,
-    export_to = "../../packages/ui-new/src/types/bindings/instance.ts"
-)]
+#[ts(export, export_to = "instance.ts")]
 pub struct InstanceConfig {
     pub instances: Vec<Instance>,
     pub active_instance_id: Option<String>, // 当前活动的实例ID
