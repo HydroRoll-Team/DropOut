@@ -1569,7 +1569,8 @@ async fn fetch_adoptium_java(
         "jdk" => core::java::ImageType::Jdk,
         _ => core::java::ImageType::Jre,
     };
-    core::java::fetch_java_release(major_version, img_type)
+    let provider = core::java::providers::AdoptiumProvider::new();
+    core::java::fetch_java_release_with(&provider, major_version, img_type)
         .await
         .map_err(|e| e.to_string())
 }
@@ -1588,16 +1589,24 @@ async fn download_adoptium_java(
         _ => core::java::ImageType::Jre,
     };
     let path = custom_path.map(std::path::PathBuf::from);
-    core::java::download_and_install_java(&app_handle, major_version, img_type, path)
-        .await
-        .map_err(|e| e.to_string())
+    let provider = core::java::providers::AdoptiumProvider::new();
+    core::java::install::download_and_install_java_with_provider(
+        &provider,
+        &app_handle,
+        major_version,
+        img_type,
+        path,
+    )
+    .await
+    .map_err(|e| e.to_string())
 }
 
 /// Get available Adoptium Java versions
 #[tauri::command]
 #[dropout_macros::api]
 async fn fetch_available_java_versions() -> Result<Vec<u32>, String> {
-    core::java::fetch_available_versions()
+    let provider = core::java::providers::AdoptiumProvider::new();
+    core::java::fetch_available_versions_with(&provider)
         .await
         .map_err(|e| e.to_string())
 }
@@ -1608,7 +1617,8 @@ async fn fetch_available_java_versions() -> Result<Vec<u32>, String> {
 async fn fetch_java_catalog(
     app_handle: tauri::AppHandle,
 ) -> Result<core::java::JavaCatalog, String> {
-    core::java::fetch_java_catalog(&app_handle, false)
+    let provider = core::java::providers::AdoptiumProvider::new();
+    core::java::fetch_java_catalog_with(&provider, &app_handle, false)
         .await
         .map_err(|e| e.to_string())
 }
@@ -1619,7 +1629,8 @@ async fn fetch_java_catalog(
 async fn refresh_java_catalog(
     app_handle: tauri::AppHandle,
 ) -> Result<core::java::JavaCatalog, String> {
-    core::java::fetch_java_catalog(&app_handle, true)
+    let provider = core::java::providers::AdoptiumProvider::new();
+    core::java::fetch_java_catalog_with(&provider, &app_handle, true)
         .await
         .map_err(|e| e.to_string())
 }
@@ -1647,7 +1658,8 @@ async fn get_pending_java_downloads(
 async fn resume_java_downloads(
     app_handle: tauri::AppHandle,
 ) -> Result<Vec<core::java::JavaInstallation>, String> {
-    core::java::resume_pending_downloads(&app_handle).await
+    let provider = core::java::providers::AdoptiumProvider::new();
+    core::java::resume_pending_downloads_with(&provider, &app_handle).await
 }
 
 /// Get Minecraft versions supported by Fabric
