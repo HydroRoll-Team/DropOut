@@ -10,5 +10,6 @@ pub mod instance;
 pub mod java;
 pub mod manifest;
 pub mod maven;
+pub mod modpack;
 pub mod rules;
 pub mod version_merge;

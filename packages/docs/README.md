@@ -5,6 +5,7 @@ This is the official documentation site for DropOut Minecraft Launcher, built wi
 ## Overview
 
 The documentation covers:
+
 - **Getting Started**: Installation and first-time setup
 - **Features**: Detailed guides for all launcher features
 - **Architecture**: Technical design and implementation details
@@ -14,6 +15,7 @@ The documentation covers:
 ### Multi-language Support
 
 The documentation is available in:
+
 - **English** (default) - `content/docs/en/`
 - **简体中文** (Simplified Chinese) - `content/docs/zh/`
 
@@ -68,7 +70,7 @@ pnpm format
 
 ## Project Structure
 
-```
+```bash
 packages/docs/
 ├── content/
 │   └── docs/              # Documentation content (MDX)
@@ -97,6 +99,7 @@ packages/docs/
 ### Structure
 
 Documentation is organized by locale:
+
 - English: `content/docs/en/`
 - Chinese: `content/docs/zh/`
 
@@ -105,6 +108,7 @@ Each locale has the same structure with translated content.
 ### Configuration
 
 i18n is configured in:
+
 - `source.config.ts`: Enables i18n support
 - `app/lib/source.ts`: Defines available languages and default
 
@@ -160,6 +164,7 @@ Fumadocs provides several components:
 ### Translation Guidelines
 
 When translating content:
+
 - Keep all code blocks in English
 - Translate frontmatter (title, description)
 - Keep technical terms (Tauri, Rust, Svelte, etc.) in English
