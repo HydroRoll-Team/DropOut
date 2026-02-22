@@ -16,8 +16,13 @@ export function baseOptions(locale: string): BaseLayoutProps {
     links: [
       {
         type: 'main',
-        text: locale === 'zh' ? '文档' : 'Documentation',
-        url: `${localePrefix}/docs`,
+        text: locale === 'zh' ? '使用文档' : 'Manual',
+        url: `${localePrefix}/docs/manual`,
+      },
+      {
+        type: 'main',
+        text: locale === 'zh' ? '开发文档' : 'Development',
+        url: `${localePrefix}/docs/development`,
       },
     ],
   };

@@ -1,0 +1,8 @@
+{
+  "title": "开发文档",
+  "pages": [
+    "index",
+    "architecture",
+    "implementation"
+  ]
+}

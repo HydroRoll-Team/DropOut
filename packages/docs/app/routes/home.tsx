@@ -10,7 +10,7 @@ const texts = {
       subtitle: 'Modern. Reproducible. Developer-Grade.',
       description: 'Built with Tauri v2 and Rust for native performance and minimal resource usage',
       start: 'Get Started',
-      features: 'Features',
+      development: 'Development',
     },
     features: {
       items: [
@@ -42,7 +42,7 @@ const texts = {
       subtitle: '现代、可复现、开发者级',
       description: '基于 Tauri v2 和 Rust 构建，拥有原生性能和极低的资源占用',
       start: '开始使用',
-      features: '功能特性',
+      development: '参与开发',
     },
     features: {
       items: [
@@ -107,10 +107,10 @@ export default function Home({ params }: Route.ComponentProps) {
               {t.hero.start}
             </a>
             <a
-              className="bg-fd-secondary hover:bg-fd-secondary/80 text-fd-secondary-foreground font-semibold rounded-lg px-6 py-3 transition-colors cursor-pointer"
-              href={`${localePrefix}/docs/features`}
+              className="bg-fd-secondary hover:bg-fd-secondary/80 text-fd-secondary-foreground font-semibold rounded-lg px-6 py-3 transition-colors cursor-pointer border border-blue-600/50"
+              href={`${localePrefix}/docs/development`}
             >
-               {t.hero.features}
+               {t.hero.development}
             </a>
           </div>
         </div>
@@ -129,7 +129,7 @@ export default function Home({ params }: Route.ComponentProps) {
         {/* Features Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
           {t.features.items.map((item, i) => (
-             <div key={i} className="p-6 rounded-lg border border-fd-border bg-fd-card">
+             <div key={i} className="p-6 rounded-lg border border-blue-600/20 bg-fd-card hover:border-blue-600/50 transition-colors">
               <h3 className="font-semibold text-lg mb-2">{item.title}</h3>
               <p className="text-sm text-fd-muted-foreground">
                 {item.desc}
@@ -162,7 +162,7 @@ export default function Home({ params }: Route.ComponentProps) {
           </p>
           <a
             className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg px-8 py-3 transition-colors"
-            href={`${localePrefix}/docs/getting-started`}
+            href={`${localePrefix}/docs/manual/getting-started`}
           >
             {t.cta.button}
           </a>

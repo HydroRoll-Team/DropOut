@@ -11,8 +11,8 @@ import browserCollections from 'fumadocs-mdx:collections/browser';
 
 export async function loader({ params }: Route.LoaderArgs) {
   // 从路由参数获取语言，如果没有则使用默认语言
-  // URL 格式: /docs/getting-started (默认语言 zh)
-  // URL 格式: /en/docs/getting-started (英语)
+  // URL 格式: /docs/manual/getting-started (默认语言 zh)
+  // URL 格式: /en/docs/manual/getting-started (英语)
   const lang = (params.lang && i18n.languages.includes(params.lang as any))
     ? (params.lang as 'zh' | 'en')
     : (i18n.defaultLanguage as 'zh' | 'en');
@@ -37,10 +37,22 @@ const clientLoader = browserCollections.docs.createClientLoader({
   component({ toc, frontmatter, default: Mdx }) {
     return (
       <DocsPage toc={toc}>
-        <DocsTitle>{frontmatter.title}</DocsTitle>
-        <DocsDescription>{frontmatter.description}</DocsDescription>
+        {/* 老王说不要这个 */}
+        {/* <DocsTitle>{frontmatter.title}</DocsTitle>
+        <DocsDescription>{frontmatter.description}</DocsDescription> */}
         <DocsBody>
-          <Mdx components={{ ...defaultMdxComponents, Card, Cards }} />
+          <Mdx 
+            components={{ 
+              ...defaultMdxComponents, 
+              Card: (props: any) => (
+                <Card 
+                  {...props} 
+                  className={`border-blue-600/20 hover:border-blue-600/50 transition-colors ${props.className || ''}`} 
+                />
+              ), 
+              Cards 
+            }} 
+          />
         </DocsBody>
       </DocsPage>
     );

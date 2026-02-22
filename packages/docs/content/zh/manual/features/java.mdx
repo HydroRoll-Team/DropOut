@@ -84,23 +84,7 @@ DropOut 集成了 Eclipse Adoptium API 以下载高质量的免费 JDK/JRE 构�
 
 ### 目录管理
 
-Java 目录缓存 24 小时以提高性能：
-
-```rust
-// 目录结构
-{
-  "versions": [
-    {
-      "version": "17.0.9+9",
-      "major": 17,
-      "url": "https://api.adoptium.net/...",
-      "sha256": "...",
-      "size": 123456789
-    }
-  ],
-  "last_updated": 1234567890
-}
-```
+DropOut 会缓存可用的 Java 版本列表，以加快加载速度，并自动处理不同步时的刷新工作。
 
 **刷新：**
 - 24 小时后自动刷新
@@ -166,22 +150,14 @@ java/
 
 ### 自定义 JVM 参数
 
-为高级配置添加自定义 JVM 参数：
+为高级配置添加自定义 JVM 参数。DropOut 为您提供了经过优化的默认配置，通常无需手动更改。
 
-**常用参数：**
-```bash
-# 垃圾回收
--XX:+UseG1GC
--XX:+UnlockExperimentalVMOptions
+**参数说明：**
+- **垃圾回收 (GC)**: 默认使用 G1GC，能够大幅减少大规模模组环境下的游戏卡顿。
+- **实验性选项**: 部分性能优化参数需要开启此开关才能生效。
+- **内存分块**: 优化大内存环境下的数据读写效率。
 
-# 性能
--XX:G1NewSizePercent=20
--XX:G1ReservePercent=20
--XX:MaxGCPauseMillis=50
-
-# 内存
--XX:G1HeapRegionSize=32M
-```
+关于每个参数的具体作用、推荐数值以及技术实现，请参考 [实现细节：JVM 参数优化](../development/implementation.mdx#参数优化与-jvm-配置)。
 
 ### Java 路径选择
 
@@ -276,56 +252,6 @@ java/
 4. 如兼容使用更新的 Java 版本
 5. 为整合包分配 4-8GB
 
-## API 参考
-
-### Tauri 命令
-
-**检测 Java 安装：**
-```typescript
-const javas = await invoke('detect_java_installations');
-// 返回: Array<{ path: string, version: string, major: number }>
-```
-
-**获取 Java 目录：**
-```typescript
-const catalog = await invoke('get_java_catalog');
-// 返回: { versions: Array<JavaVersion>, last_updated: number }
-```
-
-**下载 Java：**
-```typescript
-await invoke('download_java', { 
-  version: '17.0.9+9',
-  variant: 'jdk' // 或 'jre'
-});
-```
-
-**取消 Java 下载：**
-```typescript
-await invoke('cancel_java_download');
-```
-
-**设置 Java 路径：**
-```typescript
-await invoke('set_java_path', { path: '/path/to/java' });
-```
-
-### 事件
-
-**下载进度：**
-```typescript
-listen('java-download-progress', (event) => {
-  const { percent, speed, eta } = event.payload;
-});
-```
-
-**下载完成：**
-```typescript
-listen('java-download-complete', (event) => {
-  const { path, version } = event.payload;
-});
-```
-
 ## 最佳实践
 
 ### 对于玩家
@@ -335,14 +261,6 @@ listen('java-download-complete', (event) => {
 3. **不要过度分配内存** - 为操作系统留出 RAM
 4. **保持 Java 更新** - 安全性和性能
 5. **使用 64 位 Java** - 大内存所需
-
-### 对于开发者
-
-1. **测试多个 Java 版本** - 确保兼容性
-2. **记录 Java 要求** - 帮助用户
-3. **处理缺少的 Java** - 优雅的后备方案
-4. **启动前验证 Java 路径**
-5. **提供清晰的错误** - 当 Java 错误时
 
 ## 高级主题
 
@@ -356,32 +274,6 @@ listen('java-download-complete', (event) => {
 4. 点击"自定义路径"
 5. 浏览到 Java 可执行文件
 6. 验证版本正确
-
-### 服务器用 Java
-
-运行 Minecraft 服务器时：
-
-```bash
-# 推荐的服务器 JVM 参数
--Xms4G -Xmx4G \
--XX:+UseG1GC \
--XX:+ParallelRefProcEnabled \
--XX:MaxGCPauseMillis=200 \
--XX:+UnlockExperimentalVMOptions \
--XX:+DisableExplicitGC \
--XX:G1NewSizePercent=30 \
--XX:G1MaxNewSizePercent=40 \
--XX:G1HeapRegionSize=8M \
--XX:G1ReservePercent=20 \
--XX:G1HeapWastePercent=5 \
--XX:G1MixedGCCountTarget=4 \
--XX:InitiatingHeapOccupancyPercent=15 \
--XX:G1MixedGCLiveThresholdPercent=90 \
--XX:G1RSetUpdatingPauseTimePercent=5 \
--XX:SurvivorRatio=32 \
--XX:+PerfDisableSharedMem \
--XX:MaxTenuringThreshold=1
-```
 
 ### GraalVM
 

@@ -28,31 +28,7 @@ Fabric 是一个轻量级、模块化的模组工具链，专注于：
 
 ### 工作原理
 
-**Meta API 集成：**
-```rust
-// Fetch available Fabric versions
-let url = format!(
-    "https://meta.fabricmc.net/v2/versions/loader/{}",
-    minecraft_version
-);
-```
-
-**配置文件生成：**
-1. 获取 Fabric 加载器元数据
-2. 下载 Fabric 库
-3. 使用 `inheritsFrom` 生成版本 JSON
-4. 与父级 Minecraft 版本合并
-5. 添加至版本列表
-
-**版本格式：**
-```json
-{
-  "id": "fabric-loader-0.15.0-1.20.4",
-  "inheritsFrom": "1.20.4",
-  "mainClass": "net.fabricmc.loader.impl.launch.knot.KnotClient",
-  "libraries": [...]
-}
-```
+DropOut 集成了 Fabric 的 Meta API，能够自动获取兼容的加载器版本。在后台，它会生成版本 JSON，处理库依赖，并利用继承系统确保与原版 Minecraft 的完美兼容。详细的 JSON 结构可参阅[技术细节](/docs/development/implementation#fabric-集成)。
 
 ### Fabric 版本
 
@@ -68,26 +44,7 @@ let url = format!(
 
 ### 库管理
 
-Fabric 库从 Maven 解析：
-
-**主库：**
-```
-net.fabricmc:fabric-loader:0.15.0
-```
-
-**依赖项：**
-- `net.fabricmc:tiny-mappings-parser`
-- `net.fabricmc:sponge-mixin`
-- `net.fabricmc:access-widener`
-
-**下载：**
-```rust
-// Maven resolution
-let url = format!(
-    "https://maven.fabricmc.net/{}/{}",
-    artifact_path, filename
-);
-```
+Fabric 的依赖项通常托管在其官方 Maven 仓库中。DropOut 自动解析并下载所有必需的库文件。
 
 ### Fabric API
 
@@ -121,34 +78,7 @@ Forge 是原始的、最流行的 Minecraft 模组加载器：
 
 ### 工作原理
 
-**Forge 安装程序：**
-```rust
-// Download Forge installer
-let installer_url = format!(
-    "https://maven.minecraftforge.net/net/minecraftforge/forge/{}/forge-{}-installer.jar",
-    full_version, full_version
-);
-
-// Run installer
-java -jar forge-installer.jar --installClient
-```
-
-**配置文件解析：**
-1. Forge 安装程序创建版本 JSON
-2. DropOut 解析安装配置文件
-3. 提取库依赖项
-4. 处理处理器（如果有）
-5. 生成启动器配置文件
-
-**版本格式：**
-```json
-{
-  "id": "1.20.4-forge-49.0.26",
-  "inheritsFrom": "1.20.4",
-  "mainClass": "cpw.mods.bootstraplauncher.BootstrapLauncher",
-  "libraries": [...]
-}
-```
+DropOut 会为您下载 Forge 安装程序。通过在后台以无头模式运行安装程序，我们能够生成所需的版本配置文件并处理复杂的补丁程序。详细实现请参考[技术实现](/docs/development/implementation#forge-支持)。
 
 ### Forge 版本
 
@@ -164,22 +94,9 @@ java -jar forge-installer.jar --installClient
 
 ### 库管理
 
-Forge 有许多库：
+Forge 的运行依赖于大量的库文件，包括底层的 `fmlloader` 和字节码操作库。DropOut 能够自动解析复杂的依赖树，并从 Forge 官方 Maven 仓库以及 Minecraft 官方库中获取这些文件。
 
-**核心库：**
-- `net.minecraftforge:forge:<version>`
-- `net.minecraftforge:fmlloader:<version>`
-- `org.ow2.asm:asm:<version>`
-
-**解析：**
-```rust
-// Forge Maven
-"https://maven.minecraftforge.net/"
-
-// Dependencies may use:
-// - Maven Central
-// - Minecraft Libraries
-```
+关于 Forge 库的详细解析逻辑，请参考[实现细节：Forge 核心库解析](../development/implementation.mdx#核心库解析)。
 
 ### Forge 处理器
 
@@ -192,44 +109,14 @@ DropOut 自动处理这些操作。
 
 ## 版本继承
 
-Fabric 和 Forge 都使用 Minecraft 的继承系统：
+Fabric 和 Forge 都利用了 Minecraft 的版本继承机制。在这种模式下，模组加载器的版本 JSON 仅包含相对于原版版本的增量变化，通过 `inheritsFrom` 字段递归向上寻址。
 
-### 父版本
+DropOut 的启动引擎能够自动处理这种复杂的合并：
+- **库 (Libraries)**：自动排重并确保加载顺序。
+- **参数 (Arguments)**：合并游戏参数与 JVM 参数。
+- **主类 (Main Class)**：自动切换至模组加载器的入口点。
 
-```json
-{
-  "id": "fabric-loader-0.15.0-1.20.4",
-  "inheritsFrom": "1.20.4"  // Parent vanilla version
-}
-```
-
-### 合并过程
-
-**库：**
-```rust
-// Merged from both
-parent_libraries + modded_libraries
-// Duplicates removed
-```
-
-**参数：**
-```rust
-// Combined
-parent_jvm_args + modded_jvm_args
-parent_game_args + modded_game_args
-```
-
-**资源：**
-```rust
-// Inherited from parent
-assets = parent.assets
-```
-
-**主类：**
-```rust
-// Overridden by modded
-main_class = modded.mainClass
-```
+具体的合并逻辑和代码实现请查看[实现细节：版本合并](../development/implementation.mdx#版本合并机制)。
 
 ## 对比
 
@@ -334,76 +221,22 @@ main_class = modded.mainClass
 
 ## API 参考
 
-### Tauri 命令
+如果您正在为 DropOut 开发自定义主题或进行二次开发，可以使用我们提供的 Tauri 命令和事件接口。
 
-**安装 Fabric：**
-```typescript
-await invoke('install_fabric', {
-  minecraftVersion: '1.20.4',
-  loaderVersion: '0.15.0'
-});
-```
-
-**安装 Forge：**
-```typescript
-await invoke('install_forge', {
-  minecraftVersion: '1.20.4',
-  forgeVersion: '49.0.26'
-});
-```
-
-**列出 Fabric 版本：**
-```typescript
-const versions = await invoke('get_fabric_versions', {
-  minecraftVersion: '1.20.4'
-});
-```
-
-**列出 Forge 版本：**
-```typescript
-const versions = await invoke('get_forge_versions', {
-  minecraftVersion: '1.20.4'
-});
-```
-
-### 事件
-
-**安装进度：**
-```typescript
-listen('mod-loader-progress', (event) => {
-  const { stage, percent } = event.payload;
-  // Stages: "downloading", "installing", "processing", "complete"
-});
-```
+具体的命令接口、参数说明及进度推送事件详见开发文档：[实现细节：模组加载器 API](../development/implementation.mdx#api-参考)。
 
 ## 最佳实践
 
-### 对于玩家
+1. **每个实例选择一个模组加载器**：不要在同一个实例中混用 Fabric 和 Forge。
+2. **精确匹配版本**：确保 Minecraft 版本与模组加载器版本高度兼容。
+3. **安装前阅读要求**：许多模组需要额外的依赖库（如 Fabric API 或 Architectury）。
+4. **循序渐进**：首次构建模组包时，应分批添加模组以便于排查问题。
+5. **养成备份习惯**：在安装大型模组包或进行版本大更新前，请备份您的存档。
 
-1. **每个实例选择一个模组加载器**
-2. **精确匹配版本** - Minecraft 和加载器
-3. **安装前阅读模组要求**
-4. **循序渐进** - 逐步添加模组
-5. **备份世界** - 添加模组前备份
-6. **检查兼容性** 列表
-7. **谨慎更新** - 在单独的实例中测试
+更多面向开发者和模组包创作者的进阶指南，请参阅[开发文档：分发最佳实践](../development/implementation.mdx#对于模组包modpack创建者)。
 
-### 对于模组包创建者
+## 规划与展望
 
-1. **记录版本** - MC、加载器、所有模组
-2. **彻底测试** - 所有功能
-3. **列出依赖项** - 包括 API
-4. **提供更新日志** - 用于更新
-5. **版本锁定** - 为了稳定性
-6. **包含配置** - 预配置
-7. **测试更新** - 发布前测试
+我们致力于为 DropOut 打造最便捷的模组体验。未来，我们计划引入模组浏览器、自动更新监控以及智能冲突检测等功能。
 
-## 未来功能
-
-- **模组浏览器** - 从启动器安装模组
-- **自动更新** - 保持模组最新
-- **依赖项解析** - 自动安装需求
-- **冲突检测** - 警告不兼容性
-- **配置文件导出** - 共享模组包配置
-- **CurseForge 集成** - 直接模组包导入
-- **Modrinth 集成** - 模组搜索和安装
+详见[开发路线图](../development/implementation.mdx#模组管理系统)。

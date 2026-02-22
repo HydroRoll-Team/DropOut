@@ -28,31 +28,7 @@ Fabric is a lightweight, modular modding toolchain focused on:
 
 ### How It Works
 
-**Meta API Integration:**
-```rust
-// Fetch available Fabric versions
-let url = format!(
-    "https://meta.fabricmc.net/v2/versions/loader/{}",
-    minecraft_version
-);
-```
-
-**Profile Generation:**
-1. Fetch Fabric loader metadata
-2. Download Fabric libraries
-3. Generate version JSON with `inheritsFrom`
-4. Merge with parent Minecraft version
-5. Add to versions list
-
-**Version Format:**
-```json
-{
-  "id": "fabric-loader-0.15.0-1.20.4",
-  "inheritsFrom": "1.20.4",
-  "mainClass": "net.fabricmc.loader.impl.launch.knot.KnotClient",
-  "libraries": [...]
-}
-```
+DropOut integrates with the Fabric Meta API to automatically fetch compatible loader versions. In the background, it generates the version JSON, handles library dependencies, and utilizes the inheritance system to ensure perfect compatibility with vanilla Minecraft. Detailed JSON structure can be found in [Technical Details](/docs/development/implementation#fabric-integration).
 
 ### Fabric Versions
 
@@ -68,26 +44,7 @@ let url = format!(
 
 ### Library Management
 
-Fabric libraries are resolved from Maven:
-
-**Main Library:**
-```
-net.fabricmc:fabric-loader:0.15.0
-```
-
-**Dependencies:**
-- `net.fabricmc:tiny-mappings-parser`
-- `net.fabricmc:sponge-mixin`
-- `net.fabricmc:access-widener`
-
-**Download:**
-```rust
-// Maven resolution
-let url = format!(
-    "https://maven.fabricmc.net/{}/{}",
-    artifact_path, filename
-);
-```
+Fabric's dependencies are typically hosted on its official Maven repository. DropOut automatically resolves and downloads all required library files.
 
 ### Fabric API
 
@@ -164,22 +121,9 @@ java -jar forge-installer.jar --installClient
 
 ### Library Management
 
-Forge has many libraries:
+Forge's runtime depends on a significant number of library files, including its underlying `fmlloader` and bytecode manipulation libraries. DropOut automatically resolves the complex dependency tree and retrieves these files from both the official Forge Maven repository and Minecraft's official libraries.
 
-**Core Libraries:**
-- `net.minecraftforge:forge:<version>`
-- `net.minecraftforge:fmlloader:<version>`
-- `org.ow2.asm:asm:<version>`
-
-**Resolution:**
-```rust
-// Forge Maven
-"https://maven.minecraftforge.net/"
-
-// Dependencies may use:
-// - Maven Central
-// - Minecraft Libraries
-```
+For detailed analysis logic of Forge libraries, refer to [Implementation Details: Forge Core Library Resolution](../development/implementation.mdx#core-library-resolution).
 
 ### Forge Processors
 
@@ -192,44 +136,9 @@ DropOut handles these automatically.
 
 ## Version Inheritance
 
-Both Fabric and Forge use Minecraft's inheritance system:
+Both Fabric and Forge utilize Minecraft's version inheritance mechanism. In this model, the mod loader's version JSON only contains incremental changes relative to the vanilla version, addressed recursively upwards via the `inheritsFrom` field.
 
-### Parent Version
-
-```json
-{
-  "id": "fabric-loader-0.15.0-1.20.4",
-  "inheritsFrom": "1.20.4"  // Parent vanilla version
-}
-```
-
-### Merging Process
-
-**Libraries:**
-```rust
-// Merged from both
-parent_libraries + modded_libraries
-// Duplicates removed
-```
-
-**Arguments:**
-```rust
-// Combined
-parent_jvm_args + modded_jvm_args
-parent_game_args + modded_game_args
-```
-
-**Assets:**
-```rust
-// Inherited from parent
-assets = parent.assets
-```
-
-**Main Class:**
-```rust
-// Overridden by modded
-main_class = modded.mainClass
-```
+DropOut's launch engine automatically handles this complex merging of libraries, arguments, and assets. Detailed merging logic and code implementation can be viewed in [Implementation Details: Version Merging](../development/implementation.mdx#version-merging-mechanism).
 
 ## Comparison
 

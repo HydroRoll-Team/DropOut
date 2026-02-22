@@ -7,6 +7,6 @@ export const source = loader({
   baseUrl: '/docs',
   i18n,
   // hideLocale: 'default-locale' 会自动生成正确的 URL:
-  // - 默认语言 (zh): /docs/getting-started
-  // - 其他语言 (en): /en/docs/getting-started
+  // - 默认语言 (zh): /docs/manual/getting-started
+  // - 其他语言 (en): /en/docs/manual/getting-started
 });
