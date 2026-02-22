@@ -32,7 +32,7 @@
     "oxfmt": "^0.24.0",
     "oxlint": "^1.39.0",
     "postcss": "^8.5.6",
-    "svelte": "^5.46.4",
+    "svelte": "^5.51.5",
     "svelte-check": "^4.3.4",
     "tailwindcss": "^4.1.18",
     "typescript": "~5.9.3",
