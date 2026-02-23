@@ -57,10 +57,3 @@ tauri-build = { version = "2.0", features = [] }
 
 [target.'cfg(all(windows, target_env = "gnu"))'.build-dependencies]
 embed-resource = "2.4"
-
-[package.metadata.deb]
-depends = "libgtk-3-0"
-section = "games"
-assets = [
-    ["target/release/dropout", "usr/bin/", "755"],
-]
