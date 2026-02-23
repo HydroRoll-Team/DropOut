@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+env:
+  CARGO_TERM_COLOR: always
+  CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
+
 jobs:
   prek:
     runs-on: ubuntu-latest

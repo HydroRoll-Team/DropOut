@@ -6,6 +6,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   CLICOLOR_FORCE: 1
+  CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
 
 permissions:
   id-token: write
@@ -24,14 +25,8 @@ jobs:
             name: "Linux x86_64 (GNU)"
             target: "x86_64-unknown-linux-gnu"
             args: "--target x86_64-unknown-linux-gnu"
-          # - platform: "ubuntu-latest"
-          #   name: "Linux x86_64 (Musl)"
-          #   target: "x86_64-unknown-linux-musl"
-          #   args: "--target x86_64-unknown-linux-musl"
-          #   install-musl: true
-          #   pkg-config-allow-cross: true
           - platform: "ubuntu-24.04-arm"
-            name: "Linux arm64"
+            name: "Linux arm64 (GNU)"
             target: "aarch64-unknown-linux-gnu"
             args: "--target aarch64-unknown-linux-gnu"
           # macOS
@@ -48,13 +43,8 @@ jobs:
             name: "Windows x86_64 (MSVC)"
             target: "x86_64-pc-windows-msvc"
             args: "--target x86_64-pc-windows-msvc --bundles nsis"
-          - platform: "windows-latest"
-            name: "Windows x86_64 (GNU)"
-            target: "x86_64-pc-windows-gnu"
-            args: "--target x86_64-pc-windows-gnu --bundles nsis"
-            rustflags: "-C link-arg=-lws2_32"
           - platform: "windows-11-arm"
-            name: "Windows arm64"
+            name: "Windows arm64 (MSVC)"
             target: "aarch64-pc-windows-msvc"
             args: "--target aarch64-pc-windows-msvc --bundles nsis"
 
@@ -112,9 +102,7 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RUSTFLAGS: ${{ matrix.rustflags || '' }}
           CARGO_BUILD_TARGET: ${{ matrix.target }}
-          PKG_CONFIG_ALLOW_CROSS: ${{ matrix.pkg-config-allow-cross && '1' || '' }}
         with:
           args: ${{ matrix.args }}
 
