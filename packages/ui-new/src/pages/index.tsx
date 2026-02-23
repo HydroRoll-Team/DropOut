@@ -70,7 +70,7 @@ export function IndexPage() {
           <img
             src={settingsStore.settings.customBackgroundPath}
             alt="Background"
-            className="absolute inset-0 w-full h-full object-cover transition-transform duration-[20s] ease-linear hover:scale-105"
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-[20s] ease-linear"
             onError={(e) => console.error("Failed to load main background:", e)}
           />
         )}

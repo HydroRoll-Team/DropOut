@@ -15,11 +15,7 @@ fn get_client() -> reqwest::Client {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(tag = "type")]
 #[serde(rename_all = "camelCase")]
-#[ts(
-    export,
-    tag = "type",
-    export_to = "../../packages/ui-new/src/types/bindings/auth.ts"
-)]
+#[ts(export, tag = "type", export_to = "auth.ts")]
 pub enum Account {
     Offline(OfflineAccount),
     Microsoft(MicrosoftAccount),
@@ -50,7 +46,7 @@ impl Account {
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "../../packages/ui-new/src/types/bindings/auth.ts")]
+#[ts(export, export_to = "auth.ts")]
 pub struct OfflineAccount {
     pub username: String,
     pub uuid: String,
@@ -58,7 +54,7 @@ pub struct OfflineAccount {
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "../../packages/ui-new/src/types/bindings/auth.ts")]
+#[ts(export, export_to = "auth.ts")]
 pub struct MicrosoftAccount {
     pub username: String,
     pub uuid: String,
@@ -89,7 +85,7 @@ const SCOPE: &str = "XboxLive.SignIn XboxLive.offline_access";
 
 #[derive(Debug, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "../../packages/ui-new/src/types/bindings/auth.ts")]
+#[ts(export, export_to = "auth.ts")]
 pub struct DeviceCodeResponse {
     pub user_code: String,
     pub device_code: String,
@@ -101,7 +97,7 @@ pub struct DeviceCodeResponse {
 
 #[derive(Debug, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "../../packages/ui-new/src/types/bindings/auth.ts")]
+#[ts(export, export_to = "auth.ts")]
 pub struct TokenResponse {
     pub access_token: String,
     pub refresh_token: Option<String>,
@@ -225,7 +221,7 @@ pub struct MinecraftAuthResponse {
 
 #[derive(Debug, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "../../packages/ui-new/src/types/bindings/auth.ts")]
+#[ts(export, export_to = "auth.ts")]
 pub struct MinecraftProfile {
     pub id: String,
     pub name: String,

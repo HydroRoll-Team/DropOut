@@ -1,8 +1,8 @@
 use tauri::AppHandle;
 
+use crate::core::java::JavaInstallation;
 use crate::core::java::persistence;
 use crate::core::java::validation;
-use crate::core::java::JavaInstallation;
 
 pub async fn resolve_java_for_launch(
     app_handle: &AppHandle,

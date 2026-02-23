@@ -4,10 +4,7 @@ use ts_rs::TS;
 /// Represents a Minecraft version JSON, supporting both vanilla and modded (Fabric/Forge) formats.
 /// Modded versions use `inheritsFrom` to reference a parent vanilla version.
 #[derive(Debug, Deserialize, Serialize, Clone, TS)]
-#[ts(
-    export,
-    export_to = "../../packages/ui-new/src/types/bindings/game_version.ts"
-)]
+#[ts(export, export_to = "game-version.ts")]
 pub struct GameVersion {
     pub id: String,
     /// Optional for mod loaders that inherit from vanilla
@@ -34,20 +31,14 @@ pub struct GameVersion {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, TS)]
-#[ts(
-    export,
-    export_to = "../../packages/ui-new/src/types/bindings/game_version.ts"
-)]
+#[ts(export, export_to = "game-version.ts")]
 pub struct Downloads {
     pub client: DownloadArtifact,
     pub server: Option<DownloadArtifact>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, TS)]
-#[ts(
-    export,
-    export_to = "../../packages/ui-new/src/types/bindings/game_version.ts"
-)]
+#[ts(export, export_to = "game-version.ts")]
 pub struct DownloadArtifact {
     pub sha1: Option<String>,
     pub size: Option<u64>,
@@ -56,10 +47,7 @@ pub struct DownloadArtifact {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, TS)]
-#[ts(
-    export,
-    export_to = "../../packages/ui-new/src/types/bindings/game_version.ts"
-)]
+#[ts(export, export_to = "game-version.ts")]
 pub struct AssetIndex {
     pub id: String,
     pub sha1: String,
@@ -70,10 +58,7 @@ pub struct AssetIndex {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, TS)]
-#[ts(
-    export,
-    export_to = "../../packages/ui-new/src/types/bindings/game_version.ts"
-)]
+#[ts(export, export_to = "game-version.ts")]
 pub struct Library {
     pub downloads: Option<LibraryDownloads>,
     pub name: String,
@@ -85,10 +70,7 @@ pub struct Library {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, TS)]
-#[ts(
-    export,
-    export_to = "../../packages/ui-new/src/types/bindings/game_version.ts"
-)]
+#[ts(export, export_to = "game-version.ts")]
 pub struct Rule {
     pub action: String, // "allow" or "disallow"
     pub os: Option<OsRule>,
@@ -97,10 +79,7 @@ pub struct Rule {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, TS)]
-#[ts(
-    export,
-    export_to = "../../packages/ui-new/src/types/bindings/game_version.ts"
-)]
+#[ts(export, export_to = "game-version.ts")]
 pub struct OsRule {
     pub name: Option<String>,    // "linux", "osx", "windows"
     pub version: Option<String>, // Regex
@@ -108,10 +87,7 @@ pub struct OsRule {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, TS)]
-#[ts(
-    export,
-    export_to = "../../packages/ui-new/src/types/bindings/game_version.ts"
-)]
+#[ts(export, export_to = "game-version.ts")]
 pub struct LibraryDownloads {
     pub artifact: Option<DownloadArtifact>,
     #[ts(type = "Record<string, unknown>")]
@@ -119,10 +95,7 @@ pub struct LibraryDownloads {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, TS)]
-#[ts(
-    export,
-    export_to = "../../packages/ui-new/src/types/bindings/game_version.ts"
-)]
+#[ts(export, export_to = "game-version.ts")]
 pub struct Arguments {
     #[ts(type = "Record<string, unknown>")]
     pub game: Option<serde_json::Value>,
@@ -131,10 +104,7 @@ pub struct Arguments {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, TS)]
-#[ts(
-    export,
-    export_to = "../../packages/ui-new/src/types/bindings/game_version.ts"
-)]
+#[ts(export, export_to = "game-version.ts")]
 pub struct JavaVersion {
     pub component: String,
     #[serde(rename = "majorVersion")]

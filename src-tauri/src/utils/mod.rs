@@ -1,3 +1,5 @@
+#[cfg(test)]
+pub mod api;
 pub mod path;
 pub mod zip;
 

@@ -6,7 +6,8 @@ use std::process::Stdio;
 use std::sync::Mutex;
 use tauri::{Emitter, Manager, State, Window}; // Added Emitter
 use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::process::Command; // Added Serialize
+use tokio::process::Command;
+use ts_rs::TS; // Added Serialize
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -63,6 +64,7 @@ fn has_unresolved_placeholder(s: &str) -> bool {
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn start_game(
     window: Window,
     auth_state: State<'_, core::auth::AccountState>,
@@ -896,6 +898,7 @@ fn parse_jvm_arguments(
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn get_versions(
     _window: Window,
     instance_state: State<'_, core::instance::InstanceState>,
@@ -940,6 +943,7 @@ async fn get_versions(
 
 /// Check if a version is installed (has client.jar)
 #[tauri::command]
+#[dropout_macros::api]
 async fn check_version_installed(
     _window: Window,
     instance_state: State<'_, core::instance::InstanceState>,
@@ -979,6 +983,7 @@ async fn check_version_installed(
 
 /// Install a version (download client, libraries, assets) without launching
 #[tauri::command]
+#[dropout_macros::api]
 async fn install_version(
     window: Window,
     config_state: State<'_, core::config::ConfigState>,
@@ -1302,6 +1307,7 @@ async fn install_version(
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn login_offline(
     window: Window,
     state: State<'_, core::auth::AccountState>,
@@ -1325,6 +1331,7 @@ async fn login_offline(
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn get_active_account(
     state: State<'_, core::auth::AccountState>,
 ) -> Result<Option<core::auth::Account>, String> {
@@ -1332,6 +1339,7 @@ async fn get_active_account(
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn logout(window: Window, state: State<'_, core::auth::AccountState>) -> Result<(), String> {
     // Get current account UUID before clearing
     let uuid = state
@@ -1358,6 +1366,7 @@ async fn logout(window: Window, state: State<'_, core::auth::AccountState>) -> R
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn get_settings(
     state: State<'_, core::config::ConfigState>,
 ) -> Result<core::config::LauncherConfig, String> {
@@ -1365,6 +1374,7 @@ async fn get_settings(
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn save_settings(
     state: State<'_, core::config::ConfigState>,
     config: core::config::LauncherConfig,
@@ -1375,11 +1385,13 @@ async fn save_settings(
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn get_config_path(state: State<'_, core::config::ConfigState>) -> Result<String, String> {
     Ok(state.file_path.to_string_lossy().to_string())
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn read_raw_config(state: State<'_, core::config::ConfigState>) -> Result<String, String> {
     tokio::fs::read_to_string(&state.file_path)
         .await
@@ -1387,6 +1399,7 @@ async fn read_raw_config(state: State<'_, core::config::ConfigState>) -> Result<
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn save_raw_config(
     state: State<'_, core::config::ConfigState>,
     content: String,
@@ -1407,11 +1420,13 @@ async fn save_raw_config(
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn start_microsoft_login() -> Result<core::auth::DeviceCodeResponse, String> {
     core::auth::start_device_flow().await
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn complete_microsoft_login(
     window: Window,
     state: State<'_, core::auth::AccountState>,
@@ -1482,6 +1497,7 @@ async fn complete_microsoft_login(
 
 /// Refresh token for current Microsoft account
 #[tauri::command]
+#[dropout_macros::api]
 async fn refresh_account(
     window: Window,
     state: State<'_, core::auth::AccountState>,
@@ -1517,6 +1533,7 @@ async fn refresh_account(
 
 /// Detect Java installations on the system
 #[tauri::command]
+#[dropout_macros::api]
 async fn detect_all_java_installations(
     app_handle: tauri::AppHandle,
 ) -> Result<Vec<core::java::JavaInstallation>, String> {
@@ -1525,6 +1542,7 @@ async fn detect_all_java_installations(
 
 /// Alias for detect_all_java_installations (for backward compatibility)
 #[tauri::command]
+#[dropout_macros::api]
 async fn detect_java(
     app_handle: tauri::AppHandle,
 ) -> Result<Vec<core::java::JavaInstallation>, String> {
@@ -1533,6 +1551,7 @@ async fn detect_java(
 
 /// Get recommended Java for a specific Minecraft version
 #[tauri::command]
+#[dropout_macros::api]
 async fn get_recommended_java(
     required_major_version: Option<u64>,
 ) -> Result<Option<core::java::JavaInstallation>, String> {
@@ -1541,6 +1560,7 @@ async fn get_recommended_java(
 
 /// Get Adoptium Java download info
 #[tauri::command]
+#[dropout_macros::api]
 async fn fetch_adoptium_java(
     major_version: u32,
     image_type: String,
@@ -1557,6 +1577,7 @@ async fn fetch_adoptium_java(
 
 /// Download and install Adoptium Java
 #[tauri::command]
+#[dropout_macros::api]
 async fn download_adoptium_java(
     app_handle: tauri::AppHandle,
     major_version: u32,
@@ -1582,6 +1603,7 @@ async fn download_adoptium_java(
 
 /// Get available Adoptium Java versions
 #[tauri::command]
+#[dropout_macros::api]
 async fn fetch_available_java_versions() -> Result<Vec<u32>, String> {
     let provider = core::java::providers::AdoptiumProvider::new();
     core::java::fetch_available_versions_with(&provider)
@@ -1591,6 +1613,7 @@ async fn fetch_available_java_versions() -> Result<Vec<u32>, String> {
 
 /// Fetch Java catalog with platform availability (uses cache)
 #[tauri::command]
+#[dropout_macros::api]
 async fn fetch_java_catalog(
     app_handle: tauri::AppHandle,
 ) -> Result<core::java::JavaCatalog, String> {
@@ -1602,6 +1625,7 @@ async fn fetch_java_catalog(
 
 /// Refresh Java catalog (bypass cache)
 #[tauri::command]
+#[dropout_macros::api]
 async fn refresh_java_catalog(
     app_handle: tauri::AppHandle,
 ) -> Result<core::java::JavaCatalog, String> {
@@ -1613,6 +1637,7 @@ async fn refresh_java_catalog(
 
 /// Cancel current Java download
 #[tauri::command]
+#[dropout_macros::api]
 async fn cancel_java_download() -> Result<(), String> {
     core::java::cancel_current_download();
     Ok(())
@@ -1620,6 +1645,7 @@ async fn cancel_java_download() -> Result<(), String> {
 
 /// Get pending Java downloads
 #[tauri::command]
+#[dropout_macros::api]
 async fn get_pending_java_downloads(
     app_handle: tauri::AppHandle,
 ) -> Result<Vec<core::downloader::PendingJavaDownload>, String> {
@@ -1628,6 +1654,7 @@ async fn get_pending_java_downloads(
 
 /// Resume pending Java downloads
 #[tauri::command]
+#[dropout_macros::api]
 async fn resume_java_downloads(
     app_handle: tauri::AppHandle,
 ) -> Result<core::java::ResumeJavaDownloadsResult, String> {
@@ -1637,6 +1664,7 @@ async fn resume_java_downloads(
 
 /// Get Minecraft versions supported by Fabric
 #[tauri::command]
+#[dropout_macros::api]
 async fn get_fabric_game_versions() -> Result<Vec<core::fabric::FabricGameVersion>, String> {
     core::fabric::fetch_supported_game_versions()
         .await
@@ -1645,6 +1673,7 @@ async fn get_fabric_game_versions() -> Result<Vec<core::fabric::FabricGameVersio
 
 /// Get available Fabric loader versions
 #[tauri::command]
+#[dropout_macros::api]
 async fn get_fabric_loader_versions() -> Result<Vec<core::fabric::FabricLoaderVersion>, String> {
     core::fabric::fetch_loader_versions()
         .await
@@ -1653,6 +1682,7 @@ async fn get_fabric_loader_versions() -> Result<Vec<core::fabric::FabricLoaderVe
 
 /// Get Fabric loaders available for a specific Minecraft version
 #[tauri::command]
+#[dropout_macros::api]
 async fn get_fabric_loaders_for_version(
     game_version: String,
 ) -> Result<Vec<core::fabric::FabricLoaderEntry>, String> {
@@ -1663,6 +1693,7 @@ async fn get_fabric_loaders_for_version(
 
 /// Install Fabric loader for a specific Minecraft version
 #[tauri::command]
+#[dropout_macros::api]
 async fn install_fabric(
     window: Window,
     instance_state: State<'_, core::instance::InstanceState>,
@@ -1707,6 +1738,7 @@ async fn install_fabric(
 
 /// List installed Fabric versions
 #[tauri::command]
+#[dropout_macros::api]
 async fn list_installed_fabric_versions(
     _window: Window,
     instance_state: State<'_, core::instance::InstanceState>,
@@ -1723,6 +1755,7 @@ async fn list_installed_fabric_versions(
 
 /// Get Java version requirement for a specific version
 #[tauri::command]
+#[dropout_macros::api]
 async fn get_version_java_version(
     _window: Window,
     instance_state: State<'_, core::instance::InstanceState>,
@@ -1741,17 +1774,18 @@ async fn get_version_java_version(
 }
 
 /// Version metadata for display in the UI
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "core.ts")]
 struct VersionMetadata {
     id: String,
-    #[serde(rename = "javaVersion")]
     java_version: Option<u64>,
-    #[serde(rename = "isInstalled")]
     is_installed: bool,
 }
 
 /// Delete a version (remove version directory)
 #[tauri::command]
+#[dropout_macros::api]
 async fn delete_version(
     window: Window,
     instance_state: State<'_, core::instance::InstanceState>,
@@ -1806,6 +1840,7 @@ async fn delete_version(
 
 /// Get detailed metadata for a specific version
 #[tauri::command]
+#[dropout_macros::api]
 async fn get_version_metadata(
     _window: Window,
     instance_state: State<'_, core::instance::InstanceState>,
@@ -1891,7 +1926,9 @@ async fn get_version_metadata(
 }
 
 /// Installed version info
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "core.ts")]
 struct InstalledVersion {
     id: String,
     #[serde(rename = "type")]
@@ -1901,6 +1938,7 @@ struct InstalledVersion {
 /// List all installed versions from the data directory
 /// Simply lists all folders in the versions directory without validation
 #[tauri::command]
+#[dropout_macros::api]
 async fn list_installed_versions(
     _window: Window,
     instance_state: State<'_, core::instance::InstanceState>,
@@ -1987,6 +2025,7 @@ async fn list_installed_versions(
 
 /// Check if Fabric is installed for a specific version
 #[tauri::command]
+#[dropout_macros::api]
 async fn is_fabric_installed(
     _window: Window,
     instance_state: State<'_, core::instance::InstanceState>,
@@ -2007,6 +2046,7 @@ async fn is_fabric_installed(
 
 /// Get Minecraft versions supported by Forge
 #[tauri::command]
+#[dropout_macros::api]
 async fn get_forge_game_versions() -> Result<Vec<String>, String> {
     core::forge::fetch_supported_game_versions()
         .await
@@ -2015,6 +2055,7 @@ async fn get_forge_game_versions() -> Result<Vec<String>, String> {
 
 /// Get available Forge versions for a specific Minecraft version
 #[tauri::command]
+#[dropout_macros::api]
 async fn get_forge_versions_for_game(
     game_version: String,
 ) -> Result<Vec<core::forge::ForgeVersion>, String> {
@@ -2025,6 +2066,7 @@ async fn get_forge_versions_for_game(
 
 /// Install Forge for a specific Minecraft version
 #[tauri::command]
+#[dropout_macros::api]
 async fn install_forge(
     window: Window,
     config_state: State<'_, core::config::ConfigState>,
@@ -2120,7 +2162,9 @@ async fn install_forge(
     Ok(result)
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "core.ts")]
 struct GithubRelease {
     tag_name: String,
     name: String,
@@ -2130,6 +2174,7 @@ struct GithubRelease {
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn get_github_releases() -> Result<Vec<GithubRelease>, String> {
     let client = reqwest::Client::new();
     let res = client
@@ -2166,12 +2211,14 @@ async fn get_github_releases() -> Result<Vec<GithubRelease>, String> {
     Ok(result)
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, TS)]
+#[ts(export, export_to = "core.ts")]
 struct PastebinResponse {
     url: String,
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn upload_to_pastebin(
     state: State<'_, core::config::ConfigState>,
     content: String,
@@ -2241,6 +2288,7 @@ async fn upload_to_pastebin(
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn assistant_check_health(
     assistant_state: State<'_, core::assistant::AssistantState>,
     config_state: State<'_, core::config::ConfigState>,
@@ -2251,6 +2299,7 @@ async fn assistant_check_health(
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn assistant_chat(
     assistant_state: State<'_, core::assistant::AssistantState>,
     config_state: State<'_, core::config::ConfigState>,
@@ -2262,6 +2311,7 @@ async fn assistant_chat(
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn list_ollama_models(
     assistant_state: State<'_, core::assistant::AssistantState>,
     endpoint: String,
@@ -2271,6 +2321,7 @@ async fn list_ollama_models(
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn list_openai_models(
     assistant_state: State<'_, core::assistant::AssistantState>,
     config_state: State<'_, core::config::ConfigState>,
@@ -2284,6 +2335,7 @@ async fn list_openai_models(
 
 /// Create a new instance
 #[tauri::command]
+#[dropout_macros::api]
 async fn create_instance(
     window: Window,
     state: State<'_, core::instance::InstanceState>,
@@ -2295,6 +2347,7 @@ async fn create_instance(
 
 /// Delete an instance
 #[tauri::command]
+#[dropout_macros::api]
 async fn delete_instance(
     state: State<'_, core::instance::InstanceState>,
     instance_id: String,
@@ -2304,6 +2357,7 @@ async fn delete_instance(
 
 /// Update an instance
 #[tauri::command]
+#[dropout_macros::api]
 async fn update_instance(
     state: State<'_, core::instance::InstanceState>,
     instance: core::instance::Instance,
@@ -2313,6 +2367,7 @@ async fn update_instance(
 
 /// Get all instances
 #[tauri::command]
+#[dropout_macros::api]
 async fn list_instances(
     state: State<'_, core::instance::InstanceState>,
 ) -> Result<Vec<core::instance::Instance>, String> {
@@ -2321,6 +2376,7 @@ async fn list_instances(
 
 /// Get a single instance by ID
 #[tauri::command]
+#[dropout_macros::api]
 async fn get_instance(
     state: State<'_, core::instance::InstanceState>,
     instance_id: String,
@@ -2332,6 +2388,7 @@ async fn get_instance(
 
 /// Set the active instance
 #[tauri::command]
+#[dropout_macros::api]
 async fn set_active_instance(
     state: State<'_, core::instance::InstanceState>,
     instance_id: String,
@@ -2341,6 +2398,7 @@ async fn set_active_instance(
 
 /// Get the active instance
 #[tauri::command]
+#[dropout_macros::api]
 async fn get_active_instance(
     state: State<'_, core::instance::InstanceState>,
 ) -> Result<Option<core::instance::Instance>, String> {
@@ -2349,6 +2407,7 @@ async fn get_active_instance(
 
 /// Duplicate an instance
 #[tauri::command]
+#[dropout_macros::api]
 async fn duplicate_instance(
     window: Window,
     state: State<'_, core::instance::InstanceState>,
@@ -2360,6 +2419,7 @@ async fn duplicate_instance(
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn assistant_chat_stream(
     window: tauri::Window,
     assistant_state: State<'_, core::assistant::AssistantState>,
@@ -2374,7 +2434,9 @@ async fn assistant_chat_stream(
 }
 
 /// Migrate instance caches to shared global caches
-#[derive(Serialize)]
+#[derive(Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "core.ts")]
 struct MigrationResult {
     moved_files: usize,
     hardlinks: usize,
@@ -2384,6 +2446,7 @@ struct MigrationResult {
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn migrate_shared_caches(
     window: Window,
     instance_state: State<'_, core::instance::InstanceState>,
@@ -2423,7 +2486,9 @@ async fn migrate_shared_caches(
 }
 
 /// File information for instance file browser
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "core.ts")]
 struct FileInfo {
     name: String,
     path: String,
@@ -2434,6 +2499,7 @@ struct FileInfo {
 
 /// List files in an instance subdirectory (mods, resourcepacks, shaderpacks, saves, screenshots)
 #[tauri::command]
+#[dropout_macros::api]
 async fn list_instance_directory(
     instance_state: State<'_, core::instance::InstanceState>,
     instance_id: String,
@@ -2485,6 +2551,7 @@ async fn list_instance_directory(
 
 /// Delete a file in an instance directory
 #[tauri::command]
+#[dropout_macros::api]
 async fn delete_instance_file(path: String) -> Result<(), String> {
     let path_buf = std::path::PathBuf::from(&path);
     if path_buf.is_dir() {
@@ -2501,6 +2568,7 @@ async fn delete_instance_file(path: String) -> Result<(), String> {
 
 /// Open instance directory in system file explorer
 #[tauri::command]
+#[dropout_macros::api]
 async fn open_file_explorer(path: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {

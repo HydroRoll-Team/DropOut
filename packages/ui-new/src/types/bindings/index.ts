@@ -1,3 +1,4 @@
+export * from "./account";
 export * from "./assistant";
 export * from "./auth";
 export * from "./config";
@@ -5,7 +6,7 @@ export * from "./core";
 export * from "./downloader";
 export * from "./fabric";
 export * from "./forge";
-export * from "./game_version";
+export * from "./game-version";
 export * from "./instance";
 export * from "./java";
 export * from "./manifest";

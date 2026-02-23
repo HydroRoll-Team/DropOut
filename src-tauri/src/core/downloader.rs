@@ -2,22 +2,19 @@ use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use sha1::Digest as Sha1Digest;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use tauri::{AppHandle, Emitter, Manager, Window};
 use tokio::io::{AsyncSeekExt, AsyncWriteExt};
 use tokio::sync::Semaphore;
 use ts_rs::TS;
 
-static DOWNLOAD_QUEUE_FILE_LOCK: Mutex<()> = Mutex::new(());
+static DOWNLOAD_QUEUE_FILE_LOCK: <()> = Mutex::new(());
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(
-    export,
-    export_to = "../../packages/ui-new/src/types/bindings/downloader.ts"
-)]
+#[ts(export, export_to = "downloader.ts")]
 pub struct DownloadTask {
     pub url: String,
     pub path: PathBuf,
@@ -30,10 +27,7 @@ pub struct DownloadTask {
 /// Metadata for resumable downloads stored in .part.meta file
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(
-    export,
-    export_to = "../../packages/ui-new/src/types/bindings/downloader.ts"
-)]
+#[ts(export, export_to = "downloader.ts")]
 pub struct DownloadMetadata {
     pub url: String,
     pub file_name: String,
@@ -47,10 +41,7 @@ pub struct DownloadMetadata {
 /// A download segment for multi-segment parallel downloading
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(
-    export,
-    export_to = "../../packages/ui-new/src/types/bindings/downloader.ts"
-)]
+#[ts(export, export_to = "downloader.ts")]
 pub struct DownloadSegment {
     pub start: u64,
     pub end: u64,
@@ -61,10 +52,7 @@ pub struct DownloadSegment {
 /// Progress event for Java download
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(
-    export,
-    export_to = "../../packages/ui-new/src/types/bindings/downloader.ts"
-)]
+#[ts(export, export_to = "downloader.ts")]
 pub struct JavaDownloadProgress {
     pub file_name: String,
     pub downloaded_bytes: u64,
@@ -78,10 +66,7 @@ pub struct JavaDownloadProgress {
 /// Pending download task for queue persistence
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(
-    export,
-    export_to = "../../packages/ui-new/src/types/bindings/downloader.ts"
-)]
+#[ts(export, export_to = "downloader.ts")]
 pub struct PendingJavaDownload {
     pub major_version: u32,
     pub image_type: String,
@@ -96,10 +81,7 @@ pub struct PendingJavaDownload {
 /// Download queue for persistence
 #[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(
-    export,
-    export_to = "../../packages/ui-new/src/types/bindings/downloader.ts"
-)]
+#[ts(export, export_to = "downloader.ts")]
 pub struct DownloadQueue {
     pub pending_downloads: Vec<PendingJavaDownload>,
 }
@@ -532,10 +514,7 @@ fn create_new_metadata(
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(
-    export,
-    export_to = "../../packages/ui/src/types/generated/downloader.ts"
-)]
+#[ts(export, export_to = "downloader.ts")]
 pub struct ProgressEvent {
     pub file: String,
     pub downloaded: u64,

@@ -10,7 +10,9 @@ publish = false
 proc-macro = true
 
 [dependencies]
+darling = { version = "0.23.0", features = ["serde"] }
+heck = "0.4"
+inventory = "0.3"
 proc-macro2 = "1.0"
 quote = "1.0"
 syn = { version = "2.0", features = ["full"] }
-heck = "0.4"

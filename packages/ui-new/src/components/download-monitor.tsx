@@ -15,6 +15,7 @@ export function DownloadMonitor() {
           <span className="text-sm font-medium text-white">Downloads</span>
         </div>
         <button
+          type="button"
           onClick={() => setIsVisible(false)}
           className="text-zinc-400 hover:text-white transition-colors p-1"
         >

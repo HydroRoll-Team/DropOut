@@ -54,10 +54,7 @@ pub async fn fetch_available_versions_with<P: JavaProvider>(
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(
-    export,
-    export_to = "../../packages/ui-new/src/types/bindings/java/index.ts"
-)]
+#[ts(export, export_to = "java/core.ts")]
 pub struct JavaInstallation {
     pub path: String,
     pub version: String,
@@ -128,10 +125,7 @@ impl ImageType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(
-    export,
-    export_to = "../../packages/ui-new/src/types/bindings/java/index.ts"
-)]
+#[ts(export, export_to = "java/core.ts")]
 pub struct JavaReleaseInfo {
     pub major_version: u32,
     pub image_type: ImageType,
@@ -147,10 +141,7 @@ pub struct JavaReleaseInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
-#[ts(
-    export,
-    export_to = "../../packages/ui-new/src/types/bindings/java/index.ts"
-)]
+#[ts(export, export_to = "java/core.ts")]
 pub struct JavaCatalog {
     pub releases: Vec<JavaReleaseInfo>,
     pub available_major_versions: Vec<u32>,
@@ -159,10 +150,7 @@ pub struct JavaCatalog {
 }
 
 #[derive(Debug, Clone, Serialize, TS)]
-#[ts(
-    export,
-    export_to = "../../packages/ui-new/src/types/bindings/java/index.ts"
-)]
+#[ts(export, export_to = "java/core.ts")]
 pub struct JavaDownloadInfo {
     pub version: String,          // e.g., "17.0.2+8"
     pub release_name: String,     // e.g., "jdk-17.0.2+8"
