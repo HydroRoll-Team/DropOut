@@ -13,13 +13,18 @@ pub struct ApiInfo {
 
 inventory::collect!(ApiInfo);
 
+fn sort_api_infos(api_infos: &mut [&ApiInfo]) {
+    api_infos.sort_by(|a, b| a.fn_name.cmp(b.fn_name));
+}
+
 pub fn export_api_bindings(import_from: &str, export_to: &str) {
     use std::collections::BTreeMap;
 
-    let api_infos = inventory::iter::<ApiInfo>.into_iter().collect::<Vec<_>>();
+    let mut api_infos = inventory::iter::<ApiInfo>.into_iter().collect::<Vec<_>>();
     if api_infos.is_empty() {
         return;
     }
+    sort_api_infos(&mut api_infos);
 
     let mut ts_lines = Vec::new();
     ts_lines.push(r#"import { invoke } from "@tauri-apps/api/core""#.to_string());

@@ -216,12 +216,6 @@ pub fn api(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     // Return type
     let (return_ts_promise, return_imports) = get_return_ts(&input_fn.sig.output);
-    eprintln!(
-        "return {} from {} of {}",
-        return_ts_promise,
-        return_imports.iter().cloned().collect::<Vec<_>>().join(","),
-        fn_name
-    );
     import_types.extend(return_imports);
 
     // Prepare test mod name
