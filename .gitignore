@@ -28,3 +28,6 @@ __pycache__/
 
 # Tauri artifacts
 artifacts/
+
+# AUR Release
+release/

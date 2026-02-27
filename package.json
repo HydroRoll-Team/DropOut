@@ -17,7 +17,7 @@
     "modpack"
   ],
   "license": "MIT",
-  "packageManager": "pnpm@10.27.0",
+  "packageManager": "pnpm@10.30.2",
   "dependencies": {
     "consola": "^3.4.2",
     "toml": "^3.0.0"

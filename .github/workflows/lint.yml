@@ -31,10 +31,7 @@ jobs:
 
       - run: pnpm install
 
-      - run: pnpm format
-        working-directory: packages/ui
-
-      - run: pnpm lint:fix
+      - run: pnpm lint --fix
         working-directory: packages/ui
 
       - name: Commit changes

@@ -84,8 +84,8 @@ const CLIENT_ID: &str = "fe165602-5410-4441-92f7-326e10a7cb82";
 const SCOPE: &str = "XboxLive.SignIn XboxLive.offline_access";
 
 #[derive(Debug, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "auth.ts")]
+#[serde(rename_all(serialize = "camelCase"))]
+#[ts(export, export_to = "auth.ts", rename_all = "camelCase")]
 pub struct DeviceCodeResponse {
     pub user_code: String,
     pub device_code: String,
@@ -96,7 +96,7 @@ pub struct DeviceCodeResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all(serialize = "camelCase"))]
 #[ts(export, export_to = "auth.ts")]
 pub struct TokenResponse {
     pub access_token: String,

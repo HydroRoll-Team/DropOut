@@ -899,7 +899,17 @@ fn parse_jvm_arguments(
 
 #[tauri::command]
 #[dropout_macros::api]
-async fn get_versions(
+async fn get_versions() -> Result<Vec<core::manifest::Version>, String> {
+    core::manifest::fetch_version_manifest()
+        .await
+        .map(|m| m.versions)
+        .map_err(|e| e.to_string())
+}
+
+/// Get all available versions from Mojang's version manifest
+#[tauri::command]
+#[dropout_macros::api]
+async fn get_versions_of_instance(
     _window: Window,
     instance_state: State<'_, core::instance::InstanceState>,
     instance_id: String,
@@ -2646,6 +2656,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             start_game,
             get_versions,
+            get_versions_of_instance,
             check_version_installed,
             install_version,
             list_installed_versions,

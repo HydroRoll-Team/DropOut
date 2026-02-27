@@ -1,0 +1,662 @@
+import { invoke } from "@tauri-apps/api/core";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { Coffee, Loader2, Search, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useInstancesStore } from "../models/instances";
+import { useGameStore } from "../stores/game-store";
+import type { Version } from "../types/bindings/manifest";
+
+interface InstalledModdedVersion {
+  id: string;
+  javaVersion?: number;
+}
+
+type TypeFilter = "all" | "release" | "snapshot" | "installed";
+
+export function VersionsView() {
+  const { versions, selectedVersion, loadVersions, setSelectedVersion } =
+    useGameStore();
+  const { activeInstance } = useInstancesStore();
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
+  const [installedModdedVersions, setInstalledModdedVersions] = useState<
+    InstalledModdedVersion[]
+  >([]);
+  const [, setIsLoadingModded] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [versionToDelete, setVersionToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedVersionMetadata, setSelectedVersionMetadata] = useState<{
+    id: string;
+    javaVersion?: number;
+    isInstalled: boolean;
+  } | null>(null);
+  const [isLoadingMetadata, setIsLoadingMetadata] = useState(false);
+  const [showModLoaderSelector, setShowModLoaderSelector] = useState(false);
+
+  const normalizedQuery = searchQuery.trim().toLowerCase().replace(/。/g, ".");
+
+  // Load installed modded versions with Java version info
+  const loadInstalledModdedVersions = useCallback(async () => {
+    if (!activeInstance) {
+      setInstalledModdedVersions([]);
+      setIsLoadingModded(false);
+      return;
+    }
+
+    setIsLoadingModded(true);
+    try {
+      const allInstalled = await invoke<Array<{ id: string; type: string }>>(
+        "list_installed_versions",
+        { instanceId: activeInstanceId },
+      );
+
+      const moddedIds = allInstalled
+        .filter((v) => v.type === "fabric" || v.type === "forge")
+        .map((v) => v.id);
+
+      const versionsWithJava = await Promise.all(
+        moddedIds.map(async (id) => {
+          try {
+            const javaVersion = await invoke<number | null>(
+              "get_version_java_version",
+              {
+                instanceId: activeInstanceId,
+                versionId: id,
+              },
+            );
+            return {
+              id,
+              javaVersion: javaVersion ?? undefined,
+            };
+          } catch (e) {
+            console.error(`Failed to get Java version for ${id}:`, e);
+            return { id, javaVersion: undefined };
+          }
+        }),
+      );
+
+      setInstalledModdedVersions(versionsWithJava);
+    } catch (e) {
+      console.error("Failed to load installed modded versions:", e);
+      toast.error("Error loading modded versions");
+    } finally {
+      setIsLoadingModded(false);
+    }
+  }, [activeInstanceId]);
+
+  // Combined versions list (vanilla + modded)
+  const allVersions = (() => {
+    const moddedVersions: Version[] = installedModdedVersions.map((v) => {
+      const versionType = v.id.startsWith("fabric-loader-")
+        ? "fabric"
+        : v.id.includes("-forge-")
+          ? "forge"
+          : "fabric";
+      return {
+        id: v.id,
+        type: versionType,
+        url: "",
+        time: "",
+        releaseTime: new Date().toISOString(),
+        javaVersion: BigInt(v.javaVersion ?? 0),
+        isInstalled: true,
+      };
+    });
+    return [...moddedVersions, ...versions];
+  })();
+
+  // Filter versions based on search and type filter
+  const filteredVersions = allVersions.filter((version) => {
+    if (typeFilter === "release" && version.type !== "release") return false;
+    if (typeFilter === "snapshot" && version.type !== "snapshot") return false;
+    if (typeFilter === "installed" && !version.isInstalled) return false;
+
+    if (
+      normalizedQuery &&
+      !version.id.toLowerCase().includes(normalizedQuery)
+    ) {
+      return false;
+    }
+
+    return true;
+  });
+
+  // Get version badge styling
+  const getVersionBadge = (type: string) => {
+    switch (type) {
+      case "release":
+        return {
+          text: "Release",
+          variant: "default" as const,
+          className: "bg-emerald-500 hover:bg-emerald-600",
+        };
+      case "snapshot":
+        return {
+          text: "Snapshot",
+          variant: "secondary" as const,
+          className: "bg-amber-500 hover:bg-amber-600",
+        };
+      case "fabric":
+        return {
+          text: "Fabric",
+          variant: "outline" as const,
+          className: "border-indigo-500 text-indigo-700 dark:text-indigo-300",
+        };
+      case "forge":
+        return {
+          text: "Forge",
+          variant: "outline" as const,
+          className: "border-orange-500 text-orange-700 dark:text-orange-300",
+        };
+      case "modpack":
+        return {
+          text: "Modpack",
+          variant: "outline" as const,
+          className: "border-purple-500 text-purple-700 dark:text-purple-300",
+        };
+      default:
+        return {
+          text: type,
+          variant: "outline" as const,
+          className: "border-gray-500 text-gray-700 dark:text-gray-300",
+        };
+    }
+  };
+
+  // Load version metadata
+  const loadVersionMetadata = useCallback(
+    async (versionId: string) => {
+      if (!versionId || !activeInstanceId) {
+        setSelectedVersionMetadata(null);
+        return;
+      }
+
+      setIsLoadingMetadata(true);
+      try {
+        const metadata = await invoke<{
+          id: string;
+          javaVersion?: number;
+          isInstalled: boolean;
+        }>("get_version_metadata", {
+          instanceId: activeInstanceId,
+          versionId,
+        });
+        setSelectedVersionMetadata(metadata);
+      } catch (e) {
+        console.error("Failed to load version metadata:", e);
+        setSelectedVersionMetadata(null);
+      } finally {
+        setIsLoadingMetadata(false);
+      }
+    },
+    [activeInstanceId],
+  );
+
+  // Get base version for mod loader selector
+  const selectedBaseVersion = (() => {
+    if (!selectedVersion) return "";
+
+    if (selectedVersion.startsWith("fabric-loader-")) {
+      const parts = selectedVersion.split("-");
+      return parts[parts.length - 1];
+    }
+    if (selectedVersion.includes("-forge-")) {
+      return selectedVersion.split("-forge-")[0];
+    }
+
+    const version = versions.find((v) => v.id === selectedVersion);
+    return version ? selectedVersion : "";
+  })();
+
+  // Handle version deletion
+  const handleDeleteVersion = async () => {
+    if (!versionToDelete || !activeInstanceId) return;
+
+    setIsDeleting(true);
+    try {
+      await invoke("delete_version", {
+        instanceId: activeInstanceId,
+        versionId: versionToDelete,
+      });
+
+      if (selectedVersion === versionToDelete) {
+        setSelectedVersion("");
+      }
+
+      setShowDeleteDialog(false);
+      setVersionToDelete(null);
+      toast.success("Version deleted successfully");
+
+      await loadVersions(activeInstanceId);
+      await loadInstalledModdedVersions();
+    } catch (e) {
+      console.error("Failed to delete version:", e);
+      toast.error(`Failed to delete version: ${e}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Show delete confirmation dialog
+  const showDeleteConfirmation = (versionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setVersionToDelete(versionId);
+    setShowDeleteDialog(true);
+  };
+
+  // Setup event listeners for version updates
+  useEffect(() => {
+    let unlisteners: UnlistenFn[] = [];
+
+    const setupEventListeners = async () => {
+      try {
+        const versionDeletedUnlisten = await listen(
+          "version-deleted",
+          async () => {
+            await loadVersions(activeInstanceId ?? undefined);
+            await loadInstalledModdedVersions();
+          },
+        );
+
+        const downloadCompleteUnlisten = await listen(
+          "download-complete",
+          async () => {
+            await loadVersions(activeInstanceId ?? undefined);
+            await loadInstalledModdedVersions();
+          },
+        );
+
+        const versionInstalledUnlisten = await listen(
+          "version-installed",
+          async () => {
+            await loadVersions(activeInstanceId ?? undefined);
+            await loadInstalledModdedVersions();
+          },
+        );
+
+        const fabricInstalledUnlisten = await listen(
+          "fabric-installed",
+          async () => {
+            await loadVersions(activeInstanceId ?? undefined);
+            await loadInstalledModdedVersions();
+          },
+        );
+
+        const forgeInstalledUnlisten = await listen(
+          "forge-installed",
+          async () => {
+            await loadVersions(activeInstanceId ?? undefined);
+            await loadInstalledModdedVersions();
+          },
+        );
+
+        unlisteners = [
+          versionDeletedUnlisten,
+          downloadCompleteUnlisten,
+          versionInstalledUnlisten,
+          fabricInstalledUnlisten,
+          forgeInstalledUnlisten,
+        ];
+      } catch (e) {
+        console.error("Failed to setup event listeners:", e);
+      }
+    };
+
+    setupEventListeners();
+    loadInstalledModdedVersions();
+
+    return () => {
+      unlisteners.forEach((unlisten) => {
+        unlisten();
+      });
+    };
+  }, [activeInstanceId, loadVersions, loadInstalledModdedVersions]);
+
+  // Load metadata when selected version changes
+  useEffect(() => {
+    if (selectedVersion) {
+      loadVersionMetadata(selectedVersion);
+    } else {
+      setSelectedVersionMetadata(null);
+    }
+  }, [selectedVersion, loadVersionMetadata]);
+
+  return (
+    <div className="h-full flex flex-col p-6 overflow-hidden">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-3xl font-black bg-clip-text text-transparent bg-linear-to-r from-gray-900 to-gray-600 dark:from-white dark:to-white/60">
+          Version Manager
+        </h2>
+        <div className="text-sm dark:text-white/40 text-black/50">
+          Select a version to play or modify
+        </div>
+      </div>
+
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 overflow-hidden">
+        {/* Left: Version List */}
+        <div className="lg:col-span-2 flex flex-col gap-4 overflow-hidden">
+          {/* Search and Filters */}
+          <div className="flex gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search versions..."
+                className="pl-9 bg-white/60 dark:bg-black/20 border-black/10 dark:border-white/10 dark:text-white text-gray-900 placeholder-black/30 dark:placeholder-white/30 focus:border-indigo-500/50 dark:focus:bg-black/40 focus:bg-white/80 backdrop-blur-sm"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Type Filter Tabs */}
+          <Tabs
+            value={typeFilter}
+            onValueChange={(v) => setTypeFilter(v as TypeFilter)}
+            className="w-full"
+          >
+            <TabsList className="grid grid-cols-4 bg-white/60 dark:bg-black/20 border-black/5 dark:border-white/5">
+              <TabsTrigger value="all">All</TabsTrigger>
+              <TabsTrigger value="release">Release</TabsTrigger>
+              <TabsTrigger value="snapshot">Snapshot</TabsTrigger>
+              <TabsTrigger value="installed">Installed</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          {/* Version List */}
+          <ScrollArea className="flex-1 pr-2">
+            {versions.length === 0 ? (
+              <div className="flex items-center justify-center h-40 dark:text-white/30 text-black/30 italic animate-pulse">
+                Loading versions...
+              </div>
+            ) : filteredVersions.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-40 dark:text-white/30 text-black/30 gap-2">
+                <span className="text-2xl">👻</span>
+                <span>No matching versions found</span>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {filteredVersions.map((version) => {
+                  const badge = getVersionBadge(version.type);
+                  const isSelected = selectedVersion === version.id;
+
+                  return (
+                    <Card
+                      key={version.id}
+                      className={`w-full cursor-pointer transition-all duration-200 relative overflow-hidden group ${
+                        isSelected
+                          ? "border-indigo-200 dark:border-indigo-500/50 bg-indigo-50 dark:bg-indigo-600/20 shadow-[0_0_20px_rgba(99,102,241,0.2)]"
+                          : "border-black/5 dark:border-white/5 bg-white/40 dark:bg-white/5 hover:bg-white/60 dark:hover:bg-white/10 hover:border-black/10 dark:hover:border-white/10 hover:translate-x-1"
+                      }`}
+                      onClick={() => setSelectedVersion(version.id)}
+                    >
+                      {isSelected && (
+                        <div className="absolute inset-0 bg-linear-to-r from-indigo-500/10 to-transparent pointer-events-none" />
+                      )}
+
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4 flex-1">
+                            <Badge
+                              variant={badge.variant}
+                              className={badge.className}
+                            >
+                              {badge.text}
+                            </Badge>
+                            <div className="flex-1">
+                              <div
+                                className={`font-bold font-mono text-lg tracking-tight ${
+                                  isSelected
+                                    ? "text-black dark:text-white"
+                                    : "text-gray-700 dark:text-zinc-300 group-hover:text-black dark:group-hover:text-white"
+                                }`}
+                              >
+                                {version.id}
+                              </div>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                {version.releaseTime &&
+                                  version.type !== "fabric" &&
+                                  version.type !== "forge" && (
+                                    <div className="text-xs dark:text-white/30 text-black/30">
+                                      {new Date(
+                                        version.releaseTime,
+                                      ).toLocaleDateString()}
+                                    </div>
+                                  )}
+                                {version.javaVersion && (
+                                  <div className="flex items-center gap-1 text-xs dark:text-white/40 text-black/40">
+                                    <Coffee className="h-3 w-3 opacity-60" />
+                                    <span className="font-medium">
+                                      Java {version.javaVersion}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            {version.isInstalled && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="opacity-0 group-hover:opacity-100 transition-opacity text-red-500 dark:text-red-400 hover:bg-red-500/10 dark:hover:bg-red-500/20"
+                                onClick={(e) =>
+                                  showDeleteConfirmation(version.id, e)
+                                }
+                                title="Delete version"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </ScrollArea>
+        </div>
+
+        {/* Right: Version Details */}
+        <div className="flex flex-col gap-6">
+          <Card className="border-black/5 dark:border-white/5 bg-white/40 dark:bg-white/5 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="text-lg">Version Details</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {selectedVersion ? (
+                <>
+                  <div>
+                    <div className="text-sm text-muted-foreground mb-1">
+                      Selected Version
+                    </div>
+                    <div className="font-mono text-xl font-bold">
+                      {selectedVersion}
+                    </div>
+                  </div>
+
+                  {isLoadingMetadata ? (
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="text-sm">Loading metadata...</span>
+                    </div>
+                  ) : selectedVersionMetadata ? (
+                    <div className="space-y-3">
+                      <div>
+                        <div className="text-sm text-muted-foreground mb-1">
+                          Installation Status
+                        </div>
+                        <Badge
+                          variant={
+                            selectedVersionMetadata.isInstalled
+                              ? "default"
+                              : "outline"
+                          }
+                        >
+                          {selectedVersionMetadata.isInstalled
+                            ? "Installed"
+                            : "Not Installed"}
+                        </Badge>
+                      </div>
+
+                      {selectedVersionMetadata.javaVersion && (
+                        <div>
+                          <div className="text-sm text-muted-foreground mb-1">
+                            Java Version
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Coffee className="h-4 w-4" />
+                            <span>
+                              Java {selectedVersionMetadata.javaVersion}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {!selectedVersionMetadata.isInstalled && (
+                        <Button
+                          className="w-full"
+                          onClick={() => setShowModLoaderSelector(true)}
+                        >
+                          Install with Mod Loader
+                        </Button>
+                      )}
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  Select a version to view details
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Mod Loader Installation */}
+          {showModLoaderSelector && selectedBaseVersion && (
+            <Card className="border-black/5 dark:border-white/5 bg-white/40 dark:bg-white/5 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="text-lg">Install Mod Loader</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="text-sm text-muted-foreground">
+                  Install {selectedBaseVersion} with Fabric or Forge
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={async () => {
+                      if (!activeInstanceId) return;
+                      try {
+                        await invoke("install_fabric", {
+                          instanceId: activeInstanceId,
+                          gameVersion: selectedBaseVersion,
+                          loaderVersion: "latest",
+                        });
+                        toast.success("Fabric installation started");
+                        setShowModLoaderSelector(false);
+                      } catch (e) {
+                        console.error("Failed to install Fabric:", e);
+                        toast.error(`Failed to install Fabric: ${e}`);
+                      }
+                    }}
+                  >
+                    Install Fabric
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={async () => {
+                      if (!activeInstanceId) return;
+                      try {
+                        await invoke("install_forge", {
+                          instanceId: activeInstanceId,
+                          gameVersion: selectedBaseVersion,
+                          installerVersion: "latest",
+                        });
+                        toast.success("Forge installation started");
+                        setShowModLoaderSelector(false);
+                      } catch (e) {
+                        console.error("Failed to install Forge:", e);
+                        toast.error(`Failed to install Forge: ${e}`);
+                      }
+                    }}
+                  >
+                    Install Forge
+                  </Button>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowModLoaderSelector(false)}
+                >
+                  Cancel
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Version</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete version "{versionToDelete}"? This
+              action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteDialog(false);
+                setVersionToDelete(null);
+              }}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteVersion}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

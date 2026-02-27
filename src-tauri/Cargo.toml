@@ -1,12 +1,11 @@
 [package]
 name = "dropout"
-version = "0.2.0-alpha.1"
+version = "0.2.0-alpha.4"
 edition = "2024"
 authors = ["HsiangNianian"]
 description = "The DropOut Minecraft Game Launcher"
 repository = "https://github.com/HydroRoll-Team/DropOut"
 license = "MIT"
-publish = false
 
 [package.metadata.deb]
 depends = "libgtk-3-0"
@@ -19,7 +18,7 @@ assets = [
 bytes = "1.11.0"
 chrono = "0.4"
 dirs = "5.0"
-dropout-macros = { path = "../crates/macros", version = "0.1.0" }
+dropout-macros = { path = "../crates/macros", version = "0.1.0-alpha.0" }
 env_logger = "0.9"
 flate2 = "1.0"
 futures = "0.3"

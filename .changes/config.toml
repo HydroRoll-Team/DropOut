@@ -32,8 +32,8 @@ url = "https://crates.io/api/v1/crates/{{ package.name }}/{{ package.version }}"
 User-Agent = "Semifold 0.2.10"
 
 [[resolver.rust.publish]]
-command = "cargo"
-args = ["publish"]
+command = "pnpm"
+args = ["tsx", "../scripts/release-aur.ts"]
 
 [[resolver.rust.post-version]]
 command = "pnpm"
@@ -45,8 +45,8 @@ url = "https://registry.npmjs.org/{{ package.name }}/{{ package.version }}"
 [[resolver.nodejs.publish]]
 command = "npm"
 args = [
-    "publish",
-    "--provenance",
-    "--access",
-    "public",
+  "publish",
+  "--provenance",
+  "--access",
+  "public",
 ]

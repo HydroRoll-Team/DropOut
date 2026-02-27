@@ -54,6 +54,7 @@ pub async fn fetch_available_versions_with<P: JavaProvider>(
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "java/core.ts")]
 pub struct JavaInstallation {
     pub path: String,
@@ -126,6 +127,7 @@ impl ImageType {
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "java/core.ts")]
+#[serde(rename_all = "camelCase")]
 pub struct JavaReleaseInfo {
     pub major_version: u32,
     pub image_type: ImageType,
@@ -142,6 +144,7 @@ pub struct JavaReleaseInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
 #[ts(export, export_to = "java/core.ts")]
+#[serde(rename_all = "camelCase")]
 pub struct JavaCatalog {
     pub releases: Vec<JavaReleaseInfo>,
     pub available_major_versions: Vec<u32>,

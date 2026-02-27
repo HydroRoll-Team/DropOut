@@ -7,6 +7,7 @@ env:
   CARGO_TERM_COLOR: always
   CLICOLOR_FORCE: 1
   CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
+  AUR_SSH_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
 
 permissions:
   id-token: write
@@ -182,6 +183,8 @@ jobs:
           node-version: 22
           cache: "pnpm"
           cache-dependency-path: "pnpm-lock.yaml"
+      - name: Install Makepkg
+        run: sudo apt-get update && sudo apt-get install -y makepkg pacman
       - name: Install Node.js Dependencies
         run: pnpm install
       - name: Download build artifacts

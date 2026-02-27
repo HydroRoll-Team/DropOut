@@ -1,26 +1,18 @@
-import { defineConfig } from "vite";
-import { svelte } from "@sveltejs/vite-plugin-svelte";
 import tailwindcss from "@tailwindcss/vite";
+import react from "@vitejs/plugin-react";
+import path from "path";
+import { defineConfig } from "vite";
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [tailwindcss(), svelte()],
-
-  // Fix for Tauri + Vite HMR
-  server: {
-    host: true,
-    strictPort: true,
-    hmr: {
-      protocol: "ws",
-      host: "localhost",
-      port: 5173,
-    },
-    watch: {
-      usePolling: true,
+  plugins: [react(), tailwindcss()],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+      "@components": path.resolve(__dirname, "./src/components"),
+      "@stores": path.resolve(__dirname, "./src/stores"),
+      "@types": path.resolve(__dirname, "./src/types"),
+      "@pages": path.resolve(__dirname, "./src/pages"),
     },
   },
-
-  // Ensure compatibility with Tauri
-  clearScreen: false,
-  envPrefix: ["VITE_", "TAURI_"],
 });
