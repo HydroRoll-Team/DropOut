@@ -24,7 +24,13 @@ fn check_java_installation_blocking(path: &PathBuf) -> Option<JavaInstallation> 
 
     let output = cmd.output().ok()?;
 
-    let version_output = String::from_utf8_lossy(&output.stderr);
+    let stderr_output = String::from_utf8_lossy(&output.stderr);
+    let stdout_output = String::from_utf8_lossy(&output.stdout);
+    let version_output = if stderr_output.trim().is_empty() {
+        stdout_output
+    } else {
+        stderr_output
+    };
 
     let version = parse_version_string(&version_output)?;
     let arch = extract_architecture(&version_output);

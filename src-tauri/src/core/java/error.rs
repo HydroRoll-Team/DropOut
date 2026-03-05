@@ -1,4 +1,6 @@
+use serde::{Deserialize, Serialize};
 use std::fmt;
+use ts_rs::TS;
 
 /// Unified error type for Java component operations
 ///
@@ -30,6 +32,65 @@ pub enum JavaError {
     ChecksumMismatch(String),
     // Other unspecified errors
     Other(String),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/java/index.ts"
+)]
+pub enum ResumeJavaDownloadFailureReason {
+    Network,
+    Cancelled,
+    ChecksumMismatch,
+    ExtractionFailed,
+    VerificationFailed,
+    Filesystem,
+    InvalidArchive,
+    Unknown,
+}
+
+impl ResumeJavaDownloadFailureReason {
+    /// Classify a raw error message into a stable reason enum for metrics/alert aggregation.
+    pub fn from_error_message(error: &str) -> Self {
+        let lower = error.to_ascii_lowercase();
+
+        if lower.contains("cancel") {
+            return Self::Cancelled;
+        }
+        if lower.contains("checksum") {
+            return Self::ChecksumMismatch;
+        }
+        if lower.contains("extract") || lower.contains("unsupported archive") {
+            return Self::ExtractionFailed;
+        }
+        if lower.contains("verify") || lower.contains("java executable not found") {
+            return Self::VerificationFailed;
+        }
+        if lower.contains("request")
+            || lower.contains("network")
+            || lower.contains("timed out")
+            || lower.contains("http status")
+        {
+            return Self::Network;
+        }
+        if lower.contains("archive") || lower.contains("top-level directory") {
+            return Self::InvalidArchive;
+        }
+        if lower.contains("create")
+            || lower.contains("write")
+            || lower.contains("read")
+            || lower.contains("rename")
+            || lower.contains("permission")
+            || lower.contains("directory")
+            || lower.contains("path")
+        {
+            return Self::Filesystem;
+        }
+
+        Self::Unknown
+    }
 }
 
 impl fmt::Display for JavaError {
@@ -91,5 +152,79 @@ impl From<reqwest::Error> for JavaError {
 impl From<String> for JavaError {
     fn from(err: String) -> Self {
         JavaError::Other(err)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ResumeJavaDownloadFailureReason;
+
+    #[test]
+    fn classify_resume_failure_reason_table_driven() {
+        let cases = [
+            (
+                "Download cancelled by user",
+                ResumeJavaDownloadFailureReason::Cancelled,
+            ),
+            (
+                "Checksum verification failed",
+                ResumeJavaDownloadFailureReason::ChecksumMismatch,
+            ),
+            (
+                "Failed to extract file: invalid archive",
+                ResumeJavaDownloadFailureReason::ExtractionFailed,
+            ),
+            (
+                "Failed to verify Java installation",
+                ResumeJavaDownloadFailureReason::VerificationFailed,
+            ),
+            (
+                "Request failed: timed out",
+                ResumeJavaDownloadFailureReason::Network,
+            ),
+            ("HTTP status 503", ResumeJavaDownloadFailureReason::Network),
+            (
+                "Failed to create directory",
+                ResumeJavaDownloadFailureReason::Filesystem,
+            ),
+            (
+                "Top-level directory not found in archive",
+                ResumeJavaDownloadFailureReason::InvalidArchive,
+            ),
+            (
+                "completely unknown issue",
+                ResumeJavaDownloadFailureReason::Unknown,
+            ),
+        ];
+
+        for (message, expected) in cases {
+            let actual = ResumeJavaDownloadFailureReason::from_error_message(message);
+            assert_eq!(
+                std::mem::discriminant(&actual),
+                std::mem::discriminant(&expected),
+                "message '{}' expected {:?} but got {:?}",
+                message,
+                expected,
+                actual
+            );
+        }
+    }
+
+    #[test]
+    fn classify_resume_failure_reason_priority_rules() {
+        let cancelled_over_network =
+            ResumeJavaDownloadFailureReason::from_error_message("request cancelled due to timeout");
+        assert_eq!(
+            std::mem::discriminant(&cancelled_over_network),
+            std::mem::discriminant(&ResumeJavaDownloadFailureReason::Cancelled)
+        );
+
+        let checksum_over_filesystem = ResumeJavaDownloadFailureReason::from_error_message(
+            "failed to read file: checksum mismatch",
+        );
+        assert_eq!(
+            std::mem::discriminant(&checksum_over_filesystem),
+            std::mem::discriminant(&ResumeJavaDownloadFailureReason::ChecksumMismatch)
+        );
     }
 }
