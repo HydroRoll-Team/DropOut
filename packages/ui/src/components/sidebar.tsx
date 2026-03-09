@@ -48,6 +48,7 @@ function NavItem({ Icon, label, to }: NavItemProps) {
 
 export function Sidebar() {
   const authStore = useAuthStore();
+  const hasAccount = !!authStore.account;
 
   return (
     <aside
@@ -163,22 +164,26 @@ export function Sidebar() {
       </nav>
 
       <div className="flex-1 flex flex-col justify-end">
-        <DropdownMenu>
-          <DropdownMenuTrigger render={<UserAvatar />}>
-            Open
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" side="right" sideOffset={20}>
-            <DropdownMenuGroup>
-              <DropdownMenuItem
-                variant="destructive"
-                onClick={authStore.logout}
-              >
-                <LogOutIcon />
-                Logout
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {hasAccount ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger render={<UserAvatar />}>
+              Open
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" side="right" sideOffset={20}>
+              <DropdownMenuGroup>
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={authStore.logout}
+                >
+                  <LogOutIcon />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <div className="px-3 text-xs text-zinc-500">Not logged in</div>
+        )}
       </div>
     </aside>
   );

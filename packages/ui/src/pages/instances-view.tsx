@@ -1,5 +1,6 @@
-import { Copy, Edit2, Plus, Trash2 } from "lucide-react";
+import { Copy, Download, Edit2, Plus, Trash2, Upload } from "lucide-react";
 import { useEffect, useState } from "react";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import InstanceCreationModal from "@/components/instance-creation-modal";
 import InstanceEditorModal from "@/components/instance-editor-modal";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,8 @@ export function InstancesView() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [exportingId, setExportingId] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
 
   // Selected / editing instance state
   const [selectedInstance, setSelectedInstance] = useState<Instance | null>(
@@ -76,6 +79,56 @@ export function InstancesView() {
     setShowDuplicateModal(false);
   };
 
+  const handleExport = async (instance: Instance) => {
+    setExportingId(instance.id);
+    try {
+      const chosenPath = await save({
+        defaultPath: `${instance.name}.dropout-instance.zip`,
+        filters: [
+          {
+            name: "DropOut Instance Archive",
+            extensions: ["zip"],
+          },
+        ],
+      });
+
+      if (!chosenPath) {
+        return;
+      }
+
+      const archivePath = chosenPath.endsWith(".zip")
+        ? chosenPath
+        : `${chosenPath}.zip`;
+      await instancesStore.exportInstance(instance.id, archivePath);
+    } finally {
+      setExportingId(null);
+    }
+  };
+
+  const handleImport = async () => {
+    setIsImporting(true);
+    try {
+      const selected = await open({
+        multiple: false,
+        directory: false,
+        filters: [
+          {
+            name: "DropOut Instance Archive",
+            extensions: ["zip"],
+          },
+        ],
+      });
+
+      if (!selected || Array.isArray(selected)) {
+        return;
+      }
+
+      await instancesStore.importInstance(selected);
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   const formatDate = (timestamp: number): string =>
     new Date(timestamp * 1000).toLocaleDateString();
 
@@ -97,6 +150,16 @@ export function InstancesView() {
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
           Instances
         </h1>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => void handleImport()}
+          disabled={isImporting}
+          className="px-4 py-2 transition-colors"
+        >
+          <Upload size={18} />
+          Import Instance
+        </Button>
         <Button
           type="button"
           onClick={openCreate}
@@ -180,6 +243,19 @@ export function InstancesView() {
 
                 {/* Action Buttons */}
                 <div className="mt-4 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void handleExport(instance);
+                    }}
+                    disabled={exportingId === instance.id}
+                    className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded text-sm transition-colors disabled:opacity-50"
+                  >
+                    <Download size={14} />
+                    Export
+                  </button>
+
                   <button
                     type="button"
                     onClick={(e) => {

@@ -1,6 +1,6 @@
 import { toast } from "sonner";
 import { create } from "zustand";
-import { getVersions } from "@/client";
+import { getVersions, getVersionsOfInstance, startGame as startGameCommand } from "@/client";
 import type { Version } from "@/types/bindings/manifest";
 
 interface GameState {
@@ -17,8 +17,7 @@ interface GameState {
     currentAccount: any,
     openLoginModal: () => void,
     activeInstanceId: string | null,
-    setView: (view: any) => void,
-  ) => Promise<void>;
+  ) => Promise<string | null>;
   setSelectedVersion: (version: string) => void;
   setVersions: (versions: Version[]) => void;
 }
@@ -37,9 +36,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   loadVersions: async (instanceId?: string) => {
     console.log("Loading versions for instance:", instanceId);
     try {
-      // Ask the backend for known versions (optionally scoped to an instance).
-      // The Tauri command `get_versions` is expected to return an array of `Version`.
-      const versions = await getVersions();
+      const versions = instanceId
+        ? await getVersionsOfInstance(instanceId)
+        : await getVersions();
       set({ versions: versions ?? [] });
     } catch (e) {
       console.error("Failed to load versions:", e);
@@ -52,42 +51,35 @@ export const useGameStore = create<GameState>((set, get) => ({
     currentAccount,
     openLoginModal,
     activeInstanceId,
-    setView,
   ) => {
     const { selectedVersion } = get();
 
     if (!currentAccount) {
-      alert("Please login first!");
+      toast.info("Please login first!");
       openLoginModal();
-      return;
+      return null;
     }
 
     if (!selectedVersion) {
-      alert("Please select a version!");
-      return;
+      toast.info("Please select a version!");
+      return null;
     }
 
     if (!activeInstanceId) {
-      alert("Please select an instance first!");
-      setView("instances");
-      return;
+      toast.info("Please select an instance first!");
+      return null;
     }
 
     toast.info("Preparing to launch " + selectedVersion + "...");
 
     try {
-      // Note: In production, this would call Tauri invoke
-      // const msg = await invoke<string>("start_game", {
-      //   instanceId: activeInstanceId,
-      //   versionId: selectedVersion,
-      // });
-
-      // Simulate success
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      toast.success("Game started successfully!");
+      const message = await startGameCommand(activeInstanceId, selectedVersion);
+      toast.success(message || "Game started successfully!");
+      return message;
     } catch (e) {
       console.error(e);
       toast.error(`Error: ${e}`);
+      return null;
     }
   },
 

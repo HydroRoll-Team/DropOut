@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import { createHashRouter, RouterProvider } from "react-router";
+import { AppErrorBoundary } from "./components/app-error-boundary";
 import { Toaster } from "./components/ui/sonner";
 import { HomeView } from "./pages/home-view";
 import { IndexPage } from "./pages/index";
@@ -32,7 +33,9 @@ const router = createHashRouter([
 const root = createRoot(document.getElementById("root") as HTMLElement);
 root.render(
   <StrictMode>
-    <RouterProvider router={router} />
-    <Toaster />
+    <AppErrorBoundary>
+      <RouterProvider router={router} />
+      <Toaster />
+    </AppErrorBoundary>
   </StrictMode>,
 );

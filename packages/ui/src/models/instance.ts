@@ -4,10 +4,12 @@ import {
   createInstance,
   deleteInstance,
   duplicateInstance,
+  exportInstance as exportInstanceCommand,
   getActiveInstance,
   getInstance,
+  importInstance as importInstanceCommand,
   listInstances,
-  setActiveInstance,
+  setActiveInstance as setActiveInstanceCommand,
   updateInstance,
 } from "@/client";
 import type { Instance } from "@/types";
@@ -22,6 +24,8 @@ interface InstanceState {
   update: (instance: Instance) => Promise<void>;
   setActiveInstance: (instance: Instance) => Promise<void>;
   duplicate: (id: string, newName: string) => Promise<Instance | null>;
+  exportInstance: (id: string, archivePath: string) => Promise<string | null>;
+  importInstance: (archivePath: string, newName?: string | null) => Promise<Instance | null>;
   get: (id: string) => Promise<Instance | null>;
 }
 
@@ -30,14 +34,24 @@ export const useInstanceStore = create<InstanceState>((set, get) => ({
   activeInstance: null,
 
   refresh: async () => {
-    const { setActiveInstance } = get();
     try {
       const instances = await listInstances();
-      const activeInstance = await getActiveInstance();
+      let activeInstance = await getActiveInstance();
 
-      if (!activeInstance && instances.length > 0) {
-        // If no active instance but instances exist, set the first one as active
-        await setActiveInstance(instances[0]);
+      if (activeInstance) {
+        const currentActiveId = activeInstance.id;
+        activeInstance =
+          instances.find((instance) => instance.id === currentActiveId) ??
+          activeInstance;
+      }
+
+      if (
+        (!activeInstance ||
+          !instances.some((instance) => instance.id === activeInstance?.id)) &&
+        instances.length > 0
+      ) {
+        await setActiveInstanceCommand(instances[0].id);
+        activeInstance = instances[0];
       }
 
       set({ instances, activeInstance });
@@ -48,10 +62,11 @@ export const useInstanceStore = create<InstanceState>((set, get) => ({
   },
 
   create: async (name) => {
-    const { refresh } = get();
+    const { refresh, setActiveInstance } = get();
     try {
       const instance = await createInstance(name);
       await refresh();
+      await setActiveInstance(instance);
       toast.success(`Instance "${name}" created successfully`);
       return instance;
     } catch (e) {
@@ -62,19 +77,10 @@ export const useInstanceStore = create<InstanceState>((set, get) => ({
   },
 
   delete: async (id) => {
-    const { refresh, instances, activeInstance, setActiveInstance } = get();
+    const { refresh } = get();
     try {
       await deleteInstance(id);
       await refresh();
-
-      // If deleted instance was active, set another as active
-      if (activeInstance?.id === id) {
-        if (instances.length > 0) {
-          await setActiveInstance(instances[0]);
-        } else {
-          set({ activeInstance: null });
-        }
-      }
 
       toast.success("Instance deleted successfully");
     } catch (e) {
@@ -97,7 +103,7 @@ export const useInstanceStore = create<InstanceState>((set, get) => ({
 
   setActiveInstance: async (instance) => {
     try {
-      await setActiveInstance(instance.id);
+      await setActiveInstanceCommand(instance.id);
       set({ activeInstance: instance });
       toast.success("Active instance changed");
     } catch (e) {
@@ -107,15 +113,43 @@ export const useInstanceStore = create<InstanceState>((set, get) => ({
   },
 
   duplicate: async (id, newName) => {
-    const { refresh } = get();
+    const { refresh, setActiveInstance } = get();
     try {
       const instance = await duplicateInstance(id, newName);
       await refresh();
+      await setActiveInstance(instance);
       toast.success(`Instance duplicated as "${newName}"`);
       return instance;
     } catch (e) {
       console.error("Failed to duplicate instance:", e);
       toast.error("Error duplicating instance");
+      return null;
+    }
+  },
+
+  exportInstance: async (id, archivePath) => {
+    try {
+      const savedPath = await exportInstanceCommand(id, archivePath);
+      toast.success("Instance exported successfully");
+      return savedPath;
+    } catch (e) {
+      console.error("Failed to export instance:", e);
+      toast.error("Error exporting instance");
+      return null;
+    }
+  },
+
+  importInstance: async (archivePath, newName) => {
+    const { refresh, setActiveInstance } = get();
+    try {
+      const instance = await importInstanceCommand(archivePath, newName ?? null);
+      await refresh();
+      await setActiveInstance(instance);
+      toast.success(`Instance \"${instance.name}\" imported successfully`);
+      return instance;
+    } catch (e) {
+      console.error("Failed to import instance:", e);
+      toast.error("Error importing instance");
       return null;
     }
   },

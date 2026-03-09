@@ -2416,6 +2416,36 @@ async fn duplicate_instance(
     state.duplicate_instance(&instance_id, new_name, app_handle)
 }
 
+/// Export an instance to a zip archive
+#[tauri::command]
+#[dropout_macros::api]
+async fn export_instance(
+    state: State<'_, core::instance::InstanceState>,
+    instance_id: String,
+    archive_path: String,
+) -> Result<String, String> {
+    let archive_path = std::path::PathBuf::from(archive_path);
+    let saved_path = state.export_instance(&instance_id, &archive_path)?;
+    Ok(saved_path.to_string_lossy().to_string())
+}
+
+/// Import an instance from a zip archive
+#[tauri::command]
+#[dropout_macros::api]
+async fn import_instance(
+    window: Window,
+    state: State<'_, core::instance::InstanceState>,
+    archive_path: String,
+    new_name: Option<String>,
+) -> Result<core::instance::Instance, String> {
+    let app_handle = window.app_handle();
+    state.import_instance(
+        &std::path::PathBuf::from(archive_path),
+        app_handle,
+        new_name,
+    )
+}
+
 #[tauri::command]
 #[dropout_macros::api]
 async fn assistant_chat_stream(
@@ -2700,6 +2730,8 @@ fn main() {
             set_active_instance,
             get_active_instance,
             duplicate_instance,
+            export_instance,
+            import_instance,
             migrate_shared_caches,
             list_instance_directory,
             delete_instance_file,

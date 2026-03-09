@@ -119,6 +119,26 @@ export function duplicateInstance(
   });
 }
 
+export function exportInstance(
+  instanceId: string,
+  archivePath: string,
+): Promise<string> {
+  return invoke<string>("export_instance", {
+    instanceId,
+    archivePath,
+  });
+}
+
+export function importInstance(
+  archivePath: string,
+  newName?: string | null,
+): Promise<Instance> {
+  return invoke<Instance>("import_instance", {
+    archivePath,
+    newName,
+  });
+}
+
 export function fetchAdoptiumJava(
   majorVersion: number,
   imageType: string,

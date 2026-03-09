@@ -2,7 +2,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { Play, User, XIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { listInstalledVersions, startGame } from "@/client";
+import { listInstalledVersions } from "@/client";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/models/auth";
 import { useInstanceStore } from "@/models/instance";
@@ -32,32 +32,46 @@ export function BottomBar() {
   const [isLaunched, setIsLaunched] = useState<boolean>(false);
   const gameUnlisten = useRef<UnlistenFn | null>(null);
   const [isLaunching, setIsLaunching] = useState<boolean>(false);
-  const [selectedVersion, setSelectedVersion] = useState<string | null>(null);
   const [installedVersions, setInstalledVersions] = useState<
     InstalledVersion[]
   >([]);
   const [isLoadingVersions, setIsLoadingVersions] = useState(true);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const activeInstanceId = instancesStore.activeInstance?.id ?? null;
+  const preferredVersionId = instancesStore.activeInstance?.versionId ?? null;
+  const selectedVersion = gameStore.selectedVersion;
 
   const loadInstalledVersions = useCallback(async () => {
-    if (!instancesStore.activeInstance) {
+    if (!activeInstanceId) {
       setInstalledVersions([]);
+      gameStore.setSelectedVersion("");
       setIsLoadingVersions(false);
       return;
     }
 
     setIsLoadingVersions(true);
     try {
-      const versions = await listInstalledVersions(
-        instancesStore.activeInstance.id,
-      );
+      const versions = await listInstalledVersions(activeInstanceId);
 
       const installed = versions || [];
       setInstalledVersions(installed);
 
-      // If no version is selected but we have installed versions, select the first one
-      if (!gameStore.selectedVersion && installed.length > 0) {
-        gameStore.setSelectedVersion(installed[0].id);
+      if (installed.length === 0) {
+        gameStore.setSelectedVersion("");
+        return;
+      }
+
+      const hasSelectedVersion = installed.some(
+        (version) => version.id === selectedVersion,
+      );
+      const preferredInstalledVersion = preferredVersionId
+        ? installed.find((version) => version.id === preferredVersionId)
+        : null;
+
+      if (!hasSelectedVersion) {
+        gameStore.setSelectedVersion(
+          preferredInstalledVersion?.id ?? installed[0].id,
+        );
       }
     } catch (error) {
       console.error("Failed to load installed versions:", error);
@@ -65,8 +79,9 @@ export function BottomBar() {
       setIsLoadingVersions(false);
     }
   }, [
-    instancesStore.activeInstance,
-    gameStore.selectedVersion,
+    activeInstanceId,
+    preferredVersionId,
+    selectedVersion,
     gameStore.setSelectedVersion,
   ]);
 
@@ -133,8 +148,14 @@ export function BottomBar() {
 
     setIsLaunching(true);
     try {
-      await startGame(instancesStore.activeInstance?.id, selectedVersion);
-      setIsLaunched(true);
+      const result = await gameStore.startGame(
+        authStore.account,
+        () => setShowLoginModal(true),
+        activeInstanceId,
+      );
+      if (result !== null) {
+        setIsLaunched(true);
+      }
     } catch (error) {
       console.error(`Failed to start game: ${error}`);
       toast.error(`Failed to start game: ${error}`);
@@ -226,7 +247,8 @@ export function BottomBar() {
 
             <Select
               items={versionOptions}
-              onValueChange={setSelectedVersion}
+              value={selectedVersion || undefined}
+              onValueChange={(value) => gameStore.setSelectedVersion(value ?? "")}
               disabled={isLoadingVersions}
             >
               <SelectTrigger className="max-w-48">

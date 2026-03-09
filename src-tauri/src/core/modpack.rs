@@ -294,8 +294,6 @@ fn parse_multimc(archive: &mut Archive) -> Result<ParsedModpack, String> {
 
 // ── CurseForge API resolution ─────────────────────────────────────────────
 
-const CURSEFORGE_API_KEY: &str = env!("CURSEFORGE_API_KEY");
-
 async fn resolve_curseforge_files(files: &[ModpackFile]) -> Result<Vec<ModpackFile>, String> {
     let file_ids: Vec<u64> = files
         .iter()
@@ -368,9 +366,15 @@ async fn cf_post(
     endpoint: &str,
     body: &serde_json::Value,
 ) -> Result<serde_json::Value, String> {
+    let api_key = std::env::var("CURSEFORGE_API_KEY")
+        .map_err(|_| "CURSEFORGE_API_KEY is not set".to_string())?;
+    if api_key.trim().is_empty() {
+        return Err("CURSEFORGE_API_KEY is empty".to_string());
+    }
+
     let resp = client
         .post(format!("https://api.curseforge.com{endpoint}"))
-        .header("x-api-key", CURSEFORGE_API_KEY)
+        .header("x-api-key", api_key)
         .json(body)
         .send()
         .await

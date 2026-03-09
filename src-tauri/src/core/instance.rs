@@ -8,10 +8,14 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager};
 use ts_rs::TS;
+use zip::write::SimpleFileOptions;
+
+const INSTANCE_EXPORT_FORMAT_VERSION: u32 = 1;
 
 /// Represents a game instance/profile
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -58,6 +62,13 @@ pub struct InstanceState {
     pub file_path: PathBuf,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ExportedInstance {
+    format_version: u32,
+    instance: Instance,
+}
+
 impl InstanceState {
     /// Create a new InstanceState
     pub fn new(app_handle: &AppHandle) -> Self {
@@ -92,19 +103,16 @@ impl InstanceState {
         name: String,
         app_handle: &AppHandle,
     ) -> Result<Instance, String> {
+        let mut config = self.instances.lock().unwrap();
+        let name = validate_instance_name(&config, &name, None)?;
+
         let app_dir = app_handle.path().app_data_dir().unwrap();
         let instance_id = uuid::Uuid::new_v4().to_string();
         let instance_dir = app_dir.join("instances").join(&instance_id);
         let game_dir = instance_dir.clone();
 
         // Create instance directory structure
-        fs::create_dir_all(&instance_dir).map_err(|e| e.to_string())?;
-        fs::create_dir_all(instance_dir.join("versions")).map_err(|e| e.to_string())?;
-        fs::create_dir_all(instance_dir.join("libraries")).map_err(|e| e.to_string())?;
-        fs::create_dir_all(instance_dir.join("assets")).map_err(|e| e.to_string())?;
-        fs::create_dir_all(instance_dir.join("mods")).map_err(|e| e.to_string())?;
-        fs::create_dir_all(instance_dir.join("config")).map_err(|e| e.to_string())?;
-        fs::create_dir_all(instance_dir.join("saves")).map_err(|e| e.to_string())?;
+        create_instance_directory_structure(&instance_dir)?;
 
         let instance = Instance {
             id: instance_id.clone(),
@@ -122,7 +130,6 @@ impl InstanceState {
             java_path_override: None,
         };
 
-        let mut config = self.instances.lock().unwrap();
         config.instances.push(instance.clone());
 
         // If this is the first instance, set it as active
@@ -170,8 +177,9 @@ impl InstanceState {
     }
 
     /// Update an instance
-    pub fn update_instance(&self, instance: Instance) -> Result<(), String> {
+    pub fn update_instance(&self, mut instance: Instance) -> Result<(), String> {
         let mut config = self.instances.lock().unwrap();
+        instance.name = validate_instance_name(&config, &instance.name, Some(&instance.id))?;
 
         let index = config
             .instances
@@ -239,6 +247,10 @@ impl InstanceState {
         let source_instance = self
             .get_instance(id)
             .ok_or_else(|| format!("Instance {} not found", id))?;
+        let new_name = {
+            let config = self.instances.lock().unwrap();
+            validate_instance_name(&config, &new_name, None)?
+        };
 
         // Prepare new instance metadata (but don't save yet)
         let new_id = uuid::Uuid::new_v4().to_string();
@@ -279,10 +291,285 @@ impl InstanceState {
             java_path_override: source_instance.java_path_override.clone(),
         };
 
-        self.update_instance(new_instance.clone())?;
+        if let Err(error) = self.insert_instance(new_instance.clone()) {
+            let _ = std::fs::remove_dir_all(&new_instance.game_dir);
+            return Err(error);
+        }
 
         Ok(new_instance)
     }
+
+    /// Export an instance to a zip archive.
+    pub fn export_instance(&self, id: &str, archive_path: &Path) -> Result<PathBuf, String> {
+        let instance = self
+            .get_instance(id)
+            .ok_or_else(|| format!("Instance {} not found", id))?;
+
+        if let Some(parent) = archive_path.parent() {
+            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+
+        let file = fs::File::create(archive_path)
+            .map_err(|e| format!("Failed to create archive {}: {}", archive_path.display(), e))?;
+        let mut zip = zip::ZipWriter::new(file);
+        let options = SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Deflated)
+            .unix_permissions(0o644);
+        let dir_options = SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Stored)
+            .unix_permissions(0o755);
+
+        let mut exported_instance = instance.clone();
+        exported_instance.game_dir = PathBuf::from("instance");
+
+        let manifest = ExportedInstance {
+            format_version: INSTANCE_EXPORT_FORMAT_VERSION,
+            instance: exported_instance,
+        };
+        let manifest_content = serde_json::to_vec_pretty(&manifest).map_err(|e| e.to_string())?;
+
+        zip.start_file("instance.json", options)
+            .map_err(|e| format!("Failed to write archive manifest: {}", e))?;
+        zip.write_all(&manifest_content)
+            .map_err(|e| format!("Failed to write archive manifest: {}", e))?;
+
+        if instance.game_dir.exists() {
+            append_directory_to_zip(
+                &mut zip,
+                &instance.game_dir,
+                &instance.game_dir,
+                options,
+                dir_options,
+            )?;
+        }
+
+        zip.finish()
+            .map_err(|e| format!("Failed to finalize archive: {}", e))?;
+
+        Ok(archive_path.to_path_buf())
+    }
+
+    /// Import an instance from a zip archive created by DropOut.
+    pub fn import_instance(
+        &self,
+        archive_path: &Path,
+        app_handle: &AppHandle,
+        new_name: Option<String>,
+    ) -> Result<Instance, String> {
+        let file = fs::File::open(archive_path)
+            .map_err(|e| format!("Failed to open archive {}: {}", archive_path.display(), e))?;
+        let mut archive = zip::ZipArchive::new(file)
+            .map_err(|e| format!("Failed to read archive {}: {}", archive_path.display(), e))?;
+
+        let manifest = {
+            let mut manifest_file = archive
+                .by_name("instance.json")
+                .map_err(|e| format!("Archive is missing instance.json: {}", e))?;
+            let mut manifest_content = String::new();
+            std::io::Read::read_to_string(&mut manifest_file, &mut manifest_content)
+                .map_err(|e| format!("Failed to read archive manifest: {}", e))?;
+            serde_json::from_str::<ExportedInstance>(&manifest_content)
+                .map_err(|e| format!("Invalid archive manifest: {}", e))?
+        };
+
+        if manifest.format_version != INSTANCE_EXPORT_FORMAT_VERSION {
+            return Err(format!(
+                "Unsupported instance archive format version: {}",
+                manifest.format_version
+            ));
+        }
+
+        let resolved_name = {
+            let config = self.instances.lock().unwrap();
+            validate_instance_name(
+                &config,
+                new_name.as_deref().unwrap_or(&manifest.instance.name),
+                None,
+            )?
+        };
+
+        let app_dir = app_handle.path().app_data_dir().unwrap();
+        let instance_id = uuid::Uuid::new_v4().to_string();
+        let instance_dir = app_dir.join("instances").join(&instance_id);
+        create_instance_directory_structure(&instance_dir)?;
+
+        if let Err(error) = extract_instance_archive_files(&mut archive, &instance_dir) {
+            let _ = fs::remove_dir_all(&instance_dir);
+            return Err(error);
+        }
+
+        let imported_instance = Instance {
+            id: instance_id,
+            name: resolved_name,
+            game_dir: instance_dir,
+            version_id: manifest.instance.version_id,
+            created_at: chrono::Utc::now().timestamp(),
+            last_played: None,
+            icon_path: None,
+            notes: manifest.instance.notes,
+            mod_loader: manifest.instance.mod_loader,
+            mod_loader_version: manifest.instance.mod_loader_version,
+            jvm_args_override: manifest.instance.jvm_args_override,
+            memory_override: manifest.instance.memory_override,
+            java_path_override: manifest.instance.java_path_override,
+        };
+
+        if let Err(error) = self.insert_instance(imported_instance.clone()) {
+            let _ = fs::remove_dir_all(&imported_instance.game_dir);
+            return Err(error);
+        }
+
+        Ok(imported_instance)
+    }
+
+    fn insert_instance(&self, instance: Instance) -> Result<(), String> {
+        let mut config = self.instances.lock().unwrap();
+
+        if config
+            .instances
+            .iter()
+            .any(|existing| existing.id == instance.id)
+        {
+            return Err(format!("Instance {} already exists", instance.id));
+        }
+
+        validate_instance_name(&config, &instance.name, None)?;
+        config.instances.push(instance);
+
+        if config.active_instance_id.is_none() {
+            config.active_instance_id = config.instances.first().map(|i| i.id.clone());
+        }
+
+        drop(config);
+        self.save()
+    }
+}
+
+fn validate_instance_name(
+    config: &InstanceConfig,
+    name: &str,
+    exclude_id: Option<&str>,
+) -> Result<String, String> {
+    let trimmed = name.trim();
+    if trimmed.is_empty() {
+        return Err("Instance name cannot be empty".to_string());
+    }
+
+    let normalized = trimmed.to_lowercase();
+    let exists = config.instances.iter().any(|instance| {
+        Some(instance.id.as_str()) != exclude_id
+            && instance.name.trim().to_lowercase() == normalized
+    });
+
+    if exists {
+        return Err(format!("Instance name \"{}\" already exists", trimmed));
+    }
+
+    Ok(trimmed.to_string())
+}
+
+fn create_instance_directory_structure(instance_dir: &Path) -> Result<(), String> {
+    fs::create_dir_all(instance_dir).map_err(|e| e.to_string())?;
+    fs::create_dir_all(instance_dir.join("versions")).map_err(|e| e.to_string())?;
+    fs::create_dir_all(instance_dir.join("libraries")).map_err(|e| e.to_string())?;
+    fs::create_dir_all(instance_dir.join("assets")).map_err(|e| e.to_string())?;
+    fs::create_dir_all(instance_dir.join("mods")).map_err(|e| e.to_string())?;
+    fs::create_dir_all(instance_dir.join("config")).map_err(|e| e.to_string())?;
+    fs::create_dir_all(instance_dir.join("saves")).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn extract_instance_archive_files(
+    archive: &mut zip::ZipArchive<fs::File>,
+    instance_dir: &Path,
+) -> Result<(), String> {
+    for index in 0..archive.len() {
+        let mut entry = archive
+            .by_index(index)
+            .map_err(|e| format!("Failed to read archive entry: {}", e))?;
+        let Some(entry_path) = entry.enclosed_name().map(|path| path.to_path_buf()) else {
+            continue;
+        };
+
+        if entry_path == Path::new("instance.json") {
+            continue;
+        }
+
+        let Ok(relative_path) = entry_path.strip_prefix("files") else {
+            continue;
+        };
+
+        if relative_path.as_os_str().is_empty() {
+            continue;
+        }
+
+        let output_path = instance_dir.join(relative_path);
+        if !output_path.starts_with(instance_dir) {
+            return Err("Archive contains invalid file path".to_string());
+        }
+
+        if entry.is_dir() {
+            fs::create_dir_all(&output_path).map_err(|e| e.to_string())?;
+            continue;
+        }
+
+        if let Some(parent) = output_path.parent() {
+            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+
+        let mut output_file = fs::File::create(&output_path).map_err(|e| e.to_string())?;
+        std::io::copy(&mut entry, &mut output_file)
+            .map_err(|e| format!("Failed to extract archive file: {}", e))?;
+    }
+
+    Ok(())
+}
+
+fn append_directory_to_zip(
+    zip: &mut zip::ZipWriter<fs::File>,
+    root: &Path,
+    current: &Path,
+    file_options: SimpleFileOptions,
+    dir_options: SimpleFileOptions,
+) -> Result<(), String> {
+    let mut entries = Vec::new();
+    for entry in fs::read_dir(current).map_err(|e| e.to_string())? {
+        entries.push(entry.map_err(|e| e.to_string())?);
+    }
+
+    if current != root && entries.is_empty() {
+        let relative = current
+            .strip_prefix(root)
+            .map_err(|e| e.to_string())?
+            .to_string_lossy()
+            .replace('\\', "/");
+        zip.add_directory(format!("files/{}/", relative), dir_options)
+            .map_err(|e| format!("Failed to add directory to archive: {}", e))?;
+        return Ok(());
+    }
+
+    for entry in entries {
+        let path = entry.path();
+        let relative = path
+            .strip_prefix(root)
+            .map_err(|e| e.to_string())?
+            .to_string_lossy()
+            .replace('\\', "/");
+
+        if path.is_dir() {
+            zip.add_directory(format!("files/{}/", relative), dir_options)
+                .map_err(|e| format!("Failed to add directory to archive: {}", e))?;
+            append_directory_to_zip(zip, root, &path, file_options, dir_options)?;
+        } else {
+            zip.start_file(format!("files/{}", relative), file_options)
+                .map_err(|e| format!("Failed to add file to archive: {}", e))?;
+            let mut source = fs::File::open(&path).map_err(|e| e.to_string())?;
+            std::io::copy(&mut source, zip)
+                .map_err(|e| format!("Failed to copy file into archive: {}", e))?;
+        }
+    }
+
+    Ok(())
 }
 
 /// Copy a directory recursively
