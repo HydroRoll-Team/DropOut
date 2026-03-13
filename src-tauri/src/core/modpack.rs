@@ -294,7 +294,7 @@ fn parse_multimc(archive: &mut Archive) -> Result<ParsedModpack, String> {
 
 // ── CurseForge API resolution ─────────────────────────────────────────────
 
-const CURSEFORGE_API_KEY: &str = env!("CURSEFORGE_API_KEY");
+const CURSEFORGE_API_KEY: Option<&str> = option_env!("CURSEFORGE_API_KEY");
 
 async fn resolve_curseforge_files(files: &[ModpackFile]) -> Result<Vec<ModpackFile>, String> {
     let file_ids: Vec<u64> = files
@@ -368,9 +368,11 @@ async fn cf_post(
     endpoint: &str,
     body: &serde_json::Value,
 ) -> Result<serde_json::Value, String> {
+    let api_key = CURSEFORGE_API_KEY
+        .ok_or("CurseForge modpack support requires CURSEFORGE_API_KEY set at build time")?;
     let resp = client
         .post(format!("https://api.curseforge.com{endpoint}"))
-        .header("x-api-key", CURSEFORGE_API_KEY)
+        .header("x-api-key", api_key)
         .json(body)
         .send()
         .await
