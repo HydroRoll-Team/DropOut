@@ -11,6 +11,8 @@ English | [中文](README.CN.md)
 [![Semifold CI](https://github.com/HydroRoll-Team/DropOut/actions/workflows/semifold-ci.yaml/badge.svg)](https://github.com/HydroRoll-Team/DropOut/actions/workflows/release.yml)
 [![Test & Build](https://github.com/HydroRoll-Team/DropOut/actions/workflows/test.yml/badge.svg)](https://github.com/HydroRoll-Team/DropOut/actions/workflows/test.yml)
 
+<img align="right" src="https://repology.org/badge/vertical-allrepos/dropout.svg?columns=2" />
+
 DropOut is a modern, reproducible, and developer-grade Minecraft launcher.
 It is designed not just to launch Minecraft, but to manage Minecraft environments as deterministic, versioned workspaces.
 
