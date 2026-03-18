@@ -448,7 +448,25 @@ impl InstanceState {
         new_name: String,
         app_handle: &AppHandle,
     ) -> Result<Instance, String> {
+        // Local RAII guard to ensure end_operation is always called
+        struct OperationGuard<'a> {
+            manager: &'a InstanceManager,
+            id:       &'a str,
+        }
+
+        impl<'a> Drop for OperationGuard<'a> {
+            fn drop(&mut self) {
+                // This will run on all exit paths from duplicate_instance
+                self.manager.end_operation(self.id);
+            }
+        }
+
         self.begin_operation(id, InstanceOperation::ImportExport)?;
+        let _operation_guard = OperationGuard {
+            manager: self,
+            id,
+        };
+
         let source_instance = self
             .get_instance(id)
             .ok_or_else(|| format!("Instance {} not found", id))?;
@@ -493,7 +511,6 @@ impl InstanceState {
         };
 
         self.insert_instance(new_instance.clone(), false)?;
-        self.end_operation(id);
 
         Ok(new_instance)
     }
