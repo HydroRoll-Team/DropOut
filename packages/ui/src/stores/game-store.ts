@@ -171,9 +171,10 @@ export const useGameStore = create<GameState>((set, get) => ({
       return await stopGameCommand();
     } catch (e) {
       console.error("Failed to stop game:", e);
-      set({ stoppingInstanceId: null });
       toast.error(`Failed to stop game: ${e}`);
       return null;
+    } finally {
+      set({ stoppingInstanceId: null });
     }
   },
 
