@@ -99,12 +99,17 @@ fn has_unresolved_placeholder(s: &str) -> bool {
 }
 
 fn resolve_minecraft_version(version_id: &str) -> String {
-    if version_id.starts_with("fabric-loader-") {
-        version_id
-            .split('-')
-            .next_back()
-            .unwrap_or(version_id)
-            .to_string()
+    if let Some(rest) = version_id.strip_prefix("fabric-loader-") {
+        // Fabric version IDs are of the form: fabric-loader-<loader>-<mc>
+        // After stripping the prefix, we split once to separate loader vs mc
+        let mut parts = rest.splitn(2, '-');
+        let _loader_version = parts.next();
+        if let Some(mc_version) = parts.next() {
+            mc_version.to_string()
+        } else {
+            // Malformed Fabric ID, fall back to original
+            version_id.to_string()
+        }
     } else if version_id.contains("-forge-") {
         version_id
             .split("-forge-")
