@@ -13,6 +13,10 @@ import {
 } from "@/client";
 import type { Account, DeviceCodeResponse } from "@/types";
 
+function getAuthErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 export interface AuthState {
   account: Account | null;
   loginMode: Account["type"] | null;
@@ -68,36 +72,78 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       toast.warning("Failed to attch auth-progress listener");
     }
 
-    const deviceCode = await startMicrosoftLogin();
-    navigator.clipboard?.writeText(deviceCode.userCode).catch((err) => {
-      console.error("Failed to copy to clipboard:", err);
-    });
-    open(deviceCode.verificationUri).catch((err) => {
-      console.error("Failed to open browser:", err);
-    });
-    const ms = Number(deviceCode.interval) * 1000;
-    const interval = setInterval(() => {
-      _pollLoginStatus(deviceCode.deviceCode, onSuccess);
-    }, ms);
-    set({ _pollingInterval: interval, deviceCode });
+    try {
+      const deviceCode = await startMicrosoftLogin();
+
+      navigator.clipboard?.writeText(deviceCode.userCode).catch((err) => {
+        console.error("Failed to copy to clipboard:", err);
+      });
+      open(deviceCode.verificationUri).catch((err) => {
+        console.error("Failed to open browser:", err);
+      });
+
+      const ms = Math.max(1, Number(deviceCode.interval) || 5) * 1000;
+      const interval = setInterval(() => {
+        _pollLoginStatus(deviceCode.deviceCode, onSuccess);
+      }, ms);
+
+      set({
+        _pollingInterval: interval,
+        deviceCode,
+        statusMessage: deviceCode.message ?? "Waiting for authorization...",
+      });
+    } catch (error) {
+      const message = getAuthErrorMessage(error);
+      console.error("Failed to start Microsoft login:", error);
+      set({ loginMode: null, statusMessage: `Failed to start login: ${message}` });
+      toast.error(`Failed to start Microsoft login: ${message}`);
+    }
   },
   _pollLoginStatus: async (deviceCode, onSuccess) => {
     const { _pollingInterval, _mutex: mutex, _progressUnlisten } = get();
     if (mutex.isLocked) return;
-    mutex.acquire();
+
+    await mutex.acquire();
+
     try {
       const account = await completeMicrosoftLogin(deviceCode);
       clearInterval(_pollingInterval ?? undefined);
       _progressUnlisten?.();
       onSuccess?.();
-      set({ account, loginMode: "microsoft" });
-    } catch (error) {
-      if (error === "authorization_pending") {
-        console.log("Authorization pending...");
-      } else {
-        console.error("Failed to poll login status:", error);
-        toast.error("Failed to poll login status");
+      set({
+        account,
+        loginMode: "microsoft",
+        deviceCode: null,
+        _pollingInterval: null,
+        _progressUnlisten: null,
+        statusMessage: "Login successful",
+      });
+    } catch (error: unknown) {
+      const message = getAuthErrorMessage(error);
+
+      if (message.includes("authorization_pending")) {
+        set({ statusMessage: "Waiting for authorization..." });
+        return;
       }
+
+      if (message.includes("slow_down")) {
+        set({ statusMessage: "Microsoft asked to slow down polling..." });
+        return;
+      }
+
+      clearInterval(_pollingInterval ?? undefined);
+      _progressUnlisten?.();
+
+      set({
+        loginMode: null,
+        deviceCode: null,
+        _pollingInterval: null,
+        _progressUnlisten: null,
+        statusMessage: `Login failed: ${message}`,
+      });
+
+      console.error("Failed to poll login status:", error);
+      toast.error(`Microsoft login failed: ${message}`);
     } finally {
       mutex.release();
     }
@@ -111,6 +157,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     set({
       loginMode: null,
+      deviceCode: null,
       _pollingInterval: null,
       statusMessage: null,
       _progressUnlisten: null,

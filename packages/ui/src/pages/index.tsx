@@ -5,11 +5,13 @@ import { Sidebar } from "@/components/sidebar";
 import { useAuthStore } from "@/models/auth";
 import { useInstanceStore } from "@/models/instance";
 import { useSettingsStore } from "@/models/settings";
+import { useGameStore } from "@/stores/game-store";
 
 export function IndexPage() {
   const authStore = useAuthStore();
   const settingsStore = useSettingsStore();
   const instanceStore = useInstanceStore();
+  const initGameLifecycle = useGameStore((state) => state.initLifecycle);
 
   const location = useLocation();
 
@@ -17,7 +19,10 @@ export function IndexPage() {
     authStore.init();
     settingsStore.refresh();
     instanceStore.refresh();
-  }, [authStore.init, settingsStore.refresh, instanceStore.refresh]);
+    void initGameLifecycle().catch((error) => {
+      console.error("Failed to initialize game lifecycle:", error);
+    });
+  }, [authStore.init, settingsStore.refresh, instanceStore.refresh, initGameLifecycle]);
 
   return (
     <div className="relative h-screen w-full overflow-hidden bg-background font-sans">

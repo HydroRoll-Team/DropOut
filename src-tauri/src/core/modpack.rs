@@ -370,6 +370,7 @@ async fn cf_post(
 ) -> Result<serde_json::Value, String> {
     let api_key = CURSEFORGE_API_KEY
         .ok_or("CurseForge modpack support requires CURSEFORGE_API_KEY set at build time")?;
+  
     let resp = client
         .post(format!("https://api.curseforge.com{endpoint}"))
         .header("x-api-key", api_key)

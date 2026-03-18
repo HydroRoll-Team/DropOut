@@ -1,7 +1,16 @@
-import { CopyIcon, EditIcon, Plus, RocketIcon, Trash2Icon } from "lucide-react";
+import { open, save } from "@tauri-apps/plugin-dialog";
+import {
+  CopyIcon,
+  EditIcon,
+  FolderOpenIcon,
+  Plus,
+  RocketIcon,
+  Trash2Icon,
+  XIcon,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { startGame } from "@/client";
+import { openFileExplorer } from "@/client";
 import InstanceCreationModal from "@/components/instance-creation-modal";
 import InstanceEditorModal from "@/components/instance-editor-modal";
 import { Button } from "@/components/ui/button";
@@ -15,11 +24,22 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/models/auth";
 import { useInstanceStore } from "@/models/instance";
+import { useGameStore } from "@/stores/game-store";
 import type { Instance } from "@/types";
 
 export function InstancesView() {
+  const account = useAuthStore((state) => state.account);
   const instancesStore = useInstanceStore();
+  const startGame = useGameStore((state) => state.startGame);
+  const stopGame = useGameStore((state) => state.stopGame);
+  const runningInstanceId = useGameStore((state) => state.runningInstanceId);
+  const launchingInstanceId = useGameStore((state) => state.launchingInstanceId);
+  const stoppingInstanceId = useGameStore((state) => state.stoppingInstanceId);
+  const [isImporting, setIsImporting] = useState(false);
+  const [repairing, setRepairing] = useState(false);
+  const [exportingId, setExportingId] = useState<string | null>(null);
 
   // Modal / UI state
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -78,20 +98,83 @@ export function InstancesView() {
     setShowDuplicateModal(false);
   };
 
+  const handleImport = async () => {
+    setIsImporting(true);
+    try {
+      const selected = await open({
+        multiple: false,
+        filters: [{ name: "Zip Archive", extensions: ["zip"] }],
+      });
+
+      if (typeof selected !== "string") {
+        return;
+      }
+
+      await instancesStore.importArchive(selected);
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleRepair = async () => {
+    setRepairing(true);
+    try {
+      await instancesStore.repair();
+    } finally {
+      setRepairing(false);
+    }
+  };
+
+  const handleExport = async (instance: Instance) => {
+    setExportingId(instance.id);
+    try {
+      const filePath = await save({
+        defaultPath: `${instance.name.replace(/[\\/:*?"<>|]/g, "_")}.zip`,
+        filters: [{ name: "Zip Archive", extensions: ["zip"] }],
+      });
+
+      if (!filePath) {
+        return;
+      }
+
+      await instancesStore.exportArchive(instance.id, filePath);
+    } finally {
+      setExportingId(null);
+    }
+  };
+
   return (
     <div className="h-full flex flex-col gap-4 p-6 overflow-y-auto">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
           Instances
         </h1>
-        <Button
-          type="button"
-          onClick={openCreate}
-          className="px-4 py-2 transition-colors"
-        >
-          <Plus size={18} />
-          Create Instance
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleImport}
+            disabled={isImporting}
+          >
+            {isImporting ? "Importing..." : "Import"}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleRepair}
+            disabled={repairing}
+          >
+            {repairing ? "Repairing..." : "Repair Index"}
+          </Button>
+          <Button
+            type="button"
+            onClick={openCreate}
+            className="px-4 py-2 transition-colors"
+          >
+            <Plus size={18} />
+            Create Instance
+          </Button>
+        </div>
       </div>
 
       {instancesStore.instances.length === 0 ? (
@@ -105,6 +188,10 @@ export function InstancesView() {
         <ul className="flex flex-col space-y-3">
           {instancesStore.instances.map((instance) => {
             const isActive = instancesStore.activeInstance?.id === instance.id;
+            const isRunning = runningInstanceId === instance.id;
+            const isLaunching = launchingInstanceId === instance.id;
+            const isStopping = stoppingInstanceId === instance.id;
+            const otherInstanceRunning = runningInstanceId !== null && !isRunning;
 
             return (
               <li
@@ -164,22 +251,71 @@ export function InstancesView() {
                   <div className="flex items-center">
                     <div className="flex flex-row space-x-2">
                       <Button
-                        variant="ghost"
+                        variant={isRunning ? "destructive" : "ghost"}
                         size="icon"
-                        onClick={async () => {
+                        onClick={async (e) => {
+                          e.stopPropagation();
+
+                          try {
+                            await instancesStore.setActiveInstance(instance);
+                          } catch (error) {
+                            console.error("Failed to set active instance:", error);
+                            toast.error("Error setting active instance");
+                            return;
+                          }
+
+                          if (isRunning) {
+                            await stopGame(instance.id);
+                            return;
+                          }
+
                           if (!instance.versionId) {
                             toast.error("No version selected or installed");
                             return;
                           }
-                          try {
-                            await startGame(instance.id, instance.versionId);
-                          } catch (e) {
-                            console.error("Failed to start game:", e);
-                            toast.error("Error starting game");
-                          }
+
+                          await startGame(
+                            account,
+                            () => {
+                              toast.info("Please login first");
+                            },
+                            instance.id,
+                            instance.versionId,
+                            () => undefined,
+                          );
+                        }}
+                        disabled={otherInstanceRunning || isLaunching || isStopping}
+                      >
+                        {isLaunching || isStopping ? (
+                          <span className="text-xs">...</span>
+                        ) : isRunning ? (
+                          <XIcon />
+                        ) : (
+                          <RocketIcon />
+                        )}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void openFileExplorer(instance.gameDir);
                         }}
                       >
-                        <RocketIcon />
+                        <FolderOpenIcon />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void handleExport(instance);
+                        }}
+                        disabled={exportingId === instance.id}
+                      >
+                        <span className="text-xs">
+                          {exportingId === instance.id ? "..." : "ZIP"}
+                        </span>
                       </Button>
                       <Button
                         variant="ghost"

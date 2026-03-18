@@ -38,3 +38,6 @@ release/
 
 # claude code
 .claude/
+
+# Vscode
+.vscode/
