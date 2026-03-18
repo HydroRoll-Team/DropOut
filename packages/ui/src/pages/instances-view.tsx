@@ -150,10 +150,20 @@ export function InstancesView() {
           Instances
         </h1>
         <div className="flex items-center gap-2">
-          <Button type="button" variant="outline" onClick={handleImport}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleImport}
+            disabled={isImporting}
+          >
             {isImporting ? "Importing..." : "Import"}
           </Button>
-          <Button type="button" variant="outline" onClick={handleRepair}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleRepair}
+            disabled={repairing}
+          >
             {repairing ? "Repairing..." : "Repair Index"}
           </Button>
           <Button
