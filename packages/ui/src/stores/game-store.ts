@@ -8,14 +8,8 @@ import {
   stopGame as stopGameCommand,
 } from "@/client";
 import type { Account } from "@/types/bindings/auth";
+import type { GameExitedEvent } from "@/types/bindings/core";
 import type { Version } from "@/types/bindings/manifest";
-
-interface GameExitedEvent {
-  instanceId: string;
-  versionId: string;
-  exitCode: number | null;
-  wasStopped: boolean;
-}
 
 interface GameState {
   versions: Version[];

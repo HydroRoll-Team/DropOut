@@ -68,8 +68,9 @@ impl GameProcessState {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "core.ts")]
 struct GameExitedEvent {
     instance_id: String,
     version_id: String,

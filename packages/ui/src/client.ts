@@ -12,6 +12,7 @@ import type {
   InstalledForgeVersion,
   InstalledVersion,
   Instance,
+  InstanceRepairResult,
   JavaCatalog,
   JavaDownloadInfo,
   JavaInstallation,
@@ -24,13 +25,6 @@ import type {
   Version,
   VersionMetadata,
 } from "@/types";
-
-export interface InstanceRepairResult {
-  restoredInstances: number;
-  removedStaleEntries: number;
-  createdDefaultActive: boolean;
-  activeInstanceId: string | null;
-}
 
 export function assistantChat(messages: Message[]): Promise<Message> {
   return invoke<Message>("assistant_chat", {

@@ -11,6 +11,13 @@ export type FileInfo = {
   modified: bigint;
 };
 
+export type GameExitedEvent = {
+  instanceId: string;
+  versionId: string;
+  exitCode: number | null;
+  wasStopped: boolean;
+};
+
 export type GithubRelease = {
   tagName: string;
   name: string;
