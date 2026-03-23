@@ -1,8 +1,8 @@
-import { defineConfig, defineDocs } from 'fumadocs-mdx/config';
-import { remarkMdxMermaid } from 'fumadocs-core/mdx-plugins';
+import { defineConfig, defineDocs } from "fumadocs-mdx/config";
+import { remarkMdxMermaid } from "fumadocs-core/mdx-plugins";
 
 export const docs = defineDocs({
-  dir: 'content',
+  dir: "content",
 });
 
 export default defineConfig({
