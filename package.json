@@ -23,7 +23,7 @@
     "toml": "^3.0.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.5",
+    "@biomejs/biome": "^2.4.9",
     "@j178/prek": "^0.2.29",
     "@tauri-apps/cli": "^2.9.6",
     "@types/node": "^24.10.9",
