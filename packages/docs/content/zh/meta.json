@@ -1,7 +1,4 @@
 {
   "title": "文档",
-  "pages": [
-    "development",
-    "manual"
-  ]
+  "pages": ["development", "manual"]
 }
