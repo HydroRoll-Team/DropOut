@@ -45,8 +45,6 @@ export function IndexPage() {
               <div className="absolute inset-0 opacity-100 bg-linear-to-br from-emerald-100 via-gray-100 to-indigo-100"></div>
             )}
 
-            {location.pathname === "/" && <ParticleBackground />}
-
             <div className="absolute inset-0 bg-linear-to-t from-zinc-900 via-transparent to-black/50 dark:from-zinc-900 dark:to-black/50"></div>
           </>
         )}
@@ -71,7 +69,13 @@ export function IndexPage() {
         <Sidebar />
 
         <main className="size-full overflow-hidden">
-          <Outlet />
+          {location.pathname === "/" ? (
+            <ParticleBackground>
+              <Outlet />
+            </ParticleBackground>
+          ) : (
+            <Outlet />
+          )}
         </main>
       </div>
     </div>
