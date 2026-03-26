@@ -13,11 +13,12 @@ export function Mermaid({ chart }: { chart: string }) {
 
   useEffect(() => {
     if (ref.current) {
+      ref.current.innerHTML = chart;
       mermaid.run({
         nodes: [ref.current],
       });
     }
-  }, []);
+  }, [chart]);
 
   return (
     <div className="not-prose my-6">
