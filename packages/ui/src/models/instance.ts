@@ -26,7 +26,10 @@ interface InstanceState {
   setActiveInstance: (instance: Instance) => Promise<void>;
   duplicate: (id: string, newName: string) => Promise<Instance | null>;
   exportArchive: (id: string, archivePath: string) => Promise<void>;
-  importArchive: (archivePath: string, newName?: string) => Promise<Instance | null>;
+  importArchive: (
+    archivePath: string,
+    newName?: string,
+  ) => Promise<Instance | null>;
   repair: () => Promise<void>;
   get: (id: string) => Promise<Instance | null>;
 }

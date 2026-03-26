@@ -123,7 +123,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
     } catch (error) {
       // Keep UI-friendly behavior consistent with prior code
-      alert("Login failed: " + String(error));
+      alert(`Login failed: ${String(error)}`);
     }
   },
 
@@ -234,7 +234,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (errStr.includes("authorization_pending")) {
         // Still waiting — keep polling
       } else {
-        set({ msLoginStatus: "Error: " + errStr });
+        set({ msLoginStatus: `Error: ${errStr}` });
 
         if (
           errStr.includes("expired_token") ||
@@ -247,7 +247,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             authProgressUnlisten();
             set({ authProgressUnlisten: null });
           }
-          alert("Login failed: " + errStr);
+          alert(`Login failed: ${errStr}`);
           set({ loginMode: "select" });
         }
       }

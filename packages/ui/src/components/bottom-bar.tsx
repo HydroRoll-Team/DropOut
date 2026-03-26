@@ -21,13 +21,17 @@ export function BottomBar() {
   const account = useAuthStore((state) => state.account);
   const instances = useInstanceStore((state) => state.instances);
   const activeInstance = useInstanceStore((state) => state.activeInstance);
-  const setActiveInstance = useInstanceStore((state) => state.setActiveInstance);
+  const setActiveInstance = useInstanceStore(
+    (state) => state.setActiveInstance,
+  );
   const selectedVersion = useGameStore((state) => state.selectedVersion);
   const setSelectedVersion = useGameStore((state) => state.setSelectedVersion);
   const startGame = useGameStore((state) => state.startGame);
   const stopGame = useGameStore((state) => state.stopGame);
   const runningInstanceId = useGameStore((state) => state.runningInstanceId);
-  const launchingInstanceId = useGameStore((state) => state.launchingInstanceId);
+  const launchingInstanceId = useGameStore(
+    (state) => state.launchingInstanceId,
+  );
   const stoppingInstanceId = useGameStore((state) => state.stoppingInstanceId);
 
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -39,7 +43,7 @@ export function BottomBar() {
     }
 
     setSelectedVersion(nextVersion);
-  }, [activeInstance?.id, activeInstance?.versionId, selectedVersion, setSelectedVersion]);
+  }, [activeInstance?.versionId, selectedVersion, setSelectedVersion]);
 
   const handleInstanceChange = useCallback(
     async (instanceId: string) => {
@@ -47,7 +51,9 @@ export function BottomBar() {
         return;
       }
 
-      const nextInstance = instances.find((instance) => instance.id === instanceId);
+      const nextInstance = instances.find(
+        (instance) => instance.id === instanceId,
+      );
       if (!nextInstance) {
         return;
       }

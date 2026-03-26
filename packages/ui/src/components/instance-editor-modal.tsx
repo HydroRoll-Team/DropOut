@@ -101,7 +101,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
         setFileList(files || []);
       } catch (err) {
         console.error("Failed to load files:", err);
-        toast.error("Failed to load files: " + String(err));
+        toast.error(`Failed to load files: ${String(err)}`);
         setFileList([]);
       } finally {
         setLoadingFiles(false);
@@ -141,7 +141,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
       toast.success("Deleted");
     } catch (err) {
       console.error("Failed to delete file:", err);
-      toast.error("Failed to delete file: " + String(err));
+      toast.error(`Failed to delete file: ${String(err)}`);
     } finally {
       setDeletingPath(null);
     }
@@ -152,7 +152,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
       await invoke("open_file_explorer", { path: filePath });
     } catch (err) {
       console.error("Failed to open in explorer:", err);
-      toast.error("Failed to open file explorer: " + String(err));
+      toast.error(`Failed to open file explorer: ${String(err)}`);
     }
   }
 
@@ -184,7 +184,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
     } catch (err) {
       console.error("Failed to save instance:", err);
       setErrorMessage(String(err));
-      toast.error("Failed to save instance: " + String(err));
+      toast.error(`Failed to save instance: ${String(err)}`);
     } finally {
       setSaving(false);
     }

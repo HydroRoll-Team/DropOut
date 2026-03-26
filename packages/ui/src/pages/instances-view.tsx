@@ -35,7 +35,9 @@ export function InstancesView() {
   const startGame = useGameStore((state) => state.startGame);
   const stopGame = useGameStore((state) => state.stopGame);
   const runningInstanceId = useGameStore((state) => state.runningInstanceId);
-  const launchingInstanceId = useGameStore((state) => state.launchingInstanceId);
+  const launchingInstanceId = useGameStore(
+    (state) => state.launchingInstanceId,
+  );
   const stoppingInstanceId = useGameStore((state) => state.stoppingInstanceId);
   const [isImporting, setIsImporting] = useState(false);
   const [repairing, setRepairing] = useState(false);
@@ -191,7 +193,8 @@ export function InstancesView() {
             const isRunning = runningInstanceId === instance.id;
             const isLaunching = launchingInstanceId === instance.id;
             const isStopping = stoppingInstanceId === instance.id;
-            const otherInstanceRunning = runningInstanceId !== null && !isRunning;
+            const otherInstanceRunning =
+              runningInstanceId !== null && !isRunning;
 
             return (
               <li
@@ -259,7 +262,10 @@ export function InstancesView() {
                           try {
                             await instancesStore.setActiveInstance(instance);
                           } catch (error) {
-                            console.error("Failed to set active instance:", error);
+                            console.error(
+                              "Failed to set active instance:",
+                              error,
+                            );
                             toast.error("Error setting active instance");
                             return;
                           }
@@ -284,7 +290,9 @@ export function InstancesView() {
                             () => undefined,
                           );
                         }}
-                        disabled={otherInstanceRunning || isLaunching || isStopping}
+                        disabled={
+                          otherInstanceRunning || isLaunching || isStopping
+                        }
                       >
                         {isLaunching || isStopping ? (
                           <span className="text-xs">...</span>

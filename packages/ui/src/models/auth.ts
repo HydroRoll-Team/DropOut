@@ -95,7 +95,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (error) {
       const message = getAuthErrorMessage(error);
       console.error("Failed to start Microsoft login:", error);
-      set({ loginMode: null, statusMessage: `Failed to start login: ${message}` });
+      set({
+        loginMode: null,
+        statusMessage: `Failed to start login: ${message}`,
+      });
       toast.error(`Failed to start Microsoft login: ${message}`);
     }
   },

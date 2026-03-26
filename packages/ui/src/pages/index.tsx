@@ -22,7 +22,12 @@ export function IndexPage() {
     void initGameLifecycle().catch((error) => {
       console.error("Failed to initialize game lifecycle:", error);
     });
-  }, [authStore.init, settingsStore.refresh, instanceStore.refresh, initGameLifecycle]);
+  }, [
+    authStore.init,
+    settingsStore.refresh,
+    instanceStore.refresh,
+    initGameLifecycle,
+  ]);
 
   return (
     <div className="relative h-screen w-full overflow-hidden bg-background font-sans">

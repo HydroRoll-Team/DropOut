@@ -70,7 +70,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       });
 
       if (wasStopped) {
-        toast.success(`Stopped Minecraft ${versionId} for instance ${instanceId}`);
+        toast.success(
+          `Stopped Minecraft ${versionId} for instance ${instanceId}`,
+        );
       } else {
         toast.info(`Minecraft ${versionId} exited for instance ${instanceId}`);
       }
