@@ -1,9 +1,4 @@
 {
   "title": "功能特性",
-  "pages": [
-    "index",
-    "authentication",
-    "java",
-    "mod-loaders"
-  ]
+  "pages": ["index", "authentication", "java", "mod-loaders"]
 }

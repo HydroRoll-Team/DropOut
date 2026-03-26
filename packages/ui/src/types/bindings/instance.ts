@@ -27,6 +27,13 @@ export type InstanceConfig = {
   activeInstanceId: string | null;
 };
 
+export type InstanceRepairResult = {
+  restoredInstances: number;
+  removedStaleEntries: number;
+  createdDefaultActive: boolean;
+  activeInstanceId: string | null;
+};
+
 /**
  * Memory settings override for an instance
  */

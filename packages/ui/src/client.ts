@@ -12,6 +12,7 @@ import type {
   InstalledForgeVersion,
   InstalledVersion,
   Instance,
+  InstanceRepairResult,
   JavaCatalog,
   JavaDownloadInfo,
   JavaInstallation,
@@ -116,6 +117,16 @@ export function duplicateInstance(
   return invoke<Instance>("duplicate_instance", {
     instanceId,
     newName,
+  });
+}
+
+export function exportInstance(
+  instanceId: string,
+  archivePath: string,
+): Promise<string> {
+  return invoke<string>("export_instance", {
+    instanceId,
+    archivePath,
   });
 }
 
@@ -267,6 +278,16 @@ export function installVersion(
   });
 }
 
+export function importInstance(
+  archivePath: string,
+  newName?: string,
+): Promise<Instance> {
+  return invoke<Instance>("import_instance", {
+    archivePath,
+    newName,
+  });
+}
+
 export function isFabricInstalled(
   instanceId: string,
   gameVersion: string,
@@ -351,6 +372,10 @@ export function refreshJavaCatalog(): Promise<JavaCatalog> {
   return invoke<JavaCatalog>("refresh_java_catalog");
 }
 
+export function repairInstances(): Promise<InstanceRepairResult> {
+  return invoke<InstanceRepairResult>("repair_instances");
+}
+
 export function resumeJavaDownloads(): Promise<JavaInstallation[]> {
   return invoke<JavaInstallation[]>("resume_java_downloads");
 }
@@ -381,6 +406,10 @@ export function startGame(
     instanceId,
     versionId,
   });
+}
+
+export function stopGame(): Promise<string> {
+  return invoke<string>("stop_game");
 }
 
 export function startMicrosoftLogin(): Promise<DeviceCodeResponse> {

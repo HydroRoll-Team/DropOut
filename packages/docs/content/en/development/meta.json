@@ -1,8 +1,4 @@
 {
   "title": "Development",
-  "pages": [
-    "guide",
-    "architecture",
-    "implementation"
-  ]
+  "pages": ["guide", "architecture", "implementation"]
 }

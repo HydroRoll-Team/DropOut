@@ -5,13 +5,16 @@
 //! - Each instance has its own versions, libraries, assets, mods, and saves
 //! - Support for instance switching and isolation
 
+use crate::core::config::LauncherConfig;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager};
 use ts_rs::TS;
+use zip::write::SimpleFileOptions;
 
 /// Represents a game instance/profile
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -52,10 +55,69 @@ pub struct InstanceConfig {
     pub active_instance_id: Option<String>, // 当前活动的实例ID
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "instance.ts")]
+pub struct InstanceRepairResult {
+    pub restored_instances: usize,
+    pub removed_stale_entries: usize,
+    pub created_default_active: bool,
+    pub active_instance_id: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct InstancePaths {
+    pub root: PathBuf,
+    pub metadata_versions: PathBuf,
+    pub version_cache: PathBuf,
+    pub libraries: PathBuf,
+    pub assets: PathBuf,
+    pub mods: PathBuf,
+    pub config: PathBuf,
+    pub saves: PathBuf,
+    pub resourcepacks: PathBuf,
+    pub shaderpacks: PathBuf,
+    pub screenshots: PathBuf,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InstanceOperation {
+    Launch,
+    Install,
+    Delete,
+    ImportExport,
+}
+
+impl InstanceOperation {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Launch => "launching",
+            Self::Install => "installing",
+            Self::Delete => "deleting",
+            Self::ImportExport => "importing or exporting",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ExportedInstance {
+    name: String,
+    version_id: Option<String>,
+    icon_path: Option<String>,
+    notes: Option<String>,
+    mod_loader: Option<String>,
+    mod_loader_version: Option<String>,
+    jvm_args_override: Option<String>,
+    memory_override: Option<MemoryOverride>,
+    java_path_override: Option<String>,
+}
+
 /// State management for instances
 pub struct InstanceState {
     pub instances: Mutex<InstanceConfig>,
     pub file_path: PathBuf,
+    operation_locks: Mutex<HashMap<String, InstanceOperation>>,
 }
 
 impl InstanceState {
@@ -74,7 +136,158 @@ impl InstanceState {
         Self {
             instances: Mutex::new(config),
             file_path,
+            operation_locks: Mutex::new(HashMap::new()),
         }
+    }
+
+    fn app_dir(app_handle: &AppHandle) -> Result<PathBuf, String> {
+        app_handle.path().app_data_dir().map_err(|e| e.to_string())
+    }
+
+    fn instances_dir(app_handle: &AppHandle) -> Result<PathBuf, String> {
+        Ok(Self::app_dir(app_handle)?.join("instances"))
+    }
+
+    fn validate_instance_name(
+        config: &InstanceConfig,
+        name: &str,
+        exclude_id: Option<&str>,
+    ) -> Result<(), String> {
+        let trimmed = name.trim();
+        if trimmed.is_empty() {
+            return Err("Instance name cannot be empty".to_string());
+        }
+
+        let duplicated = config.instances.iter().any(|instance| {
+            if let Some(exclude_id) = exclude_id {
+                if instance.id == exclude_id {
+                    return false;
+                }
+            }
+
+            instance.name.trim().eq_ignore_ascii_case(trimmed)
+        });
+
+        if duplicated {
+            return Err(format!("Instance \"{}\" already exists", trimmed));
+        }
+
+        Ok(())
+    }
+
+    fn create_instance_directory_structure(instance_dir: &Path) -> Result<(), String> {
+        fs::create_dir_all(instance_dir).map_err(|e| e.to_string())?;
+
+        for folder in [
+            "versions",
+            "libraries",
+            "assets",
+            "mods",
+            "config",
+            "saves",
+            "resourcepacks",
+            "shaderpacks",
+            "screenshots",
+            "logs",
+        ] {
+            fs::create_dir_all(instance_dir.join(folder)).map_err(|e| e.to_string())?;
+        }
+
+        Ok(())
+    }
+
+    fn insert_instance(
+        &self,
+        instance: Instance,
+        set_active_when_empty: bool,
+    ) -> Result<(), String> {
+        let mut config = self.instances.lock().unwrap();
+        Self::validate_instance_name(&config, &instance.name, Some(&instance.id))?;
+        config.instances.push(instance.clone());
+
+        if set_active_when_empty && config.active_instance_id.is_none() {
+            config.active_instance_id = Some(instance.id);
+        }
+
+        drop(config);
+        self.save()
+    }
+
+    pub fn begin_operation(&self, id: &str, operation: InstanceOperation) -> Result<(), String> {
+        let mut locks = self.operation_locks.lock().unwrap();
+        if let Some(active) = locks.get(id) {
+            return Err(format!("Instance {} is busy: {}", id, active.label()));
+        }
+
+        locks.insert(id.to_string(), operation);
+        Ok(())
+    }
+
+    pub fn end_operation(&self, id: &str) {
+        self.operation_locks.lock().unwrap().remove(id);
+    }
+
+    pub fn resolve_paths(
+        &self,
+        id: &str,
+        config: &LauncherConfig,
+        app_handle: &AppHandle,
+    ) -> Result<InstancePaths, String> {
+        let instance = self
+            .get_instance(id)
+            .ok_or_else(|| format!("Instance {} not found", id))?;
+        let shared_root = Self::app_dir(app_handle)?;
+
+        Ok(InstancePaths {
+            root: instance.game_dir.clone(),
+            metadata_versions: instance.game_dir.join("versions"),
+            version_cache: if config.use_shared_caches {
+                shared_root.join("versions")
+            } else {
+                instance.game_dir.join("versions")
+            },
+            libraries: if config.use_shared_caches {
+                shared_root.join("libraries")
+            } else {
+                instance.game_dir.join("libraries")
+            },
+            assets: if config.use_shared_caches {
+                shared_root.join("assets")
+            } else {
+                instance.game_dir.join("assets")
+            },
+            mods: instance.game_dir.join("mods"),
+            config: instance.game_dir.join("config"),
+            saves: instance.game_dir.join("saves"),
+            resourcepacks: instance.game_dir.join("resourcepacks"),
+            shaderpacks: instance.game_dir.join("shaderpacks"),
+            screenshots: instance.game_dir.join("screenshots"),
+        })
+    }
+
+    pub fn resolve_directory(
+        &self,
+        id: &str,
+        folder: &str,
+        config: &LauncherConfig,
+        app_handle: &AppHandle,
+    ) -> Result<PathBuf, String> {
+        let paths = self.resolve_paths(id, config, app_handle)?;
+        let resolved = match folder {
+            "versions" => paths.metadata_versions,
+            "version-cache" => paths.version_cache,
+            "libraries" => paths.libraries,
+            "assets" => paths.assets,
+            "mods" => paths.mods,
+            "config" => paths.config,
+            "saves" => paths.saves,
+            "resourcepacks" => paths.resourcepacks,
+            "shaderpacks" => paths.shaderpacks,
+            "screenshots" => paths.screenshots,
+            other => paths.root.join(other),
+        };
+
+        Ok(resolved)
     }
 
     /// Save the instance configuration to disk
@@ -92,23 +305,22 @@ impl InstanceState {
         name: String,
         app_handle: &AppHandle,
     ) -> Result<Instance, String> {
-        let app_dir = app_handle.path().app_data_dir().unwrap();
+        let trimmed_name = name.trim().to_string();
+        {
+            let config = self.instances.lock().unwrap();
+            Self::validate_instance_name(&config, &trimmed_name, None)?;
+        }
+
+        let app_dir = Self::app_dir(app_handle)?;
         let instance_id = uuid::Uuid::new_v4().to_string();
         let instance_dir = app_dir.join("instances").join(&instance_id);
         let game_dir = instance_dir.clone();
 
-        // Create instance directory structure
-        fs::create_dir_all(&instance_dir).map_err(|e| e.to_string())?;
-        fs::create_dir_all(instance_dir.join("versions")).map_err(|e| e.to_string())?;
-        fs::create_dir_all(instance_dir.join("libraries")).map_err(|e| e.to_string())?;
-        fs::create_dir_all(instance_dir.join("assets")).map_err(|e| e.to_string())?;
-        fs::create_dir_all(instance_dir.join("mods")).map_err(|e| e.to_string())?;
-        fs::create_dir_all(instance_dir.join("config")).map_err(|e| e.to_string())?;
-        fs::create_dir_all(instance_dir.join("saves")).map_err(|e| e.to_string())?;
+        Self::create_instance_directory_structure(&instance_dir)?;
 
         let instance = Instance {
             id: instance_id.clone(),
-            name,
+            name: trimmed_name,
             game_dir,
             version_id: None,
             created_at: chrono::Utc::now().timestamp(),
@@ -122,22 +334,14 @@ impl InstanceState {
             java_path_override: None,
         };
 
-        let mut config = self.instances.lock().unwrap();
-        config.instances.push(instance.clone());
-
-        // If this is the first instance, set it as active
-        if config.active_instance_id.is_none() {
-            config.active_instance_id = Some(instance_id);
-        }
-
-        drop(config);
-        self.save()?;
+        self.insert_instance(instance.clone(), true)?;
 
         Ok(instance)
     }
 
     /// Delete an instance
     pub fn delete_instance(&self, id: &str) -> Result<(), String> {
+        self.begin_operation(id, InstanceOperation::Delete)?;
         let mut config = self.instances.lock().unwrap();
 
         // Find the instance
@@ -166,6 +370,8 @@ impl InstanceState {
                 .map_err(|e| format!("Failed to delete instance directory: {}", e))?;
         }
 
+        self.end_operation(id);
+
         Ok(())
     }
 
@@ -179,7 +385,13 @@ impl InstanceState {
             .position(|i| i.id == instance.id)
             .ok_or_else(|| format!("Instance {} not found", instance.id))?;
 
-        config.instances[index] = instance;
+        Self::validate_instance_name(&config, &instance.name, Some(&instance.id))?;
+
+        let existing = config.instances[index].clone();
+        let mut updated = instance;
+        updated.game_dir = existing.game_dir;
+        updated.created_at = existing.created_at;
+        config.instances[index] = updated;
         drop(config);
         self.save()?;
 
@@ -236,17 +448,34 @@ impl InstanceState {
         new_name: String,
         app_handle: &AppHandle,
     ) -> Result<Instance, String> {
+        // Local RAII guard to ensure end_operation is always called
+        struct OperationGuard<'a> {
+            manager: &'a InstanceState,
+            id: &'a str,
+        }
+
+        impl<'a> Drop for OperationGuard<'a> {
+            fn drop(&mut self) {
+                // This will run on all exit paths from duplicate_instance
+                self.manager.end_operation(self.id);
+            }
+        }
+
+        self.begin_operation(id, InstanceOperation::ImportExport)?;
+        let _operation_guard = OperationGuard { manager: self, id };
+
         let source_instance = self
             .get_instance(id)
             .ok_or_else(|| format!("Instance {} not found", id))?;
 
+        {
+            let config = self.instances.lock().unwrap();
+            Self::validate_instance_name(&config, &new_name, None)?;
+        }
+
         // Prepare new instance metadata (but don't save yet)
         let new_id = uuid::Uuid::new_v4().to_string();
-        let instances_dir = app_handle
-            .path()
-            .app_data_dir()
-            .map_err(|e| e.to_string())?
-            .join("instances");
+        let instances_dir = Self::instances_dir(app_handle)?;
         let new_game_dir = instances_dir.join(&new_id);
 
         // Copy directory FIRST - if this fails, don't create metadata
@@ -255,14 +484,13 @@ impl InstanceState {
                 .map_err(|e| format!("Failed to copy instance directory: {}", e))?;
         } else {
             // If source dir doesn't exist, create new empty game dir
-            std::fs::create_dir_all(&new_game_dir)
-                .map_err(|e| format!("Failed to create instance directory: {}", e))?;
+            Self::create_instance_directory_structure(&new_game_dir)?;
         }
 
         // NOW create metadata and save
         let new_instance = Instance {
             id: new_id,
-            name: new_name,
+            name: new_name.trim().to_string(),
             game_dir: new_game_dir,
             version_id: source_instance.version_id.clone(),
             mod_loader: source_instance.mod_loader.clone(),
@@ -279,10 +507,238 @@ impl InstanceState {
             java_path_override: source_instance.java_path_override.clone(),
         };
 
-        self.update_instance(new_instance.clone())?;
+        self.insert_instance(new_instance.clone(), false)?;
 
         Ok(new_instance)
     }
+
+    pub fn export_instance(&self, id: &str, archive_path: &Path) -> Result<PathBuf, String> {
+        self.begin_operation(id, InstanceOperation::ImportExport)?;
+        let instance = self
+            .get_instance(id)
+            .ok_or_else(|| format!("Instance {} not found", id))?;
+
+        if let Some(parent) = archive_path.parent() {
+            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+
+        let file = fs::File::create(archive_path).map_err(|e| e.to_string())?;
+        let mut writer = zip::ZipWriter::new(file);
+        let options = SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Deflated)
+            .unix_permissions(0o644);
+
+        let exported = ExportedInstance {
+            name: instance.name.clone(),
+            version_id: instance.version_id.clone(),
+            icon_path: instance.icon_path.clone(),
+            notes: instance.notes.clone(),
+            mod_loader: instance.mod_loader.clone(),
+            mod_loader_version: instance.mod_loader_version.clone(),
+            jvm_args_override: instance.jvm_args_override.clone(),
+            memory_override: instance.memory_override.clone(),
+            java_path_override: instance.java_path_override.clone(),
+        };
+
+        writer
+            .start_file("dropout-instance.json", options)
+            .map_err(|e| e.to_string())?;
+        writer
+            .write_all(
+                serde_json::to_string_pretty(&exported)
+                    .map_err(|e| e.to_string())?
+                    .as_bytes(),
+            )
+            .map_err(|e| e.to_string())?;
+
+        append_directory_to_zip(&mut writer, &instance.game_dir, &instance.game_dir, options)?;
+        writer.finish().map_err(|e| e.to_string())?;
+        self.end_operation(id);
+
+        Ok(archive_path.to_path_buf())
+    }
+
+    pub fn import_instance(
+        &self,
+        archive_path: &Path,
+        app_handle: &AppHandle,
+        new_name: Option<String>,
+    ) -> Result<Instance, String> {
+        let file = fs::File::open(archive_path).map_err(|e| e.to_string())?;
+        let mut archive = zip::ZipArchive::new(file).map_err(|e| e.to_string())?;
+
+        let exported: ExportedInstance = {
+            let mut metadata = archive.by_name("dropout-instance.json").map_err(|_| {
+                "Invalid instance archive: missing dropout-instance.json".to_string()
+            })?;
+            let mut content = String::new();
+            metadata
+                .read_to_string(&mut content)
+                .map_err(|e| e.to_string())?;
+            serde_json::from_str(&content).map_err(|e| e.to_string())?
+        };
+
+        let final_name = new_name.unwrap_or(exported.name.clone());
+        {
+            let config = self.instances.lock().unwrap();
+            Self::validate_instance_name(&config, &final_name, None)?;
+        }
+
+        let imported = self.create_instance(final_name, app_handle)?;
+        self.begin_operation(&imported.id, InstanceOperation::ImportExport)?;
+
+        for index in 0..archive.len() {
+            let mut entry = archive.by_index(index).map_err(|e| e.to_string())?;
+            let Some(enclosed_name) = entry.enclosed_name().map(|p| p.to_path_buf()) else {
+                continue;
+            };
+
+            if enclosed_name == PathBuf::from("dropout-instance.json") {
+                continue;
+            }
+
+            let out_path = imported.game_dir.join(&enclosed_name);
+            if entry.name().ends_with('/') {
+                fs::create_dir_all(&out_path).map_err(|e| e.to_string())?;
+                continue;
+            }
+
+            if let Some(parent) = out_path.parent() {
+                fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+            }
+
+            let mut output = fs::File::create(&out_path).map_err(|e| e.to_string())?;
+            std::io::copy(&mut entry, &mut output).map_err(|e| e.to_string())?;
+        }
+
+        let mut hydrated = imported.clone();
+        hydrated.version_id = exported.version_id;
+        hydrated.icon_path = exported.icon_path;
+        hydrated.notes = exported.notes;
+        hydrated.mod_loader = exported.mod_loader;
+        hydrated.mod_loader_version = exported.mod_loader_version;
+        hydrated.jvm_args_override = exported.jvm_args_override;
+        hydrated.memory_override = exported.memory_override;
+        hydrated.java_path_override = exported.java_path_override;
+        self.update_instance(hydrated.clone())?;
+        self.end_operation(&imported.id);
+
+        Ok(hydrated)
+    }
+
+    pub fn repair_instances(&self, app_handle: &AppHandle) -> Result<InstanceRepairResult, String> {
+        let instances_dir = Self::instances_dir(app_handle)?;
+        fs::create_dir_all(&instances_dir).map_err(|e| e.to_string())?;
+
+        let mut config = self.instances.lock().unwrap().clone();
+        let mut restored_instances = 0usize;
+        let mut removed_stale_entries = 0usize;
+
+        config.instances.retain(|instance| {
+            let keep = instance.game_dir.exists();
+            if !keep {
+                removed_stale_entries += 1;
+            }
+            keep
+        });
+
+        let known_ids: std::collections::HashSet<String> = config
+            .instances
+            .iter()
+            .map(|instance| instance.id.clone())
+            .collect();
+
+        for entry in fs::read_dir(&instances_dir).map_err(|e| e.to_string())? {
+            let entry = entry.map_err(|e| e.to_string())?;
+            if !entry.file_type().map_err(|e| e.to_string())?.is_dir() {
+                continue;
+            }
+
+            let id = entry.file_name().to_string_lossy().to_string();
+            if known_ids.contains(&id) {
+                continue;
+            }
+
+            let recovered = Instance {
+                id: id.clone(),
+                name: format!("Recovered {}", &id[..id.len().min(8)]),
+                game_dir: entry.path(),
+                version_id: None,
+                created_at: chrono::Utc::now().timestamp(),
+                last_played: None,
+                icon_path: None,
+                notes: Some("Recovered from instances directory".to_string()),
+                mod_loader: Some("vanilla".to_string()),
+                mod_loader_version: None,
+                jvm_args_override: None,
+                memory_override: None,
+                java_path_override: None,
+            };
+
+            config.instances.push(recovered);
+            restored_instances += 1;
+        }
+
+        config
+            .instances
+            .sort_by(|left, right| left.created_at.cmp(&right.created_at));
+
+        let mut created_default_active = false;
+        if config.active_instance_id.is_none()
+            || !config
+                .instances
+                .iter()
+                .any(|instance| Some(&instance.id) == config.active_instance_id.as_ref())
+        {
+            config.active_instance_id =
+                config.instances.first().map(|instance| instance.id.clone());
+            created_default_active = config.active_instance_id.is_some();
+        }
+
+        *self.instances.lock().unwrap() = config.clone();
+        drop(config);
+        self.save()?;
+
+        Ok(InstanceRepairResult {
+            restored_instances,
+            removed_stale_entries,
+            created_default_active,
+            active_instance_id: self.get_active_instance().map(|instance| instance.id),
+        })
+    }
+}
+
+fn append_directory_to_zip(
+    writer: &mut zip::ZipWriter<fs::File>,
+    current_dir: &Path,
+    base_dir: &Path,
+    options: SimpleFileOptions,
+) -> Result<(), String> {
+    if !current_dir.exists() {
+        return Ok(());
+    }
+
+    for entry in fs::read_dir(current_dir).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let path = entry.path();
+        let relative = path.strip_prefix(base_dir).map_err(|e| e.to_string())?;
+        let zip_name = relative.to_string_lossy().replace('\\', "/");
+
+        if path.is_dir() {
+            writer
+                .add_directory(format!("{}/", zip_name), options)
+                .map_err(|e| e.to_string())?;
+            append_directory_to_zip(writer, &path, base_dir, options)?;
+        } else {
+            writer
+                .start_file(zip_name, options)
+                .map_err(|e| e.to_string())?;
+            let data = fs::read(&path).map_err(|e| e.to_string())?;
+            writer.write_all(&data).map_err(|e| e.to_string())?;
+        }
+    }
+
+    Ok(())
 }
 
 /// Copy a directory recursively
