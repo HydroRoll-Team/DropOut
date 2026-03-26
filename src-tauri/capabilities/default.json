@@ -28,12 +28,12 @@
       "allow": [{ "path": "**" }]
     },
     {
-        "identifier": "fs:allow-exists",
-        "allow": [{ "path": "**" }]
+      "identifier": "fs:allow-exists",
+      "allow": [{ "path": "**" }]
     },
     {
-        "identifier": "fs:allow-write-text-file",
-        "allow": [{ "path": "**" }]
+      "identifier": "fs:allow-write-text-file",
+      "allow": [{ "path": "**" }]
     }
   ]
 }

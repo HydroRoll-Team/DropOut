@@ -1,30 +1,36 @@
-import type { Route } from './+types/page';
-import defaultMdxComponents from 'fumadocs-ui/mdx';
-import { DocsLayout } from 'fumadocs-ui/layouts/docs';
-import { DocsPage, DocsBody, DocsDescription, DocsTitle } from 'fumadocs-ui/page';
-import { Card, Cards } from 'fumadocs-ui/components/card';
-import { source } from '@/lib/source';
-import { i18n } from '@/lib/i18n';
-import { baseOptions } from '@/lib/layout.shared';
-import { useFumadocsLoader } from 'fumadocs-core/source/client';
-import browserCollections from 'fumadocs-mdx:collections/browser';
-import { Mermaid } from '@/components/mermaid';
+import browserCollections from "fumadocs-mdx:collections/browser";
+import { useFumadocsLoader } from "fumadocs-core/source/client";
+import { Card, Cards } from "fumadocs-ui/components/card";
+import { DocsLayout } from "fumadocs-ui/layouts/docs";
+import defaultMdxComponents from "fumadocs-ui/mdx";
+import {
+  DocsBody,
+  DocsDescription,
+  DocsPage,
+  DocsTitle,
+} from "fumadocs-ui/page";
+import { Mermaid } from "@/components/mermaid";
+import { i18n } from "@/lib/i18n";
+import { baseOptions } from "@/lib/layout.shared";
+import { source } from "@/lib/source";
+import type { Route } from "./+types/page";
 
 export async function loader({ params }: Route.LoaderArgs) {
   // 从路由参数获取语言，如果没有则使用默认语言
   // URL 格式: /docs/manual/getting-started (默认语言 zh)
   // URL 格式: /en/docs/manual/getting-started (英语)
-  const lang = (params.lang && i18n.languages.includes(params.lang as any))
-    ? (params.lang as 'zh' | 'en')
-    : (i18n.defaultLanguage as 'zh' | 'en');
+  const lang =
+    params.lang && i18n.languages.includes(params.lang as any)
+      ? (params.lang as "zh" | "en")
+      : (i18n.defaultLanguage as "zh" | "en");
 
   // 获取文档路径 slugs
-  const slugs = params['*']?.split('/').filter((v) => v.length > 0) || [];
+  const slugs = params["*"]?.split("/").filter((v) => v.length > 0) || [];
 
   const page = source.getPage(slugs, lang);
 
   if (!page) {
-    throw new Response('Not found', { status: 404 });
+    throw new Response("Not found", { status: 404 });
   }
 
   return {
@@ -48,11 +54,11 @@ const clientLoader = browserCollections.docs.createClientLoader({
               Card: (props: React.ComponentProps<typeof Card>) => (
                 <Card
                   {...props}
-                  className={`border-blue-600/20 hover:border-blue-600/50 transition-colors ${props.className || ''}`}
+                  className={`border-blue-600/20 hover:border-blue-600/50 transition-colors ${props.className || ""}`}
                 />
               ),
               Cards,
-              Mermaid
+              Mermaid,
             }}
           />
         </DocsBody>

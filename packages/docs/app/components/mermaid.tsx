@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { useEffect, useRef } from 'react';
-import mermaid from 'mermaid';
+import mermaid from "mermaid";
+import { useEffect, useRef } from "react";
 
 mermaid.initialize({
   startOnLoad: false,
-  theme: 'default',
+  theme: "default",
 });
 
 export function Mermaid({ chart }: { chart: string }) {
