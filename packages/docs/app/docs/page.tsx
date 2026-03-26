@@ -3,12 +3,7 @@ import { useFumadocsLoader } from "fumadocs-core/source/client";
 import { Card, Cards } from "fumadocs-ui/components/card";
 import { DocsLayout } from "fumadocs-ui/layouts/docs";
 import defaultMdxComponents from "fumadocs-ui/mdx";
-import {
-  DocsBody,
-  DocsDescription,
-  DocsPage,
-  DocsTitle,
-} from "fumadocs-ui/page";
+import { DocsBody, DocsPage } from "fumadocs-ui/page";
 import { Mermaid } from "@/components/mermaid";
 import { i18n } from "@/lib/i18n";
 import { baseOptions } from "@/lib/layout.shared";
@@ -19,8 +14,9 @@ export async function loader({ params }: Route.LoaderArgs) {
   // 从路由参数获取语言，如果没有则使用默认语言
   // URL 格式: /docs/manual/getting-started (默认语言 zh)
   // URL 格式: /en/docs/manual/getting-started (英语)
-  const lang =
-    params.lang && i18n.languages.includes(params.lang as any)
+  const lang: "zh" | "en" =
+    params.lang &&
+    i18n.languages.includes(params.lang as (typeof i18n)["languages"][number])
       ? (params.lang as "zh" | "en")
       : (i18n.defaultLanguage as "zh" | "en");
 
@@ -41,7 +37,7 @@ export async function loader({ params }: Route.LoaderArgs) {
 }
 
 const clientLoader = browserCollections.docs.createClientLoader({
-  component({ toc, frontmatter, default: Mdx }) {
+  component({ toc, default: Mdx }) {
     return (
       <DocsPage toc={toc}>
         {/* 老王说不要这个 */}
@@ -67,7 +63,7 @@ const clientLoader = browserCollections.docs.createClientLoader({
   },
 });
 
-export default function Page({ loaderData, params }: Route.ComponentProps) {
+export default function Page({ loaderData }: Route.ComponentProps) {
   const { pageTree, lang } = useFumadocsLoader(loaderData);
 
   return (

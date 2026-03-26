@@ -17,7 +17,7 @@ export function Mermaid({ chart }: { chart: string }) {
         nodes: [ref.current],
       });
     }
-  }, [chart]);
+  }, []);
 
   return (
     <div className="not-prose my-6">
