@@ -1,11 +1,12 @@
 {
+  "$schema": "https://schema.tauri.app/config/2",
   "productName": "Dropout",
   "version": "0.2.0-alpha.5",
   "identifier": "com.dropout.launcher",
   "build": {
     "beforeDevCommand": "pnpm --filter @dropout/ui dev",
     "beforeBuildCommand": "pnpm --filter @dropout/ui build",
-    "devUrl": "http://127.0.0.1:5173",
+    "devUrl": "http://localhost:1420",
     "frontendDist": "../packages/ui/dist"
   },
   "app": {
