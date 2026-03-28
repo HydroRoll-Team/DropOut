@@ -201,7 +201,7 @@ function FieldError({
         {uniqueErrors.map(
           (error) =>
             error?.message && (
-              <li key={`field-error-${error}`}>{error.message}</li>
+              <li key={`field-error-${error.message}`}>{error.message}</li>
             ),
         )}
       </ul>
