@@ -2,4 +2,4 @@
 "@dropout/ui": "patch:refactor"
 ---
 
-Rewrite `ParticleBackground` to morden component design instead of global `window` api call.
+Rewrite `ParticleBackground` to modern component design instead of global `window` api call.
