@@ -8,6 +8,7 @@ import {
   installForge,
   installVersion,
 } from "@/client";
+import { DownloadProgress } from "@/components/download-monitor";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,6 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useInstanceStore } from "@/models/instance";
+import { useDownloadStore } from "@/stores/download-store";
 import { useGameStore } from "@/stores/game-store";
 import type {
   FabricLoaderEntry,
@@ -35,8 +37,9 @@ interface Props {
 export function InstanceCreationModal({ open, onOpenChange }: Props) {
   const gameStore = useGameStore();
   const instancesStore = useInstanceStore();
+  const downloadStore = useDownloadStore();
 
-  // Steps: 1 = name, 2 = version, 3 = mod loader
+  // Steps: 1 = name, 2 = version, 3 = mod loader, 4 = installing
   const [step, setStep] = useState<number>(1);
 
   // Step 1
@@ -61,6 +64,9 @@ export function InstanceCreationModal({ open, onOpenChange }: Props) {
   const [selectedForgeLoader, setSelectedForgeLoader] = useState<string>("");
   const [loadingLoaders, setLoadingLoaders] = useState(false);
 
+  // Step 4 - installing
+  const [installFinished, setInstallFinished] = useState(false);
+
   const loadModLoaders = useCallback(async () => {
     if (!selectedVersionUI) return;
     setLoadingLoaders(true);
@@ -79,7 +85,6 @@ export function InstanceCreationModal({ open, onOpenChange }: Props) {
         const versions = await getForgeVersionsForGame(selectedVersionUI.id);
         setForgeVersions(versions || []);
         if (versions && versions.length > 0) {
-          // Binding `ForgeVersion` uses `version` (not `id`) — use `.version` here.
           setSelectedForgeLoader(versions[0].version);
         } else {
           setSelectedForgeLoader("");
@@ -118,6 +123,18 @@ export function InstanceCreationModal({ open, onOpenChange }: Props) {
     return list;
   }, [gameStore.versions, versionFilter, versionSearch]);
 
+  // Initialize download store event listeners when modal opens
+  useEffect(() => {
+    if (open) {
+      downloadStore.init();
+    }
+    return () => {
+      if (!open) {
+        downloadStore.cleanup();
+      }
+    };
+  }, [open, downloadStore.init, downloadStore.cleanup]);
+
   // Reset when opened/closed
   useEffect(() => {
     if (open) {
@@ -135,8 +152,10 @@ export function InstanceCreationModal({ open, onOpenChange }: Props) {
       setSelectedForgeLoader("");
       setErrorMessage("");
       setCreating(false);
+      setInstallFinished(false);
+      downloadStore.reset();
     }
-  }, [open, gameStore.loadVersions]);
+  }, [open, gameStore.loadVersions, downloadStore.reset]);
 
   function validateStep1(): boolean {
     if (!instanceName.trim()) {
@@ -176,6 +195,11 @@ export function InstanceCreationModal({ open, onOpenChange }: Props) {
     if (!validateStep1() || !validateStep2()) return;
     setCreating(true);
     setErrorMessage("");
+    setInstallFinished(false);
+
+    // Move to step 4 (installing)
+    setStep(4);
+    downloadStore.reset();
 
     try {
       // Step 1: create instance
@@ -183,83 +207,127 @@ export function InstanceCreationModal({ open, onOpenChange }: Props) {
 
       // If selectedVersion provided, install it
       if (selectedVersionUI && instance) {
+        // Show preparing phase while Rust resolves version JSON, fetches
+        // asset index, and builds the download task list.
+        downloadStore.setPhase(
+          "preparing",
+          `Preparing Minecraft ${selectedVersionUI.id}...`,
+        );
         try {
-          await installVersion(instance?.id, selectedVersionUI.id);
+          await installVersion(instance.id, selectedVersionUI.id);
         } catch (err) {
           console.error("Failed to install base version:", err);
-          // continue - instance created but version install failed
           toast.error(
             `Failed to install version ${selectedVersionUI.id}: ${String(err)}`,
           );
+          downloadStore.setError(`Failed to install version: ${String(err)}`);
+          setInstallFinished(true);
+          setCreating(false);
+          return;
         }
       }
 
       // If mod loader selected, install it
       if (modLoaderType === "fabric" && selectedFabricLoader && instance) {
+        downloadStore.setPhase(
+          "installing-mod-loader",
+          `Installing Fabric ${selectedFabricLoader}...`,
+        );
         try {
           await installFabric(
-            instance?.id,
+            instance.id,
             selectedVersionUI?.id ?? "",
             selectedFabricLoader,
           );
         } catch (err) {
           console.error("Failed to install Fabric:", err);
           toast.error(`Failed to install Fabric: ${String(err)}`);
+          downloadStore.setError(`Failed to install Fabric: ${String(err)}`);
+          setInstallFinished(true);
+          setCreating(false);
+          return;
         }
       } else if (modLoaderType === "forge" && selectedForgeLoader && instance) {
+        downloadStore.setPhase(
+          "installing-mod-loader",
+          `Installing Forge ${selectedForgeLoader}...`,
+        );
         try {
           await installForge(
-            instance?.id,
+            instance.id,
             selectedVersionUI?.id ?? "",
             selectedForgeLoader,
           );
         } catch (err) {
           console.error("Failed to install Forge:", err);
           toast.error(`Failed to install Forge: ${String(err)}`);
+          downloadStore.setError(`Failed to install Forge: ${String(err)}`);
+          setInstallFinished(true);
+          setCreating(false);
+          return;
         }
       }
 
       // Refresh instances list
       await instancesStore.refresh();
 
+      downloadStore.setPhase("completed", "Installation complete");
+      setInstallFinished(true);
       toast.success("Instance created successfully");
-      onOpenChange(false);
     } catch (e) {
       console.error("Failed to create instance:", e);
       setErrorMessage(String(e));
+      downloadStore.setError(String(e));
       toast.error(`Failed to create instance: ${e}`);
+      setInstallFinished(true);
     } finally {
       setCreating(false);
     }
   }
 
   // UI pieces
+  const stepKeys = ["name", "version", "loader", "install"] as const;
   const StepIndicator = () => (
     <div className="flex gap-2 w-full">
-      <div
-        className={`flex-1 h-1 rounded ${step >= 1 ? "bg-indigo-500" : "bg-zinc-700"}`}
-      />
-      <div
-        className={`flex-1 h-1 rounded ${step >= 2 ? "bg-indigo-500" : "bg-zinc-700"}`}
-      />
-      <div
-        className={`flex-1 h-1 rounded ${step >= 3 ? "bg-indigo-500" : "bg-zinc-700"}`}
-      />
+      {stepKeys.map((key, i) => (
+        <div
+          key={key}
+          className={`flex-1 h-1 rounded ${step >= i + 1 ? "bg-indigo-500" : "bg-zinc-700"}`}
+        />
+      ))}
     </div>
   );
 
+  const stepTitles: Record<number, string> = {
+    1: "Create New Instance",
+    2: "Select Version",
+    3: "Mod Loader",
+    4: "Installing",
+  };
+
+  const stepDescriptions: Record<number, string> = {
+    1: "Give your instance a name to get started.",
+    2: "Choose a Minecraft version to install.",
+    3: "Optionally select a mod loader.",
+    4: "Downloading and installing game files...",
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(newOpen) => {
+        // Prevent closing during active installation
+        if (step === 4 && !installFinished) return;
+        onOpenChange(newOpen);
+      }}
+    >
       <DialogContent className="w-full max-w-3xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
-          <DialogTitle>Create New Instance</DialogTitle>
-          <DialogDescription>
-            Multi-step wizard — create an instance and optionally install a
-            version or mod loader.
-          </DialogDescription>
+          <DialogTitle>{stepTitles[step]}</DialogTitle>
+          <DialogDescription>{stepDescriptions[step]}</DialogDescription>
         </DialogHeader>
 
-        <div className="px-6">
+        <div className="px-6 overflow-hidden">
           <div className="pt-4 pb-6">
             <StepIndicator />
           </div>
@@ -463,7 +531,6 @@ export function InstanceCreationModal({ open, onOpenChange }: Props) {
                         className="w-full px-3 py-2 rounded border bg-transparent"
                       >
                         {forgeVersions.map((f) => (
-                          // binding ForgeVersion uses `version` as the identifier
                           <option key={f.version} value={f.version}>
                             {f.version}
                           </option>
@@ -480,7 +547,39 @@ export function InstanceCreationModal({ open, onOpenChange }: Props) {
             </div>
           )}
 
-          {errorMessage && (
+          {/* Step 4 - Installing with progress */}
+          {step === 4 && (
+            <div className="space-y-4 py-2">
+              {/* Summary of what's being installed */}
+              <div className="rounded-lg border border-border bg-card/50 p-3 space-y-1">
+                <div className="text-xs text-muted-foreground">Instance</div>
+                <div className="text-sm font-medium">{instanceName}</div>
+                <div className="text-xs text-muted-foreground mt-2">
+                  Version
+                </div>
+                <div className="text-sm font-mono">{selectedVersionUI?.id}</div>
+                {modLoaderType !== "vanilla" && (
+                  <>
+                    <div className="text-xs text-muted-foreground mt-2">
+                      Mod Loader
+                    </div>
+                    <div className="text-sm">
+                      {modLoaderType === "fabric"
+                        ? `Fabric ${selectedFabricLoader}`
+                        : `Forge ${selectedForgeLoader}`}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Download progress */}
+              <div className="rounded-lg border border-border bg-card/50 p-4">
+                <DownloadProgress />
+              </div>
+            </div>
+          )}
+
+          {errorMessage && step !== 4 && (
             <div className="text-sm text-red-400 mt-3">{errorMessage}</div>
           )}
         </div>
@@ -488,21 +587,29 @@ export function InstanceCreationModal({ open, onOpenChange }: Props) {
         <DialogFooter>
           <div className="w-full flex justify-between items-center">
             <div>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  // cancel
-                  onOpenChange(false);
-                }}
-                disabled={creating}
-              >
-                Cancel
-              </Button>
+              {step === 4 ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => onOpenChange(false)}
+                  disabled={!installFinished}
+                >
+                  {installFinished ? "Close" : "Installing..."}
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => onOpenChange(false)}
+                  disabled={creating}
+                >
+                  Cancel
+                </Button>
+              )}
             </div>
 
             <div className="flex gap-2">
-              {step > 1 && (
+              {step > 1 && step < 4 && (
                 <Button
                   type="button"
                   variant="outline"
@@ -517,21 +624,20 @@ export function InstanceCreationModal({ open, onOpenChange }: Props) {
                 <Button type="button" onClick={handleNext} disabled={creating}>
                   Next
                 </Button>
-              ) : (
+              ) : step === 3 ? (
                 <Button
                   type="button"
                   onClick={handleCreate}
                   disabled={creating}
                 >
-                  {creating ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating...
-                    </>
-                  ) : (
-                    "Create"
-                  )}
+                  Create
                 </Button>
+              ) : (
+                installFinished && (
+                  <Button type="button" onClick={() => onOpenChange(false)}>
+                    Done
+                  </Button>
+                )
               )}
             </div>
           </div>
