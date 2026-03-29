@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.1.0-alpha.4
+
+### Refactors
+
+- [`5b799a1`](https://github.com/HydroRoll-Team/DropOut/commit/5b799a125a970e5e56f29a08b3c86450855fb6c4): Full rewrite instance create with stepper page instead of modal. ([#129](https://github.com/HydroRoll-Team/DropOut/pull/129) by @fu050409)
+- [`ffbfce8`](https://github.com/HydroRoll-Team/DropOut/commit/ffbfce895c37e8e8306d426a2e59e73647ed6a86): Refactor game store and rename `HomePage` component. ([#129](https://github.com/HydroRoll-Team/DropOut/pull/129) by @fu050409)
+- [`18aceb4`](https://github.com/HydroRoll-Team/DropOut/commit/18aceb4ddf01e964d0b81a4e926e42b72c64e355): Rewrite `ParticleBackground` to modern component design instead of global `window` api call. ([#129](https://github.com/HydroRoll-Team/DropOut/pull/129) by @fu050409)
+- [`97fe504`](https://github.com/HydroRoll-Team/DropOut/commit/97fe5046f68b5e4ee5f750945bcc39a27f5eb37b): Rewrite effect instance nullish checking. ([#129](https://github.com/HydroRoll-Team/DropOut/pull/129) by @fu050409)
+
+### Chores
+
+- [`ef478b2`](https://github.com/HydroRoll-Team/DropOut/commit/ef478b29605afbd1c3ec88184b64960e8ad01e71): Fix vite config to integrate with Tauri. ([#128](https://github.com/HydroRoll-Team/DropOut/pull/128) by @fu050409)
+
+### New Features
+
+- [`32a4d85`](https://github.com/HydroRoll-Team/DropOut/commit/32a4d85af937e4fd882fa671aee8b72878cc564f): Remove all legacy codes in `stores/`. ([#129](https://github.com/HydroRoll-Team/DropOut/pull/129) by @fu050409)
+
 ## v0.1.0-alpha.3
 
 ### Refactors
