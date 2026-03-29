@@ -20,13 +20,16 @@ interface InstanceState {
   activeInstance: Instance | null;
 
   refresh: () => Promise<void>;
-  create: (name: string) => Promise<Instance | null>;
+  create: (name: string) => Promise<Instance>;
   delete: (id: string) => Promise<void>;
   update: (instance: Instance) => Promise<void>;
   setActiveInstance: (instance: Instance) => Promise<void>;
   duplicate: (id: string, newName: string) => Promise<Instance | null>;
   exportArchive: (id: string, archivePath: string) => Promise<void>;
-  importArchive: (archivePath: string, newName?: string) => Promise<Instance | null>;
+  importArchive: (
+    archivePath: string,
+    newName?: string,
+  ) => Promise<Instance | null>;
   repair: () => Promise<void>;
   get: (id: string) => Promise<Instance | null>;
 }
@@ -61,17 +64,11 @@ export const useInstanceStore = create<InstanceState>((set, get) => ({
 
   create: async (name) => {
     const { refresh } = get();
-    try {
-      const instance = await createInstance(name);
-      await setActiveInstanceCommand(instance.id);
-      await refresh();
-      toast.success(`Instance "${name}" created successfully`);
-      return instance;
-    } catch (e) {
-      console.error("Failed to create instance:", e);
-      toast.error(String(e));
-      return null;
-    }
+    const instance = await createInstance(name);
+    await setActiveInstanceCommand(instance.id);
+    await refresh();
+    toast.success(`Instance "${name}" created successfully`);
+    return instance;
   },
 
   delete: async (id) => {

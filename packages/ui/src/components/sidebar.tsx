@@ -23,10 +23,6 @@ function NavItem({ Icon, label, to }: NavItemProps) {
   const location = useLocation();
   const isActive = location.pathname === to;
 
-  const handleClick = () => {
-    navigate(to);
-  };
-
   return (
     <Button
       variant="ghost"
@@ -35,7 +31,7 @@ function NavItem({ Icon, label, to }: NavItemProps) {
         isActive && "relative bg-accent",
       )}
       size="lg"
-      onClick={handleClick}
+      onClick={() => navigate(to)}
     >
       <Icon className="size-5" strokeWidth={isActive ? 2.5 : 2} />
       <span className="hidden lg:block text-sm relative z-10">{label}</span>
@@ -185,7 +181,11 @@ export function Sidebar() {
 
       <div className="w-full lg:px-3 flex-1 flex flex-col justify-end">
         <DropdownMenu>
-          <DropdownMenuTrigger render={renderUserAvatar()} className="w-full">
+          <DropdownMenuTrigger
+            render={renderUserAvatar()}
+            nativeButton={false}
+            className="w-full"
+          >
             Open
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" side="right" sideOffset={20}>

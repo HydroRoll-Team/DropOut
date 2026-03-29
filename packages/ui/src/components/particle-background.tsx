@@ -1,63 +1,55 @@
-import { useEffect, useRef } from "react";
-import { SaturnEffect } from "../lib/effects/SaturnEffect";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { SaturnEffect } from "@/lib/effects/saturn";
 
-export function ParticleBackground() {
+const SaturnEffectContext = createContext<SaturnEffect | null>(null);
+
+export function useSaturnEffect() {
+  return useContext(SaturnEffectContext);
+}
+
+export function ParticleBackground({
+  children,
+}: {
+  children?: React.ReactNode;
+}) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const effectRef = useRef<SaturnEffect | null>(null);
+  const [effect, setEffect] = useState<SaturnEffect | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Instantiate SaturnEffect and attach to canvas
-    let effect: SaturnEffect | null = null;
+    let saturnEffect: SaturnEffect | null = null;
     try {
-      effect = new SaturnEffect(canvas);
-      effectRef.current = effect;
+      saturnEffect = new SaturnEffect(canvas);
+      setEffect(saturnEffect);
     } catch (err) {
-      // If effect fails, silently degrade (keep background blank)
-      // eslint-disable-next-line no-console
       console.warn("SaturnEffect initialization failed:", err);
     }
 
     const resizeHandler = () => {
-      if (effectRef.current) {
-        try {
-          effectRef.current.resize(window.innerWidth, window.innerHeight);
-        } catch {
-          // ignore
-        }
-      }
+      saturnEffect?.resize(window.innerWidth, window.innerHeight);
     };
 
     window.addEventListener("resize", resizeHandler);
 
-    // Expose getter for HomeView interactions (getSaturnEffect)
-    // HomeView will call window.getSaturnEffect()?.handleMouseDown/Move/Up
-    (
-      window as unknown as { getSaturnEffect?: () => SaturnEffect | null }
-    ).getSaturnEffect = () => effectRef.current;
-
     return () => {
       window.removeEventListener("resize", resizeHandler);
-      if (effectRef.current) {
-        try {
-          effectRef.current.destroy();
-        } catch {
-          // ignore
-        }
-      }
-      effectRef.current = null;
-      (
-        window as unknown as { getSaturnEffect?: () => SaturnEffect | null }
-      ).getSaturnEffect = undefined;
+      saturnEffect?.destroy();
+
+      setEffect(null);
     };
   }, []);
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="absolute inset-0 z-0 pointer-events-none"
-    />
+    <SaturnEffectContext.Provider value={effect}>
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 -z-10 pointer-events-none"
+      />
+      {children}
+    </SaturnEffectContext.Provider>
   );
 }
+
+export default ParticleBackground;

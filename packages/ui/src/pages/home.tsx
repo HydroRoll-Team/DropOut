@@ -1,18 +1,11 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { BottomBar } from "@/components/bottom-bar";
-import type { SaturnEffect } from "@/lib/effects/SaturnEffect";
-import { useGameStore } from "../stores/game-store";
-import { useReleasesStore } from "../stores/releases-store";
+import { useSaturnEffect } from "@/components/particle-background";
 
-export function HomeView() {
-  const gameStore = useGameStore();
-  const releasesStore = useReleasesStore();
+export function HomePage() {
   const [mouseX, setMouseX] = useState(0);
   const [mouseY, setMouseY] = useState(0);
-
-  useEffect(() => {
-    releasesStore.loadReleases();
-  }, [releasesStore.loadReleases]);
+  const saturn = useSaturnEffect();
 
   const handleMouseMove = (e: React.MouseEvent) => {
     const x = (e.clientX / window.innerWidth) * 2 - 1;
@@ -21,100 +14,42 @@ export function HomeView() {
     setMouseY(y);
 
     // Forward mouse move to SaturnEffect (if available) for parallax/rotation interactions
-    try {
-      const saturn = (
-        window as unknown as {
-          getSaturnEffect?: () => SaturnEffect;
-        }
-      ).getSaturnEffect?.();
-      if (saturn?.handleMouseMove) {
-        saturn.handleMouseMove(e.clientX);
-      }
-    } catch {
-      /* best-effort, ignore errors from effect */
-    }
+    saturn?.handleMouseMove(e.clientX);
   };
 
   const handleSaturnMouseDown = (e: React.MouseEvent) => {
-    try {
-      const saturn = (window as any).getSaturnEffect?.();
-      if (saturn?.handleMouseDown) {
-        saturn.handleMouseDown(e.clientX);
-      }
-    } catch {
-      /* ignore */
-    }
+    saturn?.handleMouseDown(e.clientX);
   };
 
   const handleSaturnMouseUp = () => {
-    try {
-      const saturn = (window as any).getSaturnEffect?.();
-      if (saturn?.handleMouseUp) {
-        saturn.handleMouseUp();
-      }
-    } catch {
-      /* ignore */
-    }
+    saturn?.handleMouseUp();
   };
 
   const handleSaturnMouseLeave = () => {
     // Treat leaving the area as mouse-up for the effect
-    try {
-      const saturn = (window as any).getSaturnEffect?.();
-      if (saturn?.handleMouseUp) {
-        saturn.handleMouseUp();
-      }
-    } catch {
-      /* ignore */
-    }
+    saturn?.handleMouseUp();
   };
 
   const handleSaturnTouchStart = (e: React.TouchEvent) => {
     if (e.touches && e.touches.length === 1) {
-      try {
-        const clientX = e.touches[0].clientX;
-        const saturn = (window as any).getSaturnEffect?.();
-        if (saturn?.handleTouchStart) {
-          saturn.handleTouchStart(clientX);
-        }
-      } catch {
-        /* ignore */
-      }
+      const clientX = e.touches[0].clientX;
+      saturn?.handleTouchStart(clientX);
     }
   };
 
   const handleSaturnTouchMove = (e: React.TouchEvent) => {
     if (e.touches && e.touches.length === 1) {
-      try {
-        const clientX = e.touches[0].clientX;
-        const saturn = (window as any).getSaturnEffect?.();
-        if (saturn?.handleTouchMove) {
-          saturn.handleTouchMove(clientX);
-        }
-      } catch {
-        /* ignore */
-      }
+      const clientX = e.touches[0].clientX;
+      saturn?.handleTouchMove(clientX);
     }
   };
 
   const handleSaturnTouchEnd = () => {
-    try {
-      const saturn = (window as any).getSaturnEffect?.();
-      if (saturn?.handleTouchEnd) {
-        saturn.handleTouchEnd();
-      }
-    } catch {
-      /* ignore */
-    }
+    saturn?.handleTouchEnd();
   };
 
   return (
-    <div
-      className="relative z-10 h-full overflow-y-auto custom-scrollbar scroll-smooth"
-      style={{
-        overflow: releasesStore.isLoading ? "hidden" : "auto",
-      }}
-    >
+    <div className="relative z-10 h-full overflow-y-auto custom-scrollbar scroll-smooth">
       {/* Hero Section (Full Height) - Interactive area */}
       <div
         role="tab"
@@ -149,13 +84,6 @@ export function HomeView() {
           <div className="flex items-center gap-4">
             <div className="bg-white/10 backdrop-blur-md border border-white/10 px-3 py-1 rounded-sm text-xs font-bold uppercase tracking-widest text-white shadow-sm">
               Java Edition
-            </div>
-            <div className="h-4 w-px bg-white/20"></div>
-            <div className="text-sm text-zinc-400">
-              Latest Release{" "}
-              <span className="text-white font-medium">
-                {gameStore.latestRelease?.id || "..."}
-              </span>
             </div>
           </div>
         </div>

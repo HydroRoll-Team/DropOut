@@ -2,6 +2,7 @@ import { open, save } from "@tauri-apps/plugin-dialog";
 import {
   CopyIcon,
   EditIcon,
+  EllipsisIcon,
   FolderOpenIcon,
   Plus,
   RocketIcon,
@@ -9,9 +10,9 @@ import {
   XIcon,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { openFileExplorer } from "@/client";
-import InstanceCreationModal from "@/components/instance-creation-modal";
 import InstanceEditorModal from "@/components/instance-editor-modal";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,27 +26,30 @@ import {
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/models/auth";
+import { useGameStore } from "@/models/game";
 import { useInstanceStore } from "@/models/instance";
-import { useGameStore } from "@/stores/game-store";
 import type { Instance } from "@/types";
 
-export function InstancesView() {
-  const account = useAuthStore((state) => state.account);
+export function InstancesPage() {
   const instancesStore = useInstanceStore();
-  const startGame = useGameStore((state) => state.startGame);
-  const stopGame = useGameStore((state) => state.stopGame);
-  const runningInstanceId = useGameStore((state) => state.runningInstanceId);
-  const launchingInstanceId = useGameStore((state) => state.launchingInstanceId);
-  const stoppingInstanceId = useGameStore((state) => state.stoppingInstanceId);
-  const [isImporting, setIsImporting] = useState(false);
-  const [repairing, setRepairing] = useState(false);
-  const [exportingId, setExportingId] = useState<string | null>(null);
+  const navigate = useNavigate();
 
-  // Modal / UI state
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const account = useAuthStore((state) => state.account);
+  const {
+    startGame,
+    runningInstanceId,
+    stoppingInstanceId,
+    launchingInstanceId,
+    stopGame,
+  } = useGameStore();
+
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+
+  const [isImporting, setIsImporting] = useState(false);
+  const [repairing, setRepairing] = useState(false);
+  const [exportingId, setExportingId] = useState<string | null>(null);
 
   // Selected / editing instance state
   const [selectedInstance, setSelectedInstance] = useState<Instance | null>(
@@ -62,7 +66,7 @@ export function InstancesView() {
 
   // Handlers to open modals
   const openCreate = () => {
-    setShowCreateModal(true);
+    navigate("/instances/create");
   };
 
   const openEdit = (instance: Instance) => {
@@ -149,7 +153,7 @@ export function InstancesView() {
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
           Instances
         </h1>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-row space-x-2">
           <Button
             type="button"
             variant="outline"
@@ -188,10 +192,9 @@ export function InstancesView() {
         <ul className="flex flex-col space-y-3">
           {instancesStore.instances.map((instance) => {
             const isActive = instancesStore.activeInstance?.id === instance.id;
-            const isRunning = runningInstanceId === instance.id;
             const isLaunching = launchingInstanceId === instance.id;
             const isStopping = stoppingInstanceId === instance.id;
-            const otherInstanceRunning = runningInstanceId !== null && !isRunning;
+            const isRunning = runningInstanceId === instance.id;
 
             return (
               <li
@@ -259,7 +262,10 @@ export function InstancesView() {
                           try {
                             await instancesStore.setActiveInstance(instance);
                           } catch (error) {
-                            console.error("Failed to set active instance:", error);
+                            console.error(
+                              "Failed to set active instance:",
+                              error,
+                            );
                             toast.error("Error setting active instance");
                             return;
                           }
@@ -274,20 +280,27 @@ export function InstancesView() {
                             return;
                           }
 
-                          await startGame(
-                            account,
-                            () => {
-                              toast.info("Please login first");
-                            },
-                            instance.id,
-                            instance.versionId,
-                            () => undefined,
-                          );
+                          if (!account) {
+                            toast.info("Please login first");
+                            return;
+                          }
+
+                          try {
+                            await startGame(instance.id, instance.versionId);
+                          } catch (error) {
+                            console.error("Failed to start game:", error);
+                            toast.error("Error starting game");
+                          }
                         }}
-                        disabled={otherInstanceRunning || isLaunching || isStopping}
+                        disabled={
+                          (!!runningInstanceId &&
+                            runningInstanceId !== instance.id) ||
+                          isLaunching ||
+                          isStopping
+                        }
                       >
                         {isLaunching || isStopping ? (
-                          <span className="text-xs">...</span>
+                          <EllipsisIcon />
                         ) : isRunning ? (
                           <XIcon />
                         ) : (
@@ -356,10 +369,10 @@ export function InstancesView() {
         </ul>
       )}
 
-      <InstanceCreationModal
+      {/*<InstanceCreationModal
         open={showCreateModal}
         onOpenChange={setShowCreateModal}
-      />
+      />*/}
 
       <InstanceEditorModal
         open={showEditModal}

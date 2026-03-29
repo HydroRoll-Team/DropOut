@@ -2,10 +2,14 @@ name: UI Checker
 
 on:
   push:
+    branches:
+      - main
     paths:
       - "packages/**"
       - ".github/workflows/check.yml"
   pull_request:
+    branches:
+      - main
     paths:
       - "packages/**"
       - ".github/workflows/check.yml"

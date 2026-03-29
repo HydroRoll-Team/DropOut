@@ -1,10 +1,10 @@
 import { Play, User, XIcon } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/models/auth";
+import { useGameStore } from "@/models/game";
 import { useInstanceStore } from "@/models/instance";
-import { useGameStore } from "@/stores/game-store";
 import { LoginModal } from "./login-modal";
 import { Button } from "./ui/button";
 import {
@@ -19,27 +19,17 @@ import { Spinner } from "./ui/spinner";
 
 export function BottomBar() {
   const account = useAuthStore((state) => state.account);
-  const instances = useInstanceStore((state) => state.instances);
-  const activeInstance = useInstanceStore((state) => state.activeInstance);
-  const setActiveInstance = useInstanceStore((state) => state.setActiveInstance);
-  const selectedVersion = useGameStore((state) => state.selectedVersion);
-  const setSelectedVersion = useGameStore((state) => state.setSelectedVersion);
-  const startGame = useGameStore((state) => state.startGame);
-  const stopGame = useGameStore((state) => state.stopGame);
-  const runningInstanceId = useGameStore((state) => state.runningInstanceId);
-  const launchingInstanceId = useGameStore((state) => state.launchingInstanceId);
-  const stoppingInstanceId = useGameStore((state) => state.stoppingInstanceId);
+
+  const { instances, activeInstance, setActiveInstance } = useInstanceStore();
+  const {
+    runningInstanceId,
+    launchingInstanceId,
+    stoppingInstanceId,
+    startGame,
+    stopGame,
+  } = useGameStore();
 
   const [showLoginModal, setShowLoginModal] = useState(false);
-
-  useEffect(() => {
-    const nextVersion = activeInstance?.versionId ?? "";
-    if (selectedVersion === nextVersion) {
-      return;
-    }
-
-    setSelectedVersion(nextVersion);
-  }, [activeInstance?.id, activeInstance?.versionId, selectedVersion, setSelectedVersion]);
 
   const handleInstanceChange = useCallback(
     async (instanceId: string) => {
@@ -47,7 +37,9 @@ export function BottomBar() {
         return;
       }
 
-      const nextInstance = instances.find((instance) => instance.id === instanceId);
+      const nextInstance = instances.find(
+        (instance) => instance.id === instanceId,
+      );
       if (!nextInstance) {
         return;
       }
@@ -68,13 +60,7 @@ export function BottomBar() {
       return;
     }
 
-    await startGame(
-      account,
-      () => setShowLoginModal(true),
-      activeInstance.id,
-      selectedVersion || activeInstance.versionId,
-      () => undefined,
-    );
+    await startGame(activeInstance.id, activeInstance.versionId ?? "");
   };
 
   const handleStopGame = async () => {

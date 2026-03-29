@@ -5,13 +5,11 @@ import { Sidebar } from "@/components/sidebar";
 import { useAuthStore } from "@/models/auth";
 import { useInstanceStore } from "@/models/instance";
 import { useSettingsStore } from "@/models/settings";
-import { useGameStore } from "@/stores/game-store";
 
 export function IndexPage() {
   const authStore = useAuthStore();
   const settingsStore = useSettingsStore();
   const instanceStore = useInstanceStore();
-  const initGameLifecycle = useGameStore((state) => state.initLifecycle);
 
   const location = useLocation();
 
@@ -19,10 +17,7 @@ export function IndexPage() {
     authStore.init();
     settingsStore.refresh();
     instanceStore.refresh();
-    void initGameLifecycle().catch((error) => {
-      console.error("Failed to initialize game lifecycle:", error);
-    });
-  }, [authStore.init, settingsStore.refresh, instanceStore.refresh, initGameLifecycle]);
+  }, [authStore.init, settingsStore.refresh, instanceStore.refresh]);
 
   return (
     <div className="relative h-screen w-full overflow-hidden bg-background font-sans">
@@ -50,8 +45,6 @@ export function IndexPage() {
               <div className="absolute inset-0 opacity-100 bg-linear-to-br from-emerald-100 via-gray-100 to-indigo-100"></div>
             )}
 
-            {location.pathname === "/" && <ParticleBackground />}
-
             <div className="absolute inset-0 bg-linear-to-t from-zinc-900 via-transparent to-black/50 dark:from-zinc-900 dark:to-black/50"></div>
           </>
         )}
@@ -76,7 +69,13 @@ export function IndexPage() {
         <Sidebar />
 
         <main className="size-full overflow-hidden">
-          <Outlet />
+          {location.pathname === "/" ? (
+            <ParticleBackground>
+              <Outlet />
+            </ParticleBackground>
+          ) : (
+            <Outlet />
+          )}
         </main>
       </div>
     </div>

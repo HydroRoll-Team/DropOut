@@ -1,21 +1,3 @@
-/**
- * Ported SaturnEffect for the React UI (ui-new).
- * Adapted from the original Svelte implementation but written as a standalone
- * TypeScript class that manages a 2D canvas particle effect resembling a
- * rotating "Saturn" with rings. Designed to be instantiated and controlled
- * from a React component (e.g. ParticleBackground).
- *
- * Usage:
- *   const effect = new SaturnEffect(canvasElement);
- *   effect.handleMouseDown(clientX);
- *   effect.handleMouseMove(clientX);
- *   effect.handleMouseUp();
- *   // on resize:
- *   effect.resize(width, height);
- *   // on unmount:
- *   effect.destroy();
- */
-
 export class SaturnEffect {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
