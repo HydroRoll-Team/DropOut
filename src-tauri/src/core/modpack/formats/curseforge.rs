@@ -77,9 +77,10 @@ struct CurseForgeModLoader {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
 struct CurseForgeManifestFile {
+    #[serde(rename = "projectID", alias = "projectId")]
     project_id: Option<u64>,
+    #[serde(rename = "fileID", alias = "fileId")]
     file_id: Option<u64>,
 }
 
@@ -91,5 +92,38 @@ impl CurseForgeManifestFile {
             size: None,
             sha1: None,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::CurseForgeManifestFile;
+
+    #[test]
+    fn curseforge_manifest_file_deserializes_uppercase_id_fields() {
+        let file: CurseForgeManifestFile = serde_json::from_value(serde_json::json!({
+            "projectID": 253735,
+            "fileID": 4683468
+        }))
+        .expect("failed to deserialize CurseForge manifest file");
+
+        assert_eq!(file.project_id, Some(253735));
+        assert_eq!(file.file_id, Some(4683468));
+        assert_eq!(
+            file.into_modpack_file().map(|file| file.url),
+            Some("curseforge://253735:4683468".to_string())
+        );
+    }
+
+    #[test]
+    fn curseforge_manifest_file_deserializes_camel_case_id_fields() {
+        let file: CurseForgeManifestFile = serde_json::from_value(serde_json::json!({
+            "projectId": 253735,
+            "fileId": 4683468
+        }))
+        .expect("failed to deserialize CurseForge manifest file");
+
+        assert_eq!(file.project_id, Some(253735));
+        assert_eq!(file.file_id, Some(4683468));
     }
 }
