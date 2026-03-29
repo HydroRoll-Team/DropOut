@@ -98,8 +98,12 @@ function FieldContent({ className, ...props }: React.ComponentProps<"div">) {
 
 function FieldLabel({
   className,
+  required,
+  children,
   ...props
-}: React.ComponentProps<typeof Label>) {
+}: React.ComponentProps<typeof Label> & {
+  required?: boolean;
+}) {
   return (
     <Label
       data-slot="field-label"
@@ -108,8 +112,12 @@ function FieldLabel({
         "has-[>[data-slot=field]]:w-full has-[>[data-slot=field]]:flex-col",
         className,
       )}
+      aria-required={!!required}
       {...props}
-    />
+    >
+      {children}
+      {required && <span className="text-red-700 dark:text-red-500">*</span>}
+    </Label>
   );
 }
 

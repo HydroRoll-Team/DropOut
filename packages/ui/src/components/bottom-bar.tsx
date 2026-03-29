@@ -1,5 +1,5 @@
 import { Play, User, XIcon } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/models/auth";
@@ -29,17 +29,7 @@ export function BottomBar() {
     stopGame,
   } = useGameStore();
 
-  const [selectedVersion, setSelectedVersion] = useState<string | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
-
-  useEffect(() => {
-    const nextVersion = activeInstance?.versionId ?? "";
-    if (selectedVersion === nextVersion) {
-      return;
-    }
-
-    setSelectedVersion(nextVersion);
-  }, [activeInstance?.versionId, selectedVersion]);
 
   const handleInstanceChange = useCallback(
     async (instanceId: string) => {
@@ -70,10 +60,7 @@ export function BottomBar() {
       return;
     }
 
-    await startGame(
-      activeInstance.id,
-      selectedVersion || activeInstance.versionId,
-    );
+    await startGame(activeInstance.id, activeInstance.versionId ?? "");
   };
 
   const handleStopGame = async () => {
