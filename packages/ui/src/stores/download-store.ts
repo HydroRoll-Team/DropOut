@@ -160,6 +160,19 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
     }
     unlisteners = [];
     initialized = false;
+    // Reset state on cleanup to avoid residual state
+    set({
+      phase: "idle",
+      totalFiles: 0,
+      completedFiles: 0,
+      currentFile: "",
+      currentFileStatus: "",
+      currentFileDownloaded: 0,
+      currentFileTotal: 0,
+      totalDownloadedBytes: 0,
+      errorMessage: null,
+      phaseLabel: "",
+    });
   },
 
   reset: () => {

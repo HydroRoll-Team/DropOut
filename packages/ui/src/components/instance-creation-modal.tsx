@@ -129,9 +129,8 @@ export function InstanceCreationModal({ open, onOpenChange }: Props) {
       downloadStore.init();
     }
     return () => {
-      if (!open) {
-        downloadStore.cleanup();
-      }
+      // Always cleanup event listeners when effect re-runs or unmounts
+      downloadStore.cleanup();
     };
   }, [open, downloadStore.init, downloadStore.cleanup]);
 
