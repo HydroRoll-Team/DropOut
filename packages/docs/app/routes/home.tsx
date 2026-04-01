@@ -110,7 +110,7 @@ const texts = {
   },
 };
 
-export function meta({ params }: Route.MetaArgs) {
+export function meta() {
   return [
     { title: "DropOut - Modern Minecraft Launcher" },
     {
@@ -172,9 +172,9 @@ export default function Home({ params }: Route.ComponentProps) {
 
         {/* Features Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
-          {t.features.items.map((item, i) => (
+          {t.features.items.map((item) => (
             <div
-              key={i}
+              key={item.title}
               className="p-6 rounded-lg border border-blue-600/20 bg-fd-card hover:border-blue-600/50 transition-colors"
             >
               <h3 className="font-semibold text-lg mb-2">{item.title}</h3>
@@ -187,8 +187,8 @@ export default function Home({ params }: Route.ComponentProps) {
         <div className="text-center mb-16">
           <h2 className="text-3xl font-bold mb-6">{t.why.title}</h2>
           <div className="max-w-3xl mx-auto space-y-4 text-left">
-            {t.why.items.map((item, i) => (
-              <div key={i} className="p-4 rounded-lg bg-fd-muted/50">
+            {t.why.items.map((item) => (
+              <div key={item.q} className="p-4 rounded-lg bg-fd-muted/50">
                 <p className="text-fd-foreground">
                   <span className="font-semibold">{item.q}</span>
                   <br />
