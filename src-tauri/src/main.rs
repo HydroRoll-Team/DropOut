@@ -660,18 +660,19 @@ async fn start_game(
         args.push(format!("-Djava.library.path={}", natives_path));
     }
 
-    // Add GPU acceleration parameters by default
+    // Add GPU acceleration parameters if not already set by user
     // JavaFX Prism rendering pipeline settings for hardware acceleration
-    // Platform-specific rendering order:
-    // - Windows: d3d (Direct3D) > es2 (OpenGL ES 2) > sw (software)
-    // - Linux/macOS: es2 > sw (no Direct3D available)
-    if cfg!(target_os = "windows") {
-        args.push("-Dprism.order=d3d,es2,sw".to_string());
-    } else {
-        args.push("-Dprism.order=es2,sw".to_string());
+    // Only set prism.order if user hasn't already specified it
+    if !args.iter().any(|a| a.contains("-Dprism.order=")) {
+        // Platform-specific rendering order:
+        // - Windows: d3d (Direct3D) > es2 (OpenGL ES 2) > sw (software)
+        // - Linux/macOS: es2 > sw (no Direct3D available)
+        if cfg!(target_os = "windows") {
+            args.push("-Dprism.order=d3d,es2,sw".to_string());
+        } else {
+            args.push("-Dprism.order=es2,sw".to_string());
+        }
     }
-    // Force GPU usage instead of software fallback
-    args.push("-Dprism.forcegpu=true".to_string());
 
     // Ensure classpath is set if not already
     if !args.iter().any(|a| a == "-cp" || a == "-classpath") {
