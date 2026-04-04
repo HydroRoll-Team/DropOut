@@ -862,6 +862,22 @@ async fn start_game(
         );
     }
 
+    // On Linux, inject GPU environment variables for hybrid graphics support
+    #[cfg(target_os = "linux")]
+    {
+        // NVIDIA Prime Render Offload - enables discrete NVIDIA GPU on hybrid systems
+        command.env("__NV_PRIME_RENDER_OFFLOAD", "1");
+        command.env("__GLX_VENDOR_LIBRARY_NAME", "nvidia");
+        
+        // AMD DRI_PRIME - enables discrete AMD GPU on hybrid systems
+        command.env("DRI_PRIME", "1");
+        
+        emit_log!(
+            window,
+            "Injected GPU environment variables for Linux (NVIDIA Prime & AMD DRI_PRIME)".to_string()
+        );
+    }
+
     // Spawn and handle output
     let mut child = command
         .spawn()
