@@ -862,6 +862,37 @@ async fn start_game(
         );
     }
 
+    // On Linux, inject GPU environment variables for hybrid graphics support
+    // but do not override values that are already set in the environment.
+    #[cfg(target_os = "linux")]
+    {
+        let mut injected_any = false;
+
+        // NVIDIA Prime Render Offload - enables discrete NVIDIA GPU on hybrid systems
+        if std::env::var_os("__NV_PRIME_RENDER_OFFLOAD").is_none() {
+            command.env("__NV_PRIME_RENDER_OFFLOAD", "1");
+            injected_any = true;
+        }
+
+        if std::env::var_os("__GLX_VENDOR_LIBRARY_NAME").is_none() {
+            command.env("__GLX_VENDOR_LIBRARY_NAME", "nvidia");
+            injected_any = true;
+        }
+
+        // AMD DRI_PRIME - enables discrete AMD GPU on hybrid systems
+        if std::env::var_os("DRI_PRIME").is_none() {
+            command.env("DRI_PRIME", "1");
+            injected_any = true;
+        }
+
+        if injected_any {
+            emit_log!(
+                window,
+                "Injected default GPU environment variables for Linux (NVIDIA Prime & AMD DRI_PRIME, only where unset)".to_string()
+            );
+        }
+    }
+
     // Spawn and handle output
     let mut child = command
         .spawn()
