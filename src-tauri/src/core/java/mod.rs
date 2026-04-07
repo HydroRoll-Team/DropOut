@@ -1,16 +1,19 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Manager};
 
+pub mod cache;
 pub mod detection;
 pub mod error;
+pub mod install;
 pub mod persistence;
 pub mod priority;
 pub mod provider;
 pub mod providers;
 pub mod validation;
 
-pub use error::JavaError;
+pub use cache::{load_cached_catalog_result, save_catalog_cache};
+pub use error::{JavaError, ResumeJavaDownloadFailureReason};
 use ts_rs::TS;
 
 /// Remove the UNC prefix (\\?\) from Windows paths
@@ -25,12 +28,30 @@ pub fn strip_unc_prefix(path: PathBuf) -> PathBuf {
     path
 }
 
-use crate::core::downloader::{DownloadQueue, JavaDownloadProgress, PendingJavaDownload};
-use crate::utils::zip;
+use crate::core::downloader::{DownloadQueue, PendingJavaDownload};
 use provider::JavaProvider;
-use providers::AdoptiumProvider;
 
-const CACHE_DURATION_SECS: u64 = 24 * 60 * 60;
+pub async fn fetch_java_catalog_with<P: JavaProvider>(
+    provider: &P,
+    app_handle: &AppHandle,
+    force_refresh: bool,
+) -> Result<JavaCatalog, JavaError> {
+    provider.fetch_catalog(app_handle, force_refresh).await
+}
+
+pub async fn fetch_java_release_with<P: JavaProvider>(
+    provider: &P,
+    major_version: u32,
+    image_type: ImageType,
+) -> Result<JavaDownloadInfo, JavaError> {
+    provider.fetch_release(major_version, image_type).await
+}
+
+pub async fn fetch_available_versions_with<P: JavaProvider>(
+    provider: &P,
+) -> Result<Vec<u32>, JavaError> {
+    provider.available_versions().await
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -44,8 +65,36 @@ pub struct JavaInstallation {
     pub is_64bit: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/java/index.ts"
+)]
+pub struct ResumeJavaDownloadFailure {
+    pub major_version: u32,
+    pub image_type: String,
+    pub install_path: String,
+    pub reason: ResumeJavaDownloadFailureReason,
+    pub error: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/java/index.ts"
+)]
+pub struct ResumeJavaDownloadsResult {
+    pub successful_installations: Vec<JavaInstallation>,
+    pub failed_downloads: Vec<ResumeJavaDownloadFailure>,
+    pub total_pending: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "lowercase")]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/java/index.ts"
+)]
 pub enum ImageType {
     Jre,
     Jdk,
@@ -66,12 +115,22 @@ impl std::fmt::Display for ImageType {
     }
 }
 
+impl ImageType {
+    pub fn parse(value: &str) -> Option<Self> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "jre" => Some(Self::Jre),
+            "jdk" => Some(Self::Jdk),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "java/core.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct JavaReleaseInfo {
     pub major_version: u32,
-    pub image_type: String,
+    pub image_type: ImageType,
     pub version: String,
     pub release_name: String,
     pub release_date: Option<String>,
@@ -102,243 +161,11 @@ pub struct JavaDownloadInfo {
     pub file_name: String,        // e.g., "OpenJDK17U-jre_x64_linux_hotspot_17.0.2_8.tar.gz"
     pub file_size: u64,           // in bytes
     pub checksum: Option<String>, // SHA256 checksum
-    pub image_type: String,       // "jre" or "jdk"
+    pub image_type: ImageType,
 }
 
 pub fn get_java_install_dir(app_handle: &AppHandle) -> PathBuf {
     app_handle.path().app_data_dir().unwrap().join("java")
-}
-
-fn get_catalog_cache_path(app_handle: &AppHandle) -> PathBuf {
-    app_handle
-        .path()
-        .app_data_dir()
-        .unwrap()
-        .join("java_catalog_cache.json")
-}
-
-pub fn load_cached_catalog(app_handle: &AppHandle) -> Option<JavaCatalog> {
-    let cache_path = get_catalog_cache_path(app_handle);
-    if !cache_path.exists() {
-        return None;
-    }
-
-    // Read cache file
-    let content = std::fs::read_to_string(&cache_path).ok()?;
-    let catalog: JavaCatalog = serde_json::from_str(&content).ok()?;
-
-    // Get current time in seconds since UNIX_EPOCH
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-
-    // Check if cache is still valid
-    if now - catalog.cached_at < CACHE_DURATION_SECS {
-        Some(catalog)
-    } else {
-        None
-    }
-}
-
-pub fn save_catalog_cache(app_handle: &AppHandle, catalog: &JavaCatalog) -> Result<(), String> {
-    let cache_path = get_catalog_cache_path(app_handle);
-    let content = serde_json::to_string_pretty(catalog).map_err(|e| e.to_string())?;
-    std::fs::write(&cache_path, content).map_err(|e| e.to_string())?;
-    Ok(())
-}
-
-#[allow(dead_code)]
-pub fn clear_catalog_cache(app_handle: &AppHandle) -> Result<(), String> {
-    let cache_path = get_catalog_cache_path(app_handle);
-    if cache_path.exists() {
-        std::fs::remove_file(&cache_path).map_err(|e| e.to_string())?;
-    }
-    Ok(())
-}
-
-pub async fn fetch_java_catalog(
-    app_handle: &AppHandle,
-    force_refresh: bool,
-) -> Result<JavaCatalog, String> {
-    let provider = AdoptiumProvider::new();
-    provider
-        .fetch_catalog(app_handle, force_refresh)
-        .await
-        .map_err(|e| e.to_string())
-}
-
-pub async fn fetch_java_release(
-    major_version: u32,
-    image_type: ImageType,
-) -> Result<JavaDownloadInfo, String> {
-    let provider = AdoptiumProvider::new();
-    provider
-        .fetch_release(major_version, image_type)
-        .await
-        .map_err(|e| e.to_string())
-}
-
-pub async fn fetch_available_versions() -> Result<Vec<u32>, String> {
-    let provider = AdoptiumProvider::new();
-    provider
-        .available_versions()
-        .await
-        .map_err(|e| e.to_string())
-}
-
-pub async fn download_and_install_java(
-    app_handle: &AppHandle,
-    major_version: u32,
-    image_type: ImageType,
-    custom_path: Option<PathBuf>,
-) -> Result<JavaInstallation, String> {
-    let provider = AdoptiumProvider::new();
-    let info = provider.fetch_release(major_version, image_type).await?;
-    let file_name = info.file_name.clone();
-
-    let install_base = custom_path.unwrap_or_else(|| get_java_install_dir(app_handle));
-    let version_dir = install_base.join(format!(
-        "{}-{}-{}",
-        provider.install_prefix(),
-        major_version,
-        image_type
-    ));
-
-    std::fs::create_dir_all(&install_base)
-        .map_err(|e| format!("Failed to create installation directory: {}", e))?;
-
-    let mut queue = DownloadQueue::load(app_handle);
-    queue.add(PendingJavaDownload {
-        major_version,
-        image_type: image_type.to_string(),
-        download_url: info.download_url.clone(),
-        file_name: info.file_name.clone(),
-        file_size: info.file_size,
-        checksum: info.checksum.clone(),
-        install_path: install_base.to_string_lossy().to_string(),
-        created_at: std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs(),
-    });
-    queue.save(app_handle)?;
-
-    let archive_path = install_base.join(&info.file_name);
-
-    let need_download = if archive_path.exists() {
-        if let Some(expected_checksum) = &info.checksum {
-            let data = std::fs::read(&archive_path)
-                .map_err(|e| format!("Failed to read downloaded file: {}", e))?;
-            !crate::core::downloader::verify_checksum(&data, Some(expected_checksum), None)
-        } else {
-            false
-        }
-    } else {
-        true
-    };
-
-    if need_download {
-        crate::core::downloader::download_with_resume(
-            app_handle,
-            &info.download_url,
-            &archive_path,
-            info.checksum.as_deref(),
-            info.file_size,
-        )
-        .await?;
-    }
-
-    let _ = app_handle.emit(
-        "java-download-progress",
-        JavaDownloadProgress {
-            file_name: file_name.clone(),
-            downloaded_bytes: info.file_size,
-            total_bytes: info.file_size,
-            speed_bytes_per_sec: 0,
-            eta_seconds: 0,
-            status: "Extracting".to_string(),
-            percentage: 100.0,
-        },
-    );
-
-    if version_dir.exists() {
-        std::fs::remove_dir_all(&version_dir)
-            .map_err(|e| format!("Failed to remove old version directory: {}", e))?;
-    }
-
-    std::fs::create_dir_all(&version_dir)
-        .map_err(|e| format!("Failed to create version directory: {}", e))?;
-
-    let top_level_dir = if info.file_name.ends_with(".tar.gz") || info.file_name.ends_with(".tgz") {
-        zip::extract_tar_gz(&archive_path, &version_dir)?
-    } else if info.file_name.ends_with(".zip") {
-        zip::extract_zip(&archive_path, &version_dir)?;
-        find_top_level_dir(&version_dir)?
-    } else {
-        return Err(format!("Unsupported archive format: {}", info.file_name));
-    };
-
-    let _ = std::fs::remove_file(&archive_path);
-
-    let java_home = version_dir.join(&top_level_dir);
-    let java_bin = if cfg!(target_os = "macos") {
-        java_home
-            .join("Contents")
-            .join("Home")
-            .join("bin")
-            .join("java")
-    } else if cfg!(windows) {
-        java_home.join("bin").join("java.exe")
-    } else {
-        java_home.join("bin").join("java")
-    };
-
-    if !java_bin.exists() {
-        return Err(format!(
-            "Installation completed but Java executable not found: {}",
-            java_bin.display()
-        ));
-    }
-
-    let java_bin = std::fs::canonicalize(&java_bin).map_err(|e| e.to_string())?;
-    let java_bin = strip_unc_prefix(java_bin);
-
-    let installation = validation::check_java_installation(&java_bin)
-        .await
-        .ok_or_else(|| "Failed to verify Java installation".to_string())?;
-
-    queue.remove(major_version, &image_type.to_string());
-    queue.save(app_handle)?;
-
-    let _ = app_handle.emit(
-        "java-download-progress",
-        JavaDownloadProgress {
-            file_name,
-            downloaded_bytes: info.file_size,
-            total_bytes: info.file_size,
-            speed_bytes_per_sec: 0,
-            eta_seconds: 0,
-            status: "Completed".to_string(),
-            percentage: 100.0,
-        },
-    );
-
-    Ok(installation)
-}
-
-fn find_top_level_dir(extract_dir: &PathBuf) -> Result<String, String> {
-    let entries: Vec<_> = std::fs::read_dir(extract_dir)
-        .map_err(|e| format!("Failed to read directory: {}", e))?
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().is_dir())
-        .collect();
-
-    if entries.len() == 1 {
-        Ok(entries[0].file_name().to_string_lossy().to_string())
-    } else {
-        Ok(String::new())
-    }
 }
 
 pub async fn detect_java_installations() -> Vec<JavaInstallation> {
@@ -481,20 +308,26 @@ fn find_java_executable(dir: &PathBuf) -> Option<PathBuf> {
     None
 }
 
-pub async fn resume_pending_downloads(
+pub async fn resume_pending_downloads_with<P: JavaProvider>(
+    provider: &P,
     app_handle: &AppHandle,
-) -> Result<Vec<JavaInstallation>, String> {
-    let queue = DownloadQueue::load(app_handle);
+) -> Result<ResumeJavaDownloadsResult, String> {
+    let pending_downloads = DownloadQueue::list_pending(app_handle);
     let mut installed = Vec::new();
+    let mut failed = Vec::new();
+    let total_pending = pending_downloads.len();
 
-    for pending in queue.pending_downloads.iter() {
-        let image_type = if pending.image_type == "jdk" {
-            ImageType::Jdk
-        } else {
+    for pending in pending_downloads.iter() {
+        let image_type = ImageType::parse(&pending.image_type).unwrap_or_else(|| {
+            eprintln!(
+                "Unknown image type '{}' in pending download, defaulting to jre",
+                pending.image_type
+            );
             ImageType::Jre
-        };
+        });
 
-        match download_and_install_java(
+        match install::download_and_install_java_with_provider(
+            provider,
             app_handle,
             pending.major_version,
             image_type,
@@ -510,11 +343,23 @@ pub async fn resume_pending_downloads(
                     "Failed to resume Java {} {} download: {}",
                     pending.major_version, pending.image_type, e
                 );
+
+                failed.push(ResumeJavaDownloadFailure {
+                    major_version: pending.major_version,
+                    image_type: pending.image_type.clone(),
+                    install_path: pending.install_path.clone(),
+                    reason: ResumeJavaDownloadFailureReason::from_error_message(&e),
+                    error: e,
+                });
             }
         }
     }
 
-    Ok(installed)
+    Ok(ResumeJavaDownloadsResult {
+        successful_installations: installed,
+        failed_downloads: failed,
+        total_pending,
+    })
 }
 
 pub fn cancel_current_download() {
@@ -522,8 +367,7 @@ pub fn cancel_current_download() {
 }
 
 pub fn get_pending_downloads(app_handle: &AppHandle) -> Vec<PendingJavaDownload> {
-    let queue = DownloadQueue::load(app_handle);
-    queue.pending_downloads
+    DownloadQueue::list_pending(app_handle)
 }
 
 #[allow(dead_code)]
@@ -532,7 +376,5 @@ pub fn clear_pending_download(
     major_version: u32,
     image_type: &str,
 ) -> Result<(), String> {
-    let mut queue = DownloadQueue::load(app_handle);
-    queue.remove(major_version, image_type);
-    queue.save(app_handle)
+    DownloadQueue::remove_pending(app_handle, major_version, image_type)
 }
