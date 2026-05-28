@@ -20,14 +20,14 @@
   "packageManager": "pnpm@10.30.2",
   "dependencies": {
     "consola": "^3.4.2",
-    "toml": "^3.0.0"
+    "toml": "^4.1.1"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.9",
-    "@j178/prek": "^0.2.29",
-    "@tauri-apps/cli": "^2.9.6",
-    "@types/node": "^24.10.9",
-    "tsx": "^4.21.0"
+    "@biomejs/biome": "^2.4.16",
+    "@j178/prek": "^0.4.3",
+    "@tauri-apps/cli": "^2.11.2",
+    "@types/node": "^25.9.1",
+    "tsx": "^4.22.3"
   },
   "pnpm": {
     "overrides": {
