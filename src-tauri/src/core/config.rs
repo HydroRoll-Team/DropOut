@@ -85,7 +85,7 @@ pub struct LauncherConfig {
     pub java_path: String,
     pub width: u32,
     pub height: u32,
-    pub download_threads: u32, // concurrent download threads (1-128)
+    pub download_threads: u32, // concurrent download threads (1-64)
     pub custom_background_path: Option<String>,
     pub enable_gpu_acceleration: bool,
     pub enable_visual_effects: bool,
@@ -109,7 +109,7 @@ impl Default for LauncherConfig {
             java_path: "java".to_string(),
             width: 854,
             height: 480,
-            download_threads: 32,
+            download_threads: 8,
             custom_background_path: None,
             enable_gpu_acceleration: false,
             enable_visual_effects: true,
@@ -125,6 +125,12 @@ impl Default for LauncherConfig {
     }
 }
 
+impl LauncherConfig {
+    pub fn sanitize(&mut self) {
+        self.download_threads = self.download_threads.clamp(1, 64);
+    }
+}
+
 pub struct ConfigState {
     pub config: Mutex<LauncherConfig>,
     pub file_path: PathBuf,
@@ -137,7 +143,9 @@ impl ConfigState {
 
         let config = if config_path.exists() {
             let content = fs::read_to_string(&config_path).unwrap_or_default();
-            serde_json::from_str(&content).unwrap_or_default()
+            let mut config: LauncherConfig = serde_json::from_str(&content).unwrap_or_default();
+            config.sanitize();
+            config
         } else {
             LauncherConfig::default()
         };

@@ -1646,11 +1646,15 @@ async fn save_raw_config(
     content: String,
 ) -> Result<(), String> {
     // Validate JSON
-    let new_config: core::config::LauncherConfig =
+    let mut new_config: core::config::LauncherConfig =
         serde_json::from_str(&content).map_err(|e| format!("Invalid JSON: {}", e))?;
+    new_config.sanitize();
+
+    let normalized_content =
+        serde_json::to_string_pretty(&new_config).map_err(|e| format!("Invalid JSON: {}", e))?;
 
     // Save to file
-    tokio::fs::write(&state.file_path, &content)
+    tokio::fs::write(&state.file_path, &normalized_content)
         .await
         .map_err(|e| e.to_string())?;
 

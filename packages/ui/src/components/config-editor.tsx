@@ -22,7 +22,7 @@ const launcherConfigSchema: ZodType<LauncherConfig> = z.object({
   javaPath: z.string(),
   width: z.number(),
   height: z.number(),
-  downloadThreads: z.number(),
+  downloadThreads: z.number().min(1).max(64),
   customBackgroundPath: z.string().nullable(),
   enableGpuAcceleration: z.boolean(),
   enableVisualEffects: z.boolean(),
