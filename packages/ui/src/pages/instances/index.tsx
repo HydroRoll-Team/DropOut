@@ -24,6 +24,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/models/auth";
 import { useGameStore } from "@/models/game";
@@ -31,6 +32,7 @@ import { useInstanceStore } from "@/models/instance";
 import type { Instance } from "@/types";
 
 export function InstancesPage() {
+  const { t } = useI18n();
   const instancesStore = useInstanceStore();
   const navigate = useNavigate();
 
@@ -81,7 +83,7 @@ export function InstancesPage() {
 
   const openDuplicate = (instance: Instance) => {
     setSelectedInstance(instance);
-    setDuplicateName(`${instance.name} (Copy)`);
+    setDuplicateName(`${instance.name} Copy`);
     setShowDuplicateModal(true);
   };
 
@@ -151,7 +153,7 @@ export function InstancesPage() {
     <div className="h-full flex flex-col gap-4 p-6 overflow-y-auto">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Instances
+          {t("instances.title")}
         </h1>
         <div className="flex flex-row space-x-2">
           <Button
@@ -160,7 +162,7 @@ export function InstancesPage() {
             onClick={handleImport}
             disabled={isImporting}
           >
-            {isImporting ? "Importing..." : "Import"}
+            {isImporting ? t("instances.importing") : t("instances.import")}
           </Button>
           <Button
             type="button"
@@ -168,7 +170,7 @@ export function InstancesPage() {
             onClick={handleRepair}
             disabled={repairing}
           >
-            {repairing ? "Repairing..." : "Repair Index"}
+            {repairing ? t("instances.repairing") : t("instances.repair")}
           </Button>
           <Button
             type="button"
@@ -176,7 +178,7 @@ export function InstancesPage() {
             className="px-4 py-2 transition-colors"
           >
             <Plus size={18} />
-            Create Instance
+            {t("instances.create")}
           </Button>
         </div>
       </div>
@@ -184,8 +186,8 @@ export function InstancesPage() {
       {instancesStore.instances.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center text-gray-500 dark:text-gray-400">
-            <p className="text-lg mb-2">No instances yet</p>
-            <p className="text-sm">Create your first instance to get started</p>
+            <p className="text-lg mb-2">{t("instances.emptyTitle")}</p>
+            <p className="text-sm">{t("instances.emptyDesc")}</p>
           </div>
         </div>
       ) : (
@@ -206,7 +208,7 @@ export function InstancesPage() {
                       await instancesStore.setActiveInstance(instance);
                     } catch (e) {
                       console.error("Failed to set active instance:", e);
-                      toast.error("Error setting active instance");
+                      toast.error(t("instances.setActiveFailed"));
                     }
                   }
                 }}
@@ -245,7 +247,7 @@ export function InstancesPage() {
                         </p>
                       ) : (
                         <p className="text-sm text-muted-foreground">
-                          No version selected
+                          {t("instances.noVersion")}
                         </p>
                       )}
                     </div>
@@ -266,7 +268,7 @@ export function InstancesPage() {
                               "Failed to set active instance:",
                               error,
                             );
-                            toast.error("Error setting active instance");
+                            toast.error(t("instances.setActiveFailed"));
                             return;
                           }
 
@@ -276,12 +278,12 @@ export function InstancesPage() {
                           }
 
                           if (!instance.versionId) {
-                            toast.error("No version selected or installed");
+                            toast.error(t("instances.noVersionInstalled"));
                             return;
                           }
 
                           if (!account) {
-                            toast.info("Please login first");
+                            toast.info(t("instances.loginFirst"));
                             return;
                           }
 
@@ -289,7 +291,7 @@ export function InstancesPage() {
                             await startGame(instance.id, instance.versionId);
                           } catch (error) {
                             console.error("Failed to start game:", error);
-                            toast.error("Error starting game");
+                            toast.error(t("instances.startFailed"));
                           }
                         }}
                         disabled={
@@ -387,10 +389,9 @@ export function InstancesPage() {
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Instance</DialogTitle>
+            <DialogTitle>{t("instances.deleteTitle")}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete "{selectedInstance?.name}"? This
-              action cannot be undone.
+              {t("instances.deleteDesc", { name: selectedInstance?.name })}
             </DialogDescription>
           </DialogHeader>
 
@@ -403,14 +404,14 @@ export function InstancesPage() {
                 setSelectedInstance(null);
               }}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               type="button"
               onClick={confirmDelete}
               className="bg-red-600 text-white hover:bg-red-500"
             >
-              Delete
+              {t("common.delete")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -420,9 +421,9 @@ export function InstancesPage() {
       <Dialog open={showDuplicateModal} onOpenChange={setShowDuplicateModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Duplicate Instance</DialogTitle>
+            <DialogTitle>{t("instances.duplicateTitle")}</DialogTitle>
             <DialogDescription>
-              Provide a name for the duplicated instance.
+              {t("instances.duplicateDesc")}
             </DialogDescription>
           </DialogHeader>
 
@@ -430,7 +431,7 @@ export function InstancesPage() {
             <Input
               value={duplicateName}
               onChange={(e) => setDuplicateName(e.target.value)}
-              placeholder="New instance name"
+              placeholder={t("instances.newName")}
               onKeyDown={(e) => e.key === "Enter" && confirmDuplicate()}
             />
           </div>
@@ -445,14 +446,14 @@ export function InstancesPage() {
                 setDuplicateName("");
               }}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               type="button"
               onClick={confirmDuplicate}
               disabled={!duplicateName.trim()}
             >
-              Duplicate
+              {t("common.duplicate")}
             </Button>
           </DialogFooter>
         </DialogContent>

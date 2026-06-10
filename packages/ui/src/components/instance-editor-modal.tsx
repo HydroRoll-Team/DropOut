@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useI18n } from "@/lib/i18n";
 import { useInstanceStore } from "@/models/instance";
 import { useSettingsStore } from "@/models/settings";
 import type { FileInfo } from "../types/bindings/core";
@@ -30,6 +31,7 @@ type Props = {
 };
 
 export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
+  const { t, locale } = useI18n();
   const instancesStore = useInstanceStore();
   const { config } = useSettingsStore();
 
@@ -100,13 +102,13 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
         setFileList(files);
       } catch (err) {
         console.error("Failed to load files:", err);
-        toast.error(`Failed to load files: ${String(err)}`);
+        toast.error(t("editor.loadFilesFailed", { error: String(err) }));
         setFileList([]);
       } finally {
         setLoadingFiles(false);
       }
     },
-    [instance],
+    [instance, t],
   );
 
   useEffect(() => {
@@ -126,9 +128,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
 
   async function deleteFile(filePath: string) {
     if (
-      !confirm(
-        `Are you sure you want to delete "${filePath.split("/").pop()}"?`,
-      )
+      !confirm(t("editor.deleteConfirm", { name: filePath.split("/").pop() }))
     ) {
       return;
     }
@@ -137,10 +137,10 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
       await deleteInstanceFile(filePath);
       // refresh the currently selected folder
       await loadFileList(selectedFileFolder);
-      toast.success("Deleted");
+      toast.success(t("editor.deleted"));
     } catch (err) {
       console.error("Failed to delete file:", err);
-      toast.error(`Failed to delete file: ${String(err)}`);
+      toast.error(t("editor.deleteFileFailed", { error: String(err) }));
     } finally {
       setDeletingPath(null);
     }
@@ -151,14 +151,14 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
       await openFileExplorer(filePath);
     } catch (err) {
       console.error("Failed to open in explorer:", err);
-      toast.error(`Failed to open file explorer: ${String(err)}`);
+      toast.error(t("editor.openExplorerFailed", { error: String(err) }));
     }
   }
 
   async function saveChanges() {
     if (!instance) return;
     if (!editName.trim()) {
-      setErrorMessage("Instance name cannot be empty");
+      setErrorMessage(t("editor.emptyName"));
       return;
     }
     setSaving(true);
@@ -178,12 +178,12 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
       };
 
       await instancesStore.update(updatedInstance as Instance);
-      toast.success("Instance saved");
+      toast.success(t("editor.saved"));
       onOpenChange(false);
     } catch (err) {
       console.error("Failed to save instance:", err);
       setErrorMessage(String(err));
-      toast.error(`Failed to save instance: ${String(err)}`);
+      toast.error(t("editor.saveFailed", { error: String(err) }));
     } finally {
       setSaving(false);
     }
@@ -208,7 +208,9 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
     const n = toNumber(tsBig);
     // tsrs bindings often use seconds for createdAt/lastPlayed; if value looks like seconds use *1000
     const maybeMs = n > 1e12 ? n : n * 1000;
-    return new Date(maybeMs).toLocaleDateString();
+    return new Date(maybeMs).toLocaleDateString(
+      locale === "zh" ? "zh-CN" : "en-US",
+    );
   }
 
   return (
@@ -217,7 +219,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
         <DialogHeader>
           <div className="flex items-center justify-between gap-4">
             <div>
-              <DialogTitle>Edit Instance</DialogTitle>
+              <DialogTitle>{t("editor.title")}</DialogTitle>
               <DialogDescription>{instance?.name ?? ""}</DialogDescription>
             </div>
             <div className="flex items-center gap-2">
@@ -226,7 +228,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                 onClick={() => onOpenChange(false)}
                 disabled={saving}
                 className="p-2 rounded hover:bg-zinc-800 text-zinc-400"
-                aria-label="Close"
+                aria-label={t("common.close")}
               >
                 <X />
               </button>
@@ -237,10 +239,10 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
         {/* Tab Navigation */}
         <div className="flex gap-1 px-6 pt-2 border-b border-zinc-700">
           {[
-            { id: "info", label: "Info" },
-            { id: "version", label: "Version" },
-            { id: "files", label: "Files" },
-            { id: "settings", label: "Settings" },
+            { id: "info", label: t("editor.tab.info") },
+            { id: "version", label: t("editor.tab.version") },
+            { id: "files", label: t("editor.tab.files") },
+            { id: "settings", label: t("editor.tab.settings") },
           ].map((tab) => (
             <button
               type="button"
@@ -270,7 +272,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                   htmlFor="instance-name-edit"
                   className="block text-sm font-medium mb-2"
                 >
-                  Instance Name
+                  {t("editor.instanceName")}
                 </label>
                 <Input
                   id="instance-name-edit"
@@ -285,7 +287,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                   htmlFor="instance-notes-edit"
                   className="block text-sm font-medium mb-2"
                 >
-                  Notes
+                  {t("editor.notes")}
                 </label>
                 <Textarea
                   id="instance-notes-edit"
@@ -298,21 +300,21 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
 
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div className="p-3 bg-zinc-800 rounded-lg">
-                  <p className="text-zinc-400">Created</p>
+                  <p className="text-zinc-400">{t("editor.created")}</p>
                   <p className="text-white font-medium">
                     {instance?.createdAt ? formatDate(instance.createdAt) : "-"}
                   </p>
                 </div>
                 <div className="p-3 bg-zinc-800 rounded-lg">
-                  <p className="text-zinc-400">Last Played</p>
+                  <p className="text-zinc-400">{t("editor.lastPlayed")}</p>
                   <p className="text-white font-medium">
                     {instance?.lastPlayed
                       ? formatDate(instance.lastPlayed)
-                      : "Never"}
+                      : t("editor.never")}
                   </p>
                 </div>
                 <div className="p-3 bg-zinc-800 rounded-lg">
-                  <p className="text-zinc-400">Game Directory</p>
+                  <p className="text-zinc-400">{t("editor.gameDir")}</p>
                   <p
                     className="text-white font-medium text-xs truncate"
                     title={instance?.gameDir ?? ""}
@@ -323,9 +325,9 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                   </p>
                 </div>
                 <div className="p-3 bg-zinc-800 rounded-lg">
-                  <p className="text-zinc-400">Current Version</p>
+                  <p className="text-zinc-400">{t("editor.currentVersion")}</p>
                   <p className="text-white font-medium">
-                    {instance?.versionId ?? "None"}
+                    {instance?.versionId ?? t("common.none")}
                   </p>
                 </div>
               </div>
@@ -337,33 +339,30 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
               {instance?.versionId ? (
                 <div className="p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-lg">
                   <p className="text-sm text-indigo-400">
-                    Currently playing:{" "}
-                    <span className="font-medium">{instance.versionId}</span>
-                    {instance.modLoader && (
-                      <>
-                        {" "}
-                        with{" "}
-                        <span className="capitalize">{instance.modLoader}</span>
-                        {instance.modLoaderVersion
+                    {t("editor.currentlyPlaying", {
+                      version: instance.versionId,
+                    })}
+                    {instance.modLoader &&
+                      t("editor.withLoader", {
+                        loader: instance.modLoader,
+                        version: instance.modLoaderVersion
                           ? ` ${instance.modLoaderVersion}`
-                          : ""}
-                      </>
-                    )}
+                          : "",
+                      })}
                   </p>
                 </div>
               ) : (
                 <div className="text-sm text-zinc-400">
-                  No version selected for this instance
+                  {t("editor.noVersion")}
                 </div>
               )}
 
               <div>
                 <p className="text-sm font-medium mb-2">
-                  Change Version / Mod Loader
+                  {t("editor.changeVersion")}
                 </p>
                 <p className="text-xs text-zinc-400">
-                  Use the Versions page to install new game versions or mod
-                  loaders, then set them here.
+                  {t("editor.changeVersionDesc")}
                 </p>
               </div>
             </div>
@@ -399,11 +398,11 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
               {loadingFiles ? (
                 <div className="flex items-center gap-2 text-zinc-400 py-8 justify-center">
                   <Loader2 className="animate-spin" />
-                  Loading files...
+                  {t("editor.loadingFiles")}
                 </div>
               ) : fileList.length === 0 ? (
                 <div className="text-center py-8 text-zinc-500">
-                  No files in this folder
+                  {t("editor.emptyFolder")}
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -418,7 +417,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                         </p>
                         <p className="text-xs text-zinc-400">
                           {file.isDirectory
-                            ? "Folder"
+                            ? t("editor.directory")
                             : formatFileSize(file.size)}{" "}
                           • {formatDate(file.modified)}
                         </p>
@@ -427,7 +426,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                         <button
                           type="button"
                           onClick={() => openInExplorer(file.path)}
-                          title="Open in explorer"
+                          title={t("editor.openFolder")}
                           className="p-2 rounded-lg hover:bg-zinc-600 text-zinc-400 hover:text-white transition-colors"
                         >
                           <Folder />
@@ -436,7 +435,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                           type="button"
                           onClick={() => deleteFile(file.path)}
                           disabled={deletingPath === file.path}
-                          title="Delete"
+                          title={t("common.delete")}
                           className="p-2 rounded-lg hover:bg-red-600/20 text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
                         >
                           {deletingPath === file.path ? (
@@ -460,7 +459,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                   htmlFor="min-memory-edit"
                   className="block text-sm font-medium mb-2"
                 >
-                  Minimum Memory (MB)
+                  {t("editor.minMemory")}
                 </label>
                 <Input
                   id="min-memory-edit"
@@ -470,7 +469,9 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                   disabled={saving}
                 />
                 <p className="text-xs text-zinc-400 mt-1">
-                  Default: {config?.minMemory} MB
+                  {t("editor.defaultMemory", {
+                    value: config?.minMemory ?? 0,
+                  })}
                 </p>
               </div>
 
@@ -479,7 +480,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                   htmlFor="max-memory-edit"
                   className="block text-sm font-medium mb-2"
                 >
-                  Maximum Memory (MB)
+                  {t("editor.maxMemory")}
                 </label>
                 <Input
                   id="max-memory-edit"
@@ -489,7 +490,9 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                   disabled={saving}
                 />
                 <p className="text-xs text-zinc-400 mt-1">
-                  Default: {config?.maxMemory} MB
+                  {t("editor.defaultMemory", {
+                    value: config?.maxMemory ?? 0,
+                  })}
                 </p>
               </div>
 
@@ -498,7 +501,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                   htmlFor="jvm-args-edit"
                   className="block text-sm font-medium mb-2"
                 >
-                  JVM Arguments (Advanced)
+                  {t("editor.jvmArgs")}
                 </label>
                 <Textarea
                   id="jvm-args-edit"
@@ -526,7 +529,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                   onOpenChange(false);
                 }}
               >
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button onClick={saveChanges} disabled={saving}>
                 {saving ? (
@@ -534,7 +537,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                 ) : (
                   <Save className="mr-2" />
                 )}
-                Save
+                {t("common.saveChanges")}
               </Button>
             </div>
           </div>

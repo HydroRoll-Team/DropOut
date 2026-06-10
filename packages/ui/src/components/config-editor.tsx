@@ -1,6 +1,7 @@
 import type React from "react";
 import { useEffect, useState } from "react";
 import { type ZodType, z } from "zod";
+import { useI18n } from "@/lib/i18n";
 import { useSettingsStore } from "@/models/settings";
 import type { LauncherConfig } from "@/types";
 import { Button } from "./ui/button";
@@ -43,6 +44,7 @@ export interface ConfigEditorProps
 }
 
 export function ConfigEditor({ onOpenChange, ...props }: ConfigEditorProps) {
+  const { t } = useI18n();
   const settings = useSettingsStore();
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -76,10 +78,8 @@ export function ConfigEditor({ onOpenChange, ...props }: ConfigEditorProps) {
     <Dialog onOpenChange={onOpenChange} {...props}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
         <DialogHeader>
-          <DialogTitle>Edit Configuration</DialogTitle>
-          <DialogDescription>
-            Edit the raw JSON configuration file.
-          </DialogDescription>
+          <DialogTitle>{t("config.title")}</DialogTitle>
+          <DialogDescription>{t("config.desc")}</DialogDescription>
         </DialogHeader>
 
         <Textarea
@@ -98,11 +98,11 @@ export function ConfigEditor({ onOpenChange, ...props }: ConfigEditorProps) {
             onClick={() => onOpenChange?.(false)}
             disabled={isSaving}
           >
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button onClick={handleSave} disabled={isSaving}>
             {isSaving && <Spinner />}
-            Save Changes
+            {t("common.saveChanges")}
           </Button>
         </DialogFooter>
       </DialogContent>

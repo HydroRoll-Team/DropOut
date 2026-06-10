@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { BottomBar } from "@/components/bottom-bar";
 import { useSaturnEffect } from "@/components/particle-background";
+import { useI18n } from "@/lib/i18n";
 
 export function HomePage() {
+  const { t } = useI18n();
   const [mouseX, setMouseX] = useState(0);
   const [mouseY, setMouseY] = useState(0);
   const saturn = useSaturnEffect();
@@ -73,7 +75,7 @@ export function HomePage() {
           <div className="flex items-center gap-3 mb-6">
             <div className="h-px w-12 bg-white/50"></div>
             <span className="text-xs font-mono font-bold tracking-[0.2em] text-white/50 uppercase">
-              Launcher Active
+              {t("home.status")}
             </span>
           </div>
 
@@ -91,7 +93,7 @@ export function HomePage() {
         {/* Action Area */}
         <div className="mt-8 flex gap-4">
           <div className="text-zinc-500 text-sm font-mono">
-            &gt; Ready to launch session.
+            {t("home.ready")}
           </div>
         </div>
 

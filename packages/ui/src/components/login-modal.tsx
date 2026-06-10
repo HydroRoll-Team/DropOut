@@ -1,6 +1,7 @@
 import { Mail, User } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
+import { useI18n } from "@/lib/i18n";
 import { useAuthStore } from "@/models/auth";
 import { Button } from "./ui/button";
 import {
@@ -27,6 +28,7 @@ export interface LoginModalProps
 }
 
 export function LoginModal({ onOpenChange, ...props }: LoginModalProps) {
+  const { t } = useI18n();
   const authStore = useAuthStore();
 
   const [offlineUsername, setOfflineUsername] = useState<string>("");
@@ -51,7 +53,7 @@ export function LoginModal({ onOpenChange, ...props }: LoginModalProps) {
     setIsLoggingIn(true);
     try {
       await authStore.loginOffline(offlineUsername);
-      toast.success("Logged in offline successfully");
+      toast.success(t("login.offlineSuccess"));
       onOpenChange?.(false);
     } catch (error) {
       const err = error as Error;
@@ -60,23 +62,21 @@ export function LoginModal({ onOpenChange, ...props }: LoginModalProps) {
     } finally {
       setIsLoggingIn(false);
     }
-  }, [authStore, offlineUsername, onOpenChange]);
+  }, [authStore, offlineUsername, onOpenChange, t]);
 
   return (
     <Dialog onOpenChange={onOpenChange} {...props}>
       <DialogContent className="md:max-w-md">
         <DialogHeader>
-          <DialogTitle>Login</DialogTitle>
-          <DialogDescription>
-            Login to your Minecraft account or play offline
-          </DialogDescription>
+          <DialogTitle>{t("login.title")}</DialogTitle>
+          <DialogDescription>{t("login.desc")}</DialogDescription>
         </DialogHeader>
         <div className="p-4 w-full overflow-hidden">
           {!authStore.loginMode && (
             <div className="flex flex-col space-y-4">
               <Button size="lg" onClick={handleMicrosoftLogin}>
                 <Mail />
-                Login with Microsoft
+                {t("login.microsoft")}
               </Button>
               <Button
                 variant="secondary"
@@ -84,7 +84,7 @@ export function LoginModal({ onOpenChange, ...props }: LoginModalProps) {
                 size="lg"
               >
                 <User />
-                Login Offline
+                {t("login.offline")}
               </Button>
             </div>
           )}
@@ -98,18 +98,21 @@ export function LoginModal({ onOpenChange, ...props }: LoginModalProps) {
                     navigator.clipboard?.writeText(
                       authStore.deviceCode?.userCode,
                     );
-                    toast.success("Copied to clipboard");
+                    toast.success(t("login.copySuccess"));
                   }
                 }}
               >
                 {authStore.deviceCode?.userCode}
               </button>
               <span className="text-muted-foreground w-full overflow-hidden text-ellipsis">
-                To sign in, use a web browser to open the page{" "}
+                {t("login.instructions", {
+                  url: authStore.deviceCode?.verificationUri ?? "",
+                  code: authStore.deviceCode?.userCode ?? "",
+                  seconds: Number(authStore.deviceCode?.expiresIn ?? 0),
+                })}{" "}
                 <a href={authStore.deviceCode?.verificationUri}>
                   {authStore.deviceCode?.verificationUri}
                 </a>{" "}
-                and enter the code{" "}
                 <code
                   className="font-semibold cursor-pointer"
                   onClick={() => {
@@ -128,9 +131,7 @@ export function LoginModal({ onOpenChange, ...props }: LoginModalProps) {
                   }}
                 >
                   {authStore.deviceCode?.userCode}
-                </code>{" "}
-                to authenticate, this code will be expired in{" "}
-                {authStore.deviceCode?.expiresIn} seconds.
+                </code>
               </span>
               <FieldError>{errorMessage}</FieldError>
             </div>
@@ -138,10 +139,8 @@ export function LoginModal({ onOpenChange, ...props }: LoginModalProps) {
           {authStore.loginMode === "offline" && (
             <FieldGroup>
               <Field>
-                <FieldLabel>Username</FieldLabel>
-                <FieldDescription>
-                  Enter a username to play offline
-                </FieldDescription>
+                <FieldLabel>{t("login.username")}</FieldLabel>
+                <FieldDescription>{t("login.usernameDesc")}</FieldDescription>
                 <Input
                   value={offlineUsername}
                   onChange={(e) => {
@@ -174,11 +173,11 @@ export function LoginModal({ onOpenChange, ...props }: LoginModalProps) {
               }
             }}
           >
-            Cancel
+            {t("common.cancel")}
           </Button>
           {authStore.loginMode === "offline" && (
             <Button onClick={handleOfflineLogin} disabled={isLoggingIn}>
-              Login
+              {t("bottom.login")}
             </Button>
           )}
         </DialogFooter>

@@ -1,5 +1,6 @@
 import { Folder, Home, LogOutIcon, Settings } from "lucide-react";
 import { useLocation, useNavigate } from "react-router";
+import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/models/auth";
 import { Button } from "./ui/button";
@@ -44,6 +45,7 @@ function NavItem({ Icon, label, to }: NavItemProps) {
 
 export function Sidebar() {
   const authStore = useAuthStore();
+  const { t } = useI18n();
 
   const renderUserAvatar = () => {
     return (
@@ -58,7 +60,9 @@ export function Sidebar() {
               {authStore.account?.username}
             </p>
             <p className="text-xs text-zinc-400">
-              {authStore.account?.type === "microsoft" ? "Online" : "Offline"}
+              {authStore.account?.type === "microsoft"
+                ? t("sidebar.online")
+                : t("sidebar.offline")}
             </p>
           </div>
         </div>
@@ -174,9 +178,9 @@ export function Sidebar() {
       </div>
 
       <nav className="w-full flex flex-col space-y-1 px-3 items-center">
-        <NavItem Icon={Home} label="Overview" to="/" />
-        <NavItem Icon={Folder} label="Instances" to="/instances" />
-        <NavItem Icon={Settings} label="Settings" to="/settings" />
+        <NavItem Icon={Home} label={t("sidebar.overview")} to="/" />
+        <NavItem Icon={Folder} label={t("sidebar.instances")} to="/instances" />
+        <NavItem Icon={Settings} label={t("sidebar.settings")} to="/settings" />
       </nav>
 
       <div className="w-full lg:px-3 flex-1 flex flex-col justify-end">
@@ -186,7 +190,7 @@ export function Sidebar() {
             nativeButton={false}
             className="w-full"
           >
-            Open
+            {t("common.open")}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" side="right" sideOffset={20}>
             <DropdownMenuGroup>
@@ -195,7 +199,7 @@ export function Sidebar() {
                 onClick={authStore.logout}
               >
                 <LogOutIcon />
-                Logout
+                {t("sidebar.logout")}
               </DropdownMenuItem>
             </DropdownMenuGroup>
           </DropdownMenuContent>

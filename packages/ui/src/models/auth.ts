@@ -11,6 +11,7 @@ import {
   logout,
   startMicrosoftLogin,
 } from "@/client";
+import { translate } from "@/lib/i18n";
 import type { Account, DeviceCodeResponse } from "@/types";
 
 function getAuthErrorMessage(error: unknown): string {
@@ -59,7 +60,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   loginOnline: async (onSuccess) => {
     const { _pollLoginStatus } = get();
 
-    set({ statusMessage: "Waiting for authorization..." });
+    set({ statusMessage: translate("auth.waiting") });
 
     try {
       const unlisten = await listen("auth-progress", (event) => {
@@ -69,7 +70,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
     } catch (error) {
       console.warn("Failed to attch auth-progress listener:", error);
-      toast.warning("Failed to attch auth-progress listener");
+      toast.warning(translate("auth.listenFailed"));
     }
 
     try {
@@ -90,16 +91,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({
         _pollingInterval: interval,
         deviceCode,
-        statusMessage: deviceCode.message ?? "Waiting for authorization...",
+        statusMessage: deviceCode.message ?? translate("auth.waiting"),
       });
     } catch (error) {
       const message = getAuthErrorMessage(error);
       console.error("Failed to start Microsoft login:", error);
       set({
         loginMode: null,
-        statusMessage: `Failed to start login: ${message}`,
+        statusMessage: translate("auth.startFailed", { error: message }),
       });
-      toast.error(`Failed to start Microsoft login: ${message}`);
+      toast.error(translate("auth.microsoftFailed", { error: message }));
     }
   },
   _pollLoginStatus: async (deviceCode, onSuccess) => {
@@ -119,18 +120,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         deviceCode: null,
         _pollingInterval: null,
         _progressUnlisten: null,
-        statusMessage: "Login successful",
+        statusMessage: translate("auth.success"),
       });
     } catch (error: unknown) {
       const message = getAuthErrorMessage(error);
 
       if (message.includes("authorization_pending")) {
-        set({ statusMessage: "Waiting for authorization..." });
+        set({ statusMessage: translate("auth.waiting") });
         return;
       }
 
       if (message.includes("slow_down")) {
-        set({ statusMessage: "Microsoft asked to slow down polling..." });
+        set({ statusMessage: translate("auth.slowDown") });
         return;
       }
 
@@ -142,11 +143,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         deviceCode: null,
         _pollingInterval: null,
         _progressUnlisten: null,
-        statusMessage: `Login failed: ${message}`,
+        statusMessage: translate("auth.failed", { error: message }),
       });
 
       console.error("Failed to poll login status:", error);
-      toast.error(`Microsoft login failed: ${message}`);
+      toast.error(translate("auth.pollFailed", { error: message }));
     } finally {
       mutex.release();
     }
@@ -169,7 +170,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   loginOffline: async (username: string) => {
     const trimmedUsername = username.trim();
     if (trimmedUsername.length === 0) {
-      throw new Error("Username cannot be empty");
+      throw new Error(translate("auth.usernameEmpty"));
     }
 
     try {
@@ -177,7 +178,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ account, loginMode: "offline" });
     } catch (error) {
       console.error("Failed to login offline:", error);
-      toast.error("Failed to login offline");
+      toast.error(translate("auth.offlineFailed"));
     }
   },
   logout: async () => {
@@ -186,7 +187,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ account: null });
     } catch (error) {
       console.error("Failed to logout:", error);
-      toast.error("Failed to logout");
+      toast.error(translate("auth.logoutFailed"));
     }
   },
 }));
