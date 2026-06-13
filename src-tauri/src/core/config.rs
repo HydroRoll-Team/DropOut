@@ -5,6 +5,9 @@ use std::sync::Mutex;
 use tauri::{AppHandle, Manager};
 use ts_rs::TS;
 
+pub const MIN_DOWNLOAD_THREADS: u32 = 1;
+pub const MAX_DOWNLOAD_THREADS: u32 = 64;
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "config.ts")]
@@ -85,7 +88,8 @@ pub struct LauncherConfig {
     pub java_path: String,
     pub width: u32,
     pub height: u32,
-    pub download_threads: u32, // concurrent download threads (1-64)
+    /// Concurrent download threads. Clamped via MIN_DOWNLOAD_THREADS/MAX_DOWNLOAD_THREADS.
+    pub download_threads: u32,
     pub custom_background_path: Option<String>,
     pub enable_gpu_acceleration: bool,
     pub enable_visual_effects: bool,
@@ -127,7 +131,9 @@ impl Default for LauncherConfig {
 
 impl LauncherConfig {
     pub fn sanitize(&mut self) {
-        self.download_threads = self.download_threads.clamp(1, 64);
+        self.download_threads =
+            self.download_threads
+                .clamp(MIN_DOWNLOAD_THREADS, MAX_DOWNLOAD_THREADS);
     }
 }
 
@@ -158,7 +164,8 @@ impl ConfigState {
 
     pub fn save(&self) -> Result<(), String> {
         let config = self.config.lock().unwrap();
-        let content = serde_json::to_string_pretty(&*config).map_err(|e| e.to_string())?;
+        let content = serde_json::to_string_pretty(&*config)
+            .map_err(|e| format!("Failed to serialize config: {}", e))?;
         fs::create_dir_all(self.file_path.parent().unwrap()).map_err(|e| e.to_string())?;
         fs::write(&self.file_path, content).map_err(|e| e.to_string())?;
         Ok(())

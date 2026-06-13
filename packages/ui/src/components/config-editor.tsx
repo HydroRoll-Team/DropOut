@@ -1,6 +1,7 @@
 import type React from "react";
 import { useEffect, useState } from "react";
 import { type ZodType, z } from "zod";
+import { MAX_DOWNLOAD_THREADS, MIN_DOWNLOAD_THREADS } from "@/lib/config";
 import { useSettingsStore } from "@/models/settings";
 import type { LauncherConfig } from "@/types";
 import { Button } from "./ui/button";
@@ -22,7 +23,10 @@ const launcherConfigSchema: ZodType<LauncherConfig> = z.object({
   javaPath: z.string(),
   width: z.number(),
   height: z.number(),
-  downloadThreads: z.number().min(1).max(64),
+  downloadThreads: z
+    .number()
+    .min(MIN_DOWNLOAD_THREADS)
+    .max(MAX_DOWNLOAD_THREADS),
   customBackgroundPath: z.string().nullable(),
   enableGpuAcceleration: z.boolean(),
   enableVisualEffects: z.boolean(),

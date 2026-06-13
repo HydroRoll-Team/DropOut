@@ -1650,8 +1650,8 @@ async fn save_raw_config(
         serde_json::from_str(&content).map_err(|e| format!("Invalid JSON: {}", e))?;
     new_config.sanitize();
 
-    let normalized_content =
-        serde_json::to_string_pretty(&new_config).map_err(|e| format!("Invalid JSON: {}", e))?;
+    let normalized_content = serde_json::to_string_pretty(&new_config)
+        .map_err(|e| format!("Failed to serialize config: {}", e))?;
 
     // Save to file
     tokio::fs::write(&state.file_path, &normalized_content)
