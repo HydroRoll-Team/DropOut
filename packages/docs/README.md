@@ -1,213 +1,162 @@
-# DropOut Documentation
+<h1 align="center">DropOut Docs</h1>
 
-This is the official documentation site for DropOut Minecraft Launcher, built with [Fumadocs](https://fumadocs.dev) and React Router v7.
+<p align="center">
+  <em>The bilingual product and developer documentation site for DropOut.</em>
+</p>
 
-## Overview
+<p align="center">
+  <img src="https://img.shields.io/badge/Fumadocs-000?style=flat" alt="Fumadocs">
+  <img src="https://img.shields.io/badge/React_19-000?style=flat&logo=react" alt="React 19">
+  <img src="https://img.shields.io/badge/React_Router_7-000?style=flat&logo=reactrouter" alt="React Router 7">
+  <img src="https://img.shields.io/badge/Tailwind_CSS_4-000?style=flat&logo=tailwindcss" alt="Tailwind CSS 4">
+  <img src="https://img.shields.io/badge/TypeScript-000?style=flat&logo=typescript" alt="TypeScript">
+</p>
 
-The documentation covers:
+---
 
-- **Getting Started**: Installation and first-time setup
-- **Features**: Detailed guides for all launcher features
-- **Architecture**: Technical design and implementation details
-- **Development**: Building and contributing to DropOut
-- **Troubleshooting**: Common issues and solutions
+## What Is This
 
-### Multi-language Support
+`packages/docs` is the documentation site for the DropOut Minecraft launcher. It explains installation, first-run setup, launcher features, architecture, development workflow, and troubleshooting.
 
-The documentation is available in:
+The site is built with Fumadocs MDX collections on React Router v7. Content is organized by locale and rendered through the shared source loader in `app/lib/source.ts`.
 
-- **English** (default) - `content/docs/en/`
-- **简体中文** (Simplified Chinese) - `content/docs/zh/`
+---
 
-## Development
+## Languages
 
-### Prerequisites
+| Language | Path | URL behavior |
+|---|---|---|
+| Simplified Chinese | `content/zh/` | Default locale, locale segment hidden |
+| English | `content/en/` | Served under the English locale route |
 
-- Node.js 22+
-- pnpm 9+
+The current i18n source of truth is `app/lib/i18n.ts`: default language `zh`, languages `zh` and `en`, directory-based parsing.
 
-### Setup
+---
 
-Install dependencies:
+## Quick Start
+
+Run commands from the repository root unless you are already inside `packages/docs`.
 
 ```bash
 pnpm install
+pnpm --filter @dropout/docs dev
 ```
 
-### Run Development Server
+The development server starts with React Router and hot reload. Use the local URL printed by the command.
+
+### Package-local commands
 
 ```bash
-pnpm dev
+pnpm dev          # start React Router dev server
+pnpm build        # build production output into build/
+pnpm start        # serve build/server/index.js
+pnpm types:check  # React Router typegen, Fumadocs MDX build, TypeScript check
+pnpm lint         # Biome check
+pnpm format       # Biome format
 ```
 
-This starts the development server at `http://localhost:5173` with hot reload enabled.
+---
 
-The documentation automatically supports language switching between English and Chinese.
+## Content Model
 
-### Build for Production
-
-```bash
-pnpm build
-```
-
-The production build will be output to the `build/` directory.
-
-### Type Checking
-
-```bash
-pnpm types:check
-```
-
-### Linting and Formatting
-
-```bash
-# Check code
-pnpm lint
-
-# Format code
-pnpm format
-```
-
-## Project Structure
-
-```bash
+```text
 packages/docs/
-├── content/
-│   └── docs/              # Documentation content (MDX)
-│       ├── en/            # English documentation
-│       │   ├── index.mdx
-│       │   ├── getting-started.mdx
-│       │   ├── architecture.mdx
-│       │   ├── development.mdx
-│       │   ├── troubleshooting.mdx
-│       │   └── features/
-│       └── zh/            # Chinese documentation
-│           ├── index.mdx
-│           ├── getting-started.mdx
-│           ├── architecture.mdx
-│           ├── development.mdx
-│           ├── troubleshooting.mdx
-│           └── features/
-├── app/                   # React Router app
-├── public/                # Static assets
-├── source.config.ts       # Fumadocs configuration (i18n enabled)
-└── react-router.config.ts # React Router configuration
+|-- app/
+|   |-- docs/              # Fumadocs page/search integration
+|   |-- lib/               # i18n and source loader
+|   `-- routes/            # React Router routes
+|-- content/
+|   |-- en/                # English MDX docs
+|   |   |-- features/
+|   |   |-- architecture.mdx
+|   |   |-- development.mdx
+|   |   |-- getting-started.mdx
+|   |   `-- troubleshooting.mdx
+|   `-- zh/                # Simplified Chinese MDX docs
+|       |-- features/
+|       |-- architecture.mdx
+|       |-- development.mdx
+|       |-- getting-started.mdx
+|       `-- troubleshooting.mdx
+|-- public/                # Static assets
+|-- source.config.ts       # Fumadocs MDX collection config
+`-- react-router.config.ts # React Router config
 ```
 
-## Internationalization (i18n)
+Each locale should keep the same information architecture so readers can switch languages without losing position.
 
-### Structure
+---
 
-Documentation is organized by locale:
+## Writing Pages
 
-- English: `content/docs/en/`
-- Chinese: `content/docs/zh/`
-
-Each locale has the same structure with translated content.
-
-### Configuration
-
-i18n is configured in:
-
-- `source.config.ts`: Enables i18n support
-- `app/lib/source.ts`: Defines available languages and default
-
-### Adding a New Language
-
-1. Create a new directory: `content/docs/{locale}/`
-2. Copy the structure from `en/` or `zh/`
-3. Translate all `.mdx` files
-4. Update `meta.json` files with translated titles
-5. Add the language to `app/lib/source.ts`
-
-## Writing Documentation
-
-### MDX Format
-
-All documentation is written in MDX (Markdown with JSX):
+Every page is MDX with frontmatter:
 
 ```mdx
 ---
 title: Page Title
-description: Page description for SEO
+description: Short SEO and preview description
 ---
 
 # Page Title
 
-Content goes here...
-
-<Cards>
-  <Card title="Link Title" href="/path" />
-</Cards>
+Content goes here.
 ```
 
-### Available Components
+Useful Fumadocs UI components include:
 
-Fumadocs provides several components:
+- `<Cards>` and `<Card>` for navigation groups
+- `<Callout>` for warnings, tips, or constraints
+- `<Tabs>` for platform-specific instructions
+- `<Steps>` for ordered setup flows
+- fenced code blocks for commands and config snippets
 
-- `<Card>` - Link cards
-- `<Cards>` - Card container
-- `<Callout>` - Info/warning boxes
-- `<Tabs>` - Tabbed content
-- `<Steps>` - Numbered steps
-- Code blocks with syntax highlighting
+Keep commands copyable and exact. If a command must be run from the repo root or from a package directory, say so before the code block.
 
-### Adding New Pages
+---
 
-1. Create new `.mdx` file in `content/docs/{locale}/`
-2. Add frontmatter with title and description
-3. Write content using MDX
-4. Update `meta.json` to include the page
-5. Repeat for all supported languages
-6. Test locally with `pnpm dev`
+## Adding A Page
 
-### Translation Guidelines
+1. Create the `.mdx` file in both `content/zh/` and `content/en/`.
+2. Add `title` and `description` frontmatter.
+3. Keep the page slug and section placement aligned across locales.
+4. Update the nearest `meta.json` so navigation includes the page.
+5. Run `pnpm --filter @dropout/docs types:check`.
+6. Preview with `pnpm --filter @dropout/docs dev`.
 
-When translating content:
+---
 
-- Keep all code blocks in English
-- Translate frontmatter (title, description)
-- Keep technical terms (Tauri, Rust, Svelte, etc.) in English
-- Translate UI elements and descriptions
-- Keep all links and URLs unchanged
-- Maintain the same structure and formatting
+## Translation Rules
 
-### Organizing Content
+- Translate user-facing explanations, headings, callouts, and frontmatter.
+- Keep code, package names, file paths, commands, and API identifiers unchanged.
+- Prefer the same section order in each locale.
+- Keep links stable unless a locale-specific target exists.
+- Update both locales in the same change when the information affects product behavior.
 
-Use `meta.json` files to organize navigation:
-
-```json
-{
-  "title": "Section Title",
-  "pages": [
-    "page1",
-    "page2",
-    {
-      "title": "Subsection",
-      "pages": ["sub1", "sub2"]
-    }
-  ]
-}
-```
+---
 
 ## Deployment
 
-The documentation is automatically deployed when changes are merged to the main branch.
+The docs package builds to `build/`:
 
-## Contributing
+```bash
+pnpm --filter @dropout/docs build
+pnpm --filter @dropout/docs start
+```
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes (in all supported languages)
-4. Test locally
-5. Submit a pull request
+Repository CI should run the same build and type/content checks before publishing the site.
+
+---
 
 ## Links
 
-- [DropOut Repository](https://github.com/HydroRoll-Team/DropOut)
+- [Main README](../../README.md)
+- [DropOut repository](https://github.com/HydroRoll-Team/DropOut)
 - [Fumadocs](https://fumadocs.dev)
 - [React Router](https://reactrouter.com)
 
+---
+
 ## License
 
-MIT License - see the main repository for details.
+MIT. See the root [LICENSE](../../LICENSE).

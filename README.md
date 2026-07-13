@@ -1,149 +1,202 @@
-# Drop*O*ut
+<p align="center">
+  <img src="assets/image.png" alt="DropOut launcher interface" width="700">
+</p>
 
-English | [中文](README.CN.md)
+<h1 align="center">DropOut</h1>
 
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut.svg?type=small)](https://app.fossa.com/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut?ref=badge_small)
-[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
-[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/HsiangNianian/DropOut/main.svg)](https://results.pre-commit.ci/latest/github/HsiangNianian/DropOut/main)
-[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![CodeQL Advanced](https://github.com/HydroRoll-Team/DropOut/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/HydroRoll-Team/DropOut/actions/workflows/codeql.yml)
-[![Dependabot Updates](https://github.com/HydroRoll-Team/DropOut/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/HydroRoll-Team/DropOut/actions/workflows/dependabot/dependabot-updates)
-[![Semifold CI](https://github.com/HydroRoll-Team/DropOut/actions/workflows/semifold-ci.yaml/badge.svg)](https://github.com/HydroRoll-Team/DropOut/actions/workflows/release.yml)
-[![Test & Build](https://github.com/HydroRoll-Team/DropOut/actions/workflows/test.yml/badge.svg)](https://github.com/HydroRoll-Team/DropOut/actions/workflows/test.yml)
+<p align="center">
+  <em>A deterministic Minecraft launcher for reproducible, inspectable game environments.</em>
+</p>
 
-DropOut is a modern, reproducible, and developer-grade Minecraft launcher.
-It is designed not just to launch Minecraft, but to manage Minecraft environments as deterministic, versioned workspaces.
+<p align="center">
+  <a href="https://github.com/HydroRoll-Team/DropOut"><img src="https://img.shields.io/github/stars/HydroRoll-Team/DropOut?logo=github" alt="GitHub stars"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-65a30d?style=flat" alt="MIT license"></a>
+  <a href="https://github.com/HydroRoll-Team/DropOut/releases"><img src="https://img.shields.io/github/v/release/HydroRoll-Team/DropOut?display_name=tag&sort=semver" alt="Latest release"></a>
+  <a href="https://github.com/HydroRoll-Team/DropOut/actions/workflows/test.yml"><img src="https://github.com/HydroRoll-Team/DropOut/actions/workflows/test.yml/badge.svg" alt="Test and build"></a>
+  <a href="https://github.com/HydroRoll-Team/DropOut/actions/workflows/codeql.yml"><img src="https://github.com/HydroRoll-Team/DropOut/actions/workflows/codeql.yml/badge.svg?branch=main" alt="CodeQL"></a>
+  <br>
+  <img src="https://img.shields.io/badge/Tauri_2-000?style=flat&logo=tauri" alt="Tauri 2">
+  <img src="https://img.shields.io/badge/Rust-000?style=flat&logo=rust" alt="Rust">
+  <img src="https://img.shields.io/badge/Svelte_5-000?style=flat&logo=svelte" alt="Svelte 5">
+  <img src="https://img.shields.io/badge/Tailwind_CSS_4-000?style=flat&logo=tailwindcss" alt="Tailwind CSS 4">
+  <img src="https://img.shields.io/badge/TypeScript-000?style=flat&logo=typescript" alt="TypeScript">
+  <img src="https://img.shields.io/badge/pnpm_10-000?style=flat&logo=pnpm" alt="pnpm 10">
+</p>
 
-Built with Tauri v2 and Rust, DropOut delivers native performance and minimal resource usage, paired with a modern reactive web UI (currently Svelte 5, migrating to React).
+<p align="center">
+  <b>English</b> | <a href="README.CN.md">Chinese</a>
+</p>
 
-> Minecraft environments are complex systems.
-> DropOut treats them like software projects.
+---
 
-<div align="center">
-   <img width="700" src="assets/image.png" alt="DropOut Launcher Interface" />
-</div>
+## What Is This
 
-## Why DropOut?
+**DropOut** is a modern, developer-grade Minecraft launcher built around one idea: a game setup should be traceable like a software project.
 
-Most Minecraft launchers focus on getting you into the game.
-DropOut focuses on keeping your game stable, debuggable, and reproducible.
+Most launchers focus on starting the game. DropOut also keeps the surrounding environment understandable: account state, Java runtime, game version, loader, instance directory, assets, libraries, and launch logs.
 
-- Your instance worked yesterday but broke today?  
-→ DropOut makes it traceable.
+> Minecraft environments are complex systems. DropOut treats them as versioned workspaces.
 
-- Sharing a modpack means zipping gigabytes?  
-→ DropOut shares exact dependency manifests.
+---
 
-- Java, loader, mods, configs drift out of sync?  
-→ DropOut locks them together.
+## Project Shape
 
-This launcher is built for players who value control, transparency, and long-term stability.
+DropOut is a desktop application with three active surfaces:
+
+| Surface | Path | Stack | Purpose |
+|---|---|---|---|
+| Desktop shell | `src-tauri/` | Rust, Tauri 2 | Authentication, downloads, Java/version resolution, instance storage, launch orchestration |
+| Launcher UI | `packages/ui/` | Svelte 5, Vite/Rolldown, Tailwind CSS 4 | Main application interface rendered inside the Tauri webview |
+| Documentation | `packages/docs/` | Fumadocs, React 19, React Router 7 | Bilingual product and developer documentation |
+
+The Rust core owns side effects. The Svelte UI invokes Tauri commands and renders state. The docs package explains the product, architecture, and user workflows.
+
+---
 
 ## Features
 
-- **High Performance**: Built with Rust and Tauri for minimal resource usage and fast startup times.
-- **Modern Industrial UI**: A clean, distraction-free interface designed with **Svelte 5** and **Tailwind CSS 4**.
-- **Microsoft Authentication**: Secure login support via official Xbox Live & Microsoft OAuth flows (Device Code Flow).
-- **Mod Loader Support**:
-  - **Fabric**: Built-in installer and version management.
-  - **Forge**: Support for installing and launching Forge versions.
-- **Java Management**:
-  - Automatic detection of installed Java versions.
-  - Built-in downloader for Adoptium JDK/JRE.
-- **GitHub Integration**: View the latest project updates and changelogs directly from the launcher home screen.
-- **Game Management**:
-  - Complete version isolation.
-  - Efficient concurrent asset and library downloading.
-  - Customizable memory allocation and resolution settings.
+- **Microsoft authentication** - device-code OAuth flow, Minecraft Services login, token refresh, and persisted account state.
+- **Offline accounts** - local accounts for testing or non-network play.
+- **Instance system** - isolated game directories with per-instance notes, memory overrides, Java arguments, version, and loader state.
+- **Minecraft version management** - install, verify, list, delete, and launch local versions.
+- **Fabric and Forge support** - loader version discovery plus installer flows for modded instances.
+- **Java management** - local Java detection, compatibility checks, Adoptium catalog lookup, downloads, resume, and cancellation.
+- **Concurrent downloads** - asset/library queues with progress events and recovery paths.
+- **Configuration editor** - inspect and edit raw JSON/TOML launcher configuration.
+- **Release feed** - GitHub release notes surfaced on the home screen.
+- **Game assistant** - optional local or OpenAI-compatible helper for logs, crashes, and configuration questions.
 
-## Roadmap
+---
 
-Check our full roadmap at: <https://roadmap.sh/r/minecraft-launcher-dev>
-
-- [X] **Account Persistence** — Save login state between sessions
-- [X] **Token Refresh** — Auto-refresh expired Microsoft tokens
-- [X] **JVM Arguments Parsing** — Full support for `arguments.jvm` and `arguments.game` parsing
-- [X] **Java Auto-detection & Download** — Scan system and download Java runtimes
-- [X] **Fabric Loader Support** — Install and launch with Fabric
-- [X] **Forge Loader Support** — Install and launch with Forge
-- [X] **GitHub Releases Integration** — View changelogs in-app
-- [ ] **Instance/Profile System** — Multiple isolated game directories with different versions/mods
-- [ ] **Multi-account Support** — Switch between multiple accounts seamlessly
-- [ ] **Custom Game Directory** — Allow users to choose game files location
-- [ ] **Launcher Auto-updater** — Self-update mechanism via Tauri updater plugin
-- [ ] **Mods Manager** — Enable/disable mods directly in the launcher
-- [ ] **Import from Other Launchers** — Migration tool for MultiMC/Prism profiles
-
-## Installation
-
-Download the latest release for your platform from the [Releases](https://github.com/HsiangNianian/DropOut/releases) page.
-
-| Platform       | Files                   |
-| -------------- | ----------------------- |
-| Linux x86_64   | `.deb`, `.AppImage` |
-| Linux ARM64    | `.deb`, `.AppImage` |
-| macOS ARM64    | `.dmg`                |
-| Windows x86_64 | `.msi`, `.exe`      |
-| Windows ARM64  | `.msi`, `.exe`      |
-
-## Building from Source
+## Quick Start
 
 ### Prerequisites
 
-1. **Rust**: Install from [rustup.rs](https://rustup.rs/).
-2. **Node.js** & **pnpm**: Used for the frontend dependencies.
-3. **System Dependencies**: Follow the [Tauri Prerequisites](https://v2.tauri.app/start/prerequisites/) for your OS.
+- Rust toolchain from [rustup.rs](https://rustup.rs/)
+- Node.js 22+
+- pnpm 10+
+- OS dependencies from the [Tauri v2 prerequisites](https://v2.tauri.app/start/prerequisites/)
 
-### Steps
+### Install
 
-1. **Clone the repository**
+```bash
+pnpm install
+```
 
-   ```bash
-   git clone https://github.com/HsiangNianian/DropOut.git
-   cd DropOut
-   ```
+`pnpm install` also runs the repository `prepare` script, which installs the local `prek` hooks.
 
-2. **Install Frontend Dependencies**
+### Run the desktop app
 
-   ```bash
-   cd ui
-   pnpm install
-   cd ..
-   ```
+```bash
+pnpm exec tauri dev
+```
 
-3. **Run in Development Mode**
+Tauri starts the Svelte dev server through `src-tauri/tauri.conf.json` and opens the desktop window at `http://localhost:5173`.
 
-   ```bash
-   # This will start the frontend server and the Tauri app window
-   cargo tauri dev
-   ```
+### Build a desktop release
 
-4. **Build Release Version**
+```bash
+pnpm exec tauri build
+```
 
-   ```bash
-   cargo tauri build
-   ```
+Release artifacts are produced by Tauri under the Rust target directory and the configured bundle target directories.
 
-   The executable will be located in `src-tauri/target/release/`.
+### Run package surfaces directly
+
+```bash
+pnpm --filter @dropout/ui dev       # UI only, browser preview
+pnpm --filter @dropout/docs dev     # documentation site
+```
+
+The UI can run in a browser for layout work, but Tauri-only commands require the desktop shell.
+
+---
+
+## Common Commands
+
+| Task | Command |
+|---|---|
+| Install workspace dependencies | `pnpm install` |
+| Run desktop app | `pnpm exec tauri dev` |
+| Build desktop app | `pnpm exec tauri build` |
+| Build UI bundle | `pnpm --filter @dropout/ui build` |
+| Check UI types | `pnpm --filter @dropout/ui check` |
+| Lint UI | `pnpm --filter @dropout/ui lint` |
+| Run docs site | `pnpm --filter @dropout/docs dev` |
+| Build docs site | `pnpm --filter @dropout/docs build` |
+| Check docs types/content | `pnpm --filter @dropout/docs types:check` |
+| Test Rust workspace | `cargo test --workspace` |
+
+---
+
+## Repository Layout
+
+```text
+.
+|-- assets/                 # README and project media
+|-- packages/
+|   |-- docs/               # Fumadocs + React Router documentation site
+|   `-- ui/                 # Svelte launcher frontend
+|-- scripts/                # Workspace maintenance scripts
+|-- src-tauri/              # Rust desktop backend and Tauri configuration
+|-- Cargo.toml              # Rust workspace
+|-- package.json            # pnpm workspace metadata and root tooling
+`-- pnpm-workspace.yaml     # JavaScript workspace packages
+```
+
+---
+
+## Architecture Notes
+
+The command boundary is registered in [`src-tauri/src/main.rs`](src-tauri/src/main.rs). Feature modules live under `src-tauri/src/core/`:
+
+- `auth.rs` and `account_storage.rs` handle Microsoft and offline account state.
+- `instance.rs` owns isolated instance directories and metadata.
+- `game_version.rs`, `manifest.rs`, `version_merge.rs`, and `rules.rs` resolve Minecraft versions and launch rules.
+- `fabric.rs`, `forge.rs`, `maven.rs`, and `downloader.rs` install loaders, libraries, assets, and version files.
+- `java.rs` detects and downloads compatible runtimes.
+- `assistant.rs` powers the optional troubleshooting assistant.
+
+The UI keeps long-lived state in Svelte stores under `packages/ui/src/stores/`, then renders views from `packages/ui/src/components/`.
+
+---
+
+## Roadmap
+
+- [x] Account persistence and token refresh
+- [x] Microsoft device-code login and offline login
+- [x] Java auto-detection and Adoptium download flow
+- [x] Fabric and Forge install paths
+- [x] Isolated instance/profile system
+- [x] GitHub releases integration
+- [x] Optional game assistant
+- [ ] Multi-account switching
+- [ ] Built-in mods manager
+- [ ] Custom game directory selection
+- [ ] Launcher auto-updater
+- [ ] Import from MultiMC, Prism Launcher, and other profiles
+
+The public roadmap is tracked at <https://roadmap.sh/r/minecraft-launcher-dev>.
+
+---
 
 ## Contributing
 
-DropOut is built with long-term maintainability in mind.
-Contributions are welcome, especially in these areas:
+DropOut is built for long-term maintainability. Useful contributions usually improve one of these areas:
 
-- Instance system design
-- Mod compatibility tooling
-- UI/UX improvements
-- Cross-launcher migration tools
+- instance and profile workflows
+- mod loader compatibility
+- Java/runtime detection
+- downloader reliability
+- UI/UX clarity
+- documentation and troubleshooting coverage
 
-Standard GitHub workflow applies:
-fork → feature branch → pull request.
+Use the standard GitHub flow: fork, branch, commit, and open a pull request against [HydroRoll-Team/DropOut](https://github.com/HydroRoll-Team/DropOut).
+
+---
 
 ## License
 
-Distributed under the MIT License. See `LICENSE` for more information.
+[![MIT](https://img.shields.io/badge/license-MIT-65a30d)](LICENSE)
 
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut.svg?type=shield&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut?ref=badge_shield&issueType=license)
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut.svg?type=shield&issueType=security)](https://app.fossa.com/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut?ref=badge_shield&issueType=security)
-
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut?ref=badge_large)
+MIT (c) Hsiang Nianian
