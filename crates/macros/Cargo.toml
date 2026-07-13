@@ -1,0 +1,18 @@
+[package]
+name = "dropout-macros"
+version = "0.1.0-alpha.0"
+edition = "2021"
+description = "Proc-macro crate providing #[dropout::api] for generating Tauri TypeScript bindings"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[lib]
+proc-macro = true
+
+[dependencies]
+darling = { version = "0.23.0", features = ["serde"] }
+heck = "0.4"
+inventory = "0.3"
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = { version = "2.0", features = ["full"] }

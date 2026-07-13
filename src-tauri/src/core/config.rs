@@ -3,8 +3,14 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager};
+use ts_rs::TS;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+pub const MIN_DOWNLOAD_THREADS: u32 = 1;
+pub const MAX_DOWNLOAD_THREADS: u32 = 64;
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "config.ts")]
 #[serde(default)]
 pub struct AssistantConfig {
     pub enabled: bool,
@@ -43,7 +49,9 @@ impl Default for AssistantConfig {
 }
 
 /// Feature-gated arguments configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "config.ts")]
 #[serde(default)]
 pub struct FeatureFlags {
     /// Demo user: enables demo-related arguments when rules require it
@@ -70,7 +78,9 @@ impl Default for FeatureFlags {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "config.ts")]
 #[serde(default)]
 pub struct LauncherConfig {
     pub min_memory: u32, // in MB
@@ -78,7 +88,8 @@ pub struct LauncherConfig {
     pub java_path: String,
     pub width: u32,
     pub height: u32,
-    pub download_threads: u32, // concurrent download threads (1-128)
+    /// Concurrent download threads. Clamped via MIN_DOWNLOAD_THREADS/MAX_DOWNLOAD_THREADS.
+    pub download_threads: u32,
     pub custom_background_path: Option<String>,
     pub enable_gpu_acceleration: bool,
     pub enable_visual_effects: bool,
@@ -92,6 +103,41 @@ pub struct LauncherConfig {
     pub keep_legacy_per_instance_storage: bool, // Keep old per-instance caches (no migration)
     // Feature-gated argument flags
     pub feature_flags: FeatureFlags,
+    /// Download mirror source: "official", "bmclapi", "mcbbs"
+    #[serde(default = "default_mirror_source")]
+    pub mirror_source: String,
+    /// Language / locale code: "auto", "zh-CN", "en"
+    #[serde(default = "default_language")]
+    pub language: String,
+    /// Enable system tray (minimize to tray)
+    #[serde(default)]
+    pub enable_system_tray: bool,
+    /// Whether the guided tour has been completed
+    #[serde(default)]
+    pub first_launch_completed: bool,
+    /// JVM optimization preset: "default", "g1gc", "zgc", "shenandoah"
+    #[serde(default = "default_jvm_preset")]
+    pub jvm_preset: String,
+    /// GitHub download proxy URL, e.g. "https://ghproxy.hydroroll.team"
+    /// When non-empty, GitHub release download URLs will be proxied through this.
+    #[serde(default = "default_github_proxy")]
+    pub github_proxy: String,
+}
+
+fn default_mirror_source() -> String {
+    "official".to_string()
+}
+
+fn default_language() -> String {
+    "auto".to_string()
+}
+
+fn default_jvm_preset() -> String {
+    "default".to_string()
+}
+
+fn default_github_proxy() -> String {
+    "https://ghproxy.hydroroll.team".to_string()
 }
 
 impl Default for LauncherConfig {
@@ -102,7 +148,7 @@ impl Default for LauncherConfig {
             java_path: "java".to_string(),
             width: 854,
             height: 480,
-            download_threads: 32,
+            download_threads: 8,
             custom_background_path: None,
             enable_gpu_acceleration: false,
             enable_visual_effects: true,
@@ -114,7 +160,21 @@ impl Default for LauncherConfig {
             use_shared_caches: false,
             keep_legacy_per_instance_storage: true,
             feature_flags: FeatureFlags::default(),
+            mirror_source: "official".to_string(),
+            language: "auto".to_string(),
+            enable_system_tray: false,
+            first_launch_completed: false,
+            jvm_preset: "default".to_string(),
+            github_proxy: "https://ghproxy.hydroroll.team".to_string(),
         }
+    }
+}
+
+impl LauncherConfig {
+    pub fn sanitize(&mut self) {
+        self.download_threads = self
+            .download_threads
+            .clamp(MIN_DOWNLOAD_THREADS, MAX_DOWNLOAD_THREADS);
     }
 }
 
@@ -130,7 +190,9 @@ impl ConfigState {
 
         let config = if config_path.exists() {
             let content = fs::read_to_string(&config_path).unwrap_or_default();
-            serde_json::from_str(&content).unwrap_or_default()
+            let mut config: LauncherConfig = serde_json::from_str(&content).unwrap_or_default();
+            config.sanitize();
+            config
         } else {
             LauncherConfig::default()
         };
@@ -143,7 +205,8 @@ impl ConfigState {
 
     pub fn save(&self) -> Result<(), String> {
         let config = self.config.lock().unwrap();
-        let content = serde_json::to_string_pretty(&*config).map_err(|e| e.to_string())?;
+        let content = serde_json::to_string_pretty(&*config)
+            .map_err(|e| format!("Failed to serialize config: {}", e))?;
         fs::create_dir_all(self.file_path.parent().unwrap()).map_err(|e| e.to_string())?;
         fs::write(&self.file_path, content).map_err(|e| e.to_string())?;
         Ok(())

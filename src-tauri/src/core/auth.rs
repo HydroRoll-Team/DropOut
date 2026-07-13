@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
+use ts_rs::TS;
 use uuid::Uuid;
 
 // Helper to create a client with a custom User-Agent
@@ -11,8 +12,10 @@ fn get_client() -> reqwest::Client {
         .unwrap_or_else(|_| reqwest::Client::new())
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(tag = "type")]
+#[serde(rename_all = "camelCase")]
+#[ts(export, tag = "type", export_to = "auth.ts")]
 pub enum Account {
     Offline(OfflineAccount),
     Microsoft(MicrosoftAccount),
@@ -41,13 +44,17 @@ impl Account {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "auth.ts")]
 pub struct OfflineAccount {
     pub username: String,
     pub uuid: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "auth.ts")]
 pub struct MicrosoftAccount {
     pub username: String,
     pub uuid: String,
@@ -73,11 +80,12 @@ pub fn generate_offline_uuid(username: &str) -> String {
     Uuid::new_v3(&namespace, username.as_bytes()).to_string()
 }
 
-// const CLIENT_ID: &str = "fe165602-5410-4441-92f7-326e10a7cb82";
-const CLIENT_ID: &str = "c36a9fb6-4f2a-41ff-90bd-ae7cc92031eb"; // ATLauncher's Client ID
+const CLIENT_ID: &str = "fe165602-5410-4441-92f7-326e10a7cb82";
 const SCOPE: &str = "XboxLive.SignIn XboxLive.offline_access";
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all(serialize = "camelCase"))]
+#[ts(export, export_to = "auth.ts", rename_all = "camelCase")]
 pub struct DeviceCodeResponse {
     pub user_code: String,
     pub device_code: String,
@@ -87,7 +95,9 @@ pub struct DeviceCodeResponse {
     pub message: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all(serialize = "camelCase"))]
+#[ts(export, export_to = "auth.ts")]
 pub struct TokenResponse {
     pub access_token: String,
     pub refresh_token: Option<String>,
@@ -209,7 +219,9 @@ pub struct MinecraftAuthResponse {
     pub expires_in: u64,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "auth.ts")]
 pub struct MinecraftProfile {
     pub id: String,
     pub name: String,

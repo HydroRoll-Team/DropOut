@@ -2,10 +2,14 @@ name: UI Checker
 
 on:
   push:
+    branches:
+      - main
     paths:
       - "packages/**"
       - ".github/workflows/check.yml"
   pull_request:
+    branches:
+      - main
     paths:
       - "packages/**"
       - ".github/workflows/check.yml"
@@ -30,13 +34,7 @@ jobs:
           cache: "pnpm"
           cache-dependency-path: "pnpm-lock.yaml"
 
-      - run: pnpm install
+      - run: pnpm -C packages/ui --lockfile-dir "${{ github.workspace }}" install --frozen-lockfile
 
-      - run: pnpm check
-        working-directory: packages/ui
-
-      - run: pnpm lint
-        working-directory: packages/ui
-
-      - run: pnpm format
+      - run: pnpm biome ci
         working-directory: packages/ui

@@ -6,7 +6,10 @@ use std::process::Stdio;
 use std::sync::Mutex;
 use tauri::{Emitter, Manager, State, Window}; // Added Emitter
 use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::process::Command; // Added Serialize
+use tokio::process::{Child, Command};
+use tokio::sync::Mutex as AsyncMutex;
+use tokio::time::{Duration, sleep};
+use ts_rs::TS; // Added Serialize
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -41,6 +44,43 @@ impl MsRefreshTokenState {
     }
 }
 
+struct RunningGameProcess {
+    child: Child,
+    instance_id: String,
+    version_id: String,
+}
+
+pub struct GameProcessState {
+    running_game: AsyncMutex<Option<RunningGameProcess>>,
+}
+
+/// Tracks whether the system tray is active for close-to-tray behavior
+struct TrayEnabledState(bool);
+
+impl Default for GameProcessState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl GameProcessState {
+    pub fn new() -> Self {
+        Self {
+            running_game: AsyncMutex::new(None),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "core.ts")]
+struct GameExitedEvent {
+    instance_id: String,
+    version_id: String,
+    exit_code: Option<i32>,
+    was_stopped: bool,
+}
+
 /// Check if a string contains unresolved placeholders in the form ${...}
 ///
 /// After the replacement phase, if a string still contains ${...}, it means
@@ -62,12 +102,77 @@ fn has_unresolved_placeholder(s: &str) -> bool {
     false
 }
 
+fn resolve_minecraft_version(version_id: &str) -> String {
+    if let Some(rest) = version_id.strip_prefix("fabric-loader-") {
+        // Fabric version IDs are of the form: fabric-loader-<loader>-<mc>
+        // After stripping the prefix, we split once to separate loader vs mc
+        let mut parts = rest.splitn(2, '-');
+        let _loader_version = parts.next();
+        if let Some(mc_version) = parts.next() {
+            mc_version.to_string()
+        } else {
+            // Malformed Fabric ID, fall back to original
+            version_id.to_string()
+        }
+    } else if version_id.contains("-forge-") {
+        version_id
+            .split("-forge-")
+            .next()
+            .unwrap_or(version_id)
+            .to_string()
+    } else {
+        version_id.to_string()
+    }
+}
+
+/// Resolve the Java installation to use for launching a game instance.
+///
+/// Priority: instance override > global config > auto-detect.
+/// For pre-1.13 versions requiring Java 8, enforces an upper bound.
+async fn resolve_java_path(
+    config: &core::config::LauncherConfig,
+    instance: &core::instance::Instance,
+    required_java_major: Option<u64>,
+    app_handle: &tauri::AppHandle,
+) -> Result<core::java::JavaInstallation, String> {
+    // Old versions (Java <=8) need exactly Java 8; newer versions have no upper bound
+    let max_java_major = match required_java_major {
+        Some(v) if v <= 8 => Some(8u32),
+        _ => None,
+    };
+
+    core::java::priority::resolve_java_for_launch(
+        app_handle,
+        instance.java_path_override.as_deref(),
+        Some(&config.java_path),
+        required_java_major,
+        max_java_major,
+    )
+    .await
+    .ok_or_else(|| {
+        let constraint = match (required_java_major, max_java_major) {
+            (Some(min), Some(max)) if min == max as u64 => format!("Java {}", min),
+            (Some(min), Some(max)) => format!("Java {} to {}", min, max),
+            (Some(min), None) => format!("Java {} or higher", min),
+            (None, Some(max)) => format!("Java {} (or lower)", max),
+            (None, None) => "any Java version".to_string(),
+        };
+        format!(
+            "No compatible Java installation found. This version requires {}. \
+             Please install a compatible Java version in settings.",
+            constraint
+        )
+    })
+}
+
 #[tauri::command]
+#[dropout_macros::api]
 async fn start_game(
     window: Window,
     auth_state: State<'_, core::auth::AccountState>,
     config_state: State<'_, core::config::ConfigState>,
     assistant_state: State<'_, core::assistant::AssistantState>,
+    game_process_state: State<'_, GameProcessState>,
     instance_state: State<'_, core::instance::InstanceState>,
     instance_id: String,
     version_id: String,
@@ -79,6 +184,52 @@ async fn start_game(
             version_id, instance_id
         )
     );
+
+    let stale_instance_to_unlock = {
+        let mut running_game = game_process_state.running_game.lock().await;
+
+        if let Some(existing_game) = running_game.as_mut() {
+            match existing_game.child.try_wait() {
+                Ok(Some(status)) => {
+                    emit_log!(
+                        window,
+                        format!(
+                            "Clearing stale game process for instance {} (exit code: {:?})",
+                            existing_game.instance_id,
+                            status.code()
+                        )
+                    );
+                    let stale_instance_id = existing_game.instance_id.clone();
+                    *running_game = None;
+                    Some(stale_instance_id)
+                }
+                Ok(None) => {
+                    return Err(format!(
+                        "A game is already running for instance {}",
+                        existing_game.instance_id
+                    ));
+                }
+                Err(error) => {
+                    emit_log!(
+                        window,
+                        format!(
+                            "Clearing broken game process state for instance {}: {}",
+                            existing_game.instance_id, error
+                        )
+                    );
+                    let stale_instance_id = existing_game.instance_id.clone();
+                    *running_game = None;
+                    Some(stale_instance_id)
+                }
+            }
+        } else {
+            None
+        }
+    };
+
+    if let Some(stale_instance_id) = stale_instance_to_unlock {
+        instance_state.end_operation(&stale_instance_id);
+    }
 
     // Check for active account
     emit_log!(window, "Checking for active account...".to_string());
@@ -121,16 +272,19 @@ async fn start_game(
     emit_log!(window, "Account found".to_string());
 
     let config = config_state.config.lock().unwrap().clone();
+    let mirror = core::mirror::MirrorSource::from_str(&config.mirror_source);
+    let app_handle = window.app_handle();
+    instance_state.begin_operation(&instance_id, core::instance::InstanceOperation::Launch)?;
+
+    let launch_result: Result<String, String> = async {
     emit_log!(window, format!("Java path: {}", config.java_path));
     emit_log!(
         window,
         format!("Memory: {}MB - {}MB", config.min_memory, config.max_memory)
     );
 
-    // Get game directory from instance
-    let game_dir = instance_state
-        .get_instance_game_dir(&instance_id)
-        .ok_or_else(|| format!("Instance {} not found", instance_id))?;
+    let resolved_paths = instance_state.resolve_paths(&instance_id, &config, &app_handle)?;
+    let game_dir = resolved_paths.root.clone();
 
     // Ensure game directory exists
     tokio::fs::create_dir_all(&game_dir)
@@ -170,120 +324,32 @@ async fn start_game(
     let minecraft_version = original_inherits_from.unwrap_or_else(|| version_id.clone());
 
     // Get required Java version from version file's javaVersion field
-    // The version file (after merging with parent) should contain the correct javaVersion
     let required_java_major = version_details
         .java_version
         .as_ref()
         .map(|jv| jv.major_version);
 
-    // For older Minecraft versions (1.13.x and below), if javaVersion specifies Java 8,
-    // we should only allow Java 8 (not higher) due to compatibility issues with old Forge
-    // For newer versions, javaVersion.majorVersion is the minimum required version
-    let max_java_major = if let Some(required) = required_java_major {
-        // If version file specifies Java 8, enforce it as maximum (old versions need exactly Java 8)
-        // For Java 9+, allow that version or higher
-        if required <= 8 {
-            Some(8)
-        } else {
-            None // No upper bound for Java 9+
-        }
-    } else {
-        // If version file doesn't specify javaVersion, this shouldn't happen for modern versions
-        // But if it does, we can't determine compatibility - log a warning
-        emit_log!(
-            window,
-            "Warning: Version file does not specify javaVersion. Using system default Java."
-                .to_string()
-        );
-        None
-    };
+    let instance = instance_state
+        .get_instance(&instance_id)
+        .ok_or_else(|| format!("Instance {} not found", instance_id))?;
 
-    // Check if configured Java is compatible
-    let app_handle = window.app_handle();
-    let mut java_path_to_use = config.java_path.clone();
-    if !java_path_to_use.is_empty() && java_path_to_use != "java" {
-        let is_compatible =
-            core::java::is_java_compatible(&java_path_to_use, required_java_major, max_java_major);
+    let java_installation = resolve_java_path(
+        &config,
+        &instance,
+        required_java_major,
+        app_handle,
+    )
+    .await?;
 
-        if !is_compatible {
-            emit_log!(
-                window,
-                format!(
-                    "Configured Java version may not be compatible. Looking for compatible Java..."
-                )
-            );
+    emit_log!(
+        window,
+        format!(
+            "Using Java {} at: {}",
+            java_installation.version, java_installation.path
+        )
+    );
 
-            // Try to find a compatible Java version
-            if let Some(compatible_java) =
-                core::java::get_compatible_java(app_handle, required_java_major, max_java_major)
-            {
-                emit_log!(
-                    window,
-                    format!(
-                        "Found compatible Java {} at: {}",
-                        compatible_java.version, compatible_java.path
-                    )
-                );
-                java_path_to_use = compatible_java.path;
-            } else {
-                let version_constraint = if let Some(max) = max_java_major {
-                    if let Some(min) = required_java_major {
-                        if min == max as u64 {
-                            format!("Java {}", min)
-                        } else {
-                            format!("Java {} to {}", min, max)
-                        }
-                    } else {
-                        format!("Java {} (or lower)", max)
-                    }
-                } else if let Some(min) = required_java_major {
-                    format!("Java {} or higher", min)
-                } else {
-                    "any Java version".to_string()
-                };
-
-                return Err(format!(
-                    "No compatible Java installation found. This version requires {}. Please install a compatible Java version in settings.",
-                    version_constraint
-                ));
-            }
-        }
-    } else {
-        // No Java configured, try to find a compatible one
-        if let Some(compatible_java) =
-            core::java::get_compatible_java(app_handle, required_java_major, max_java_major)
-        {
-            emit_log!(
-                window,
-                format!(
-                    "Using Java {} at: {}",
-                    compatible_java.version, compatible_java.path
-                )
-            );
-            java_path_to_use = compatible_java.path;
-        } else {
-            let version_constraint = if let Some(max) = max_java_major {
-                if let Some(min) = required_java_major {
-                    if min == max as u64 {
-                        format!("Java {}", min)
-                    } else {
-                        format!("Java {} to {}", min, max)
-                    }
-                } else {
-                    format!("Java {} (or lower)", max)
-                }
-            } else if let Some(min) = required_java_major {
-                format!("Java {} or higher", min)
-            } else {
-                "any Java version".to_string()
-            };
-
-            return Err(format!(
-                "No compatible Java installation found. This version requires {}. Please install a compatible Java version in settings.",
-                version_constraint
-            ));
-        }
-    }
+    let java_path_to_use = java_installation.path;
 
     // 2. Prepare download tasks
     emit_log!(window, "Preparing download tasks...".to_string());
@@ -296,17 +362,12 @@ async fn start_game(
         .as_ref()
         .ok_or("Version has no downloads information")?;
     let client_jar = &downloads.client;
-    // Use shared caches for versions if enabled
-    let mut client_path = if config.use_shared_caches {
-        app_handle.path().app_data_dir().unwrap().join("versions")
-    } else {
-        game_dir.join("versions")
-    };
+    let mut client_path = resolved_paths.version_cache.clone();
     client_path.push(&minecraft_version);
     client_path.push(format!("{}.jar", minecraft_version));
 
     download_tasks.push(core::downloader::DownloadTask {
-        url: client_jar.url.clone(),
+        url: core::mirror::remap_url(&client_jar.url, mirror),
         path: client_path.clone(),
         sha1: client_jar.sha1.clone(),
         sha256: None,
@@ -314,12 +375,7 @@ async fn start_game(
 
     // --- Libraries ---
     println!("Processing libraries...");
-    // Use shared caches for libraries if enabled
-    let libraries_dir = if config.use_shared_caches {
-        app_handle.path().app_data_dir().unwrap().join("libraries")
-    } else {
-        game_dir.join("libraries")
-    };
+    let libraries_dir = resolved_paths.libraries.clone();
     let mut native_libs_paths = Vec::new(); // Store paths to native jars for extraction
 
     for lib in &version_details.libraries {
@@ -336,7 +392,7 @@ async fn start_game(
                     lib_path.push(path_str);
 
                     download_tasks.push(core::downloader::DownloadTask {
-                        url: artifact.url.clone(),
+                        url: core::mirror::remap_url(&artifact.url, mirror),
                         path: lib_path,
                         sha1: artifact.sha1.clone(),
                         sha256: None,
@@ -385,7 +441,7 @@ async fn start_game(
                         native_path.push(&path_str);
 
                         download_tasks.push(core::downloader::DownloadTask {
-                            url: native_artifact.url,
+                            url: core::mirror::remap_url(&native_artifact.url, mirror),
                             path: native_path.clone(),
                             sha1: native_artifact.sha1,
                             sha256: None,
@@ -398,7 +454,7 @@ async fn start_game(
                 // 3. Library without explicit downloads (mod loader libraries)
                 // Use Maven coordinate resolution
                 if let Some(url) =
-                    core::maven::resolve_library_url(&lib.name, None, lib.url.as_deref())
+                    core::maven::resolve_library_url_with_mirror(&lib.name, None, lib.url.as_deref(), mirror)
                 {
                     if let Some(lib_path) = core::maven::get_library_path(&lib.name, &libraries_dir)
                     {
@@ -416,12 +472,7 @@ async fn start_game(
 
     // --- Assets ---
     println!("Fetching asset index...");
-    // Use shared caches for assets if enabled
-    let assets_dir = if config.use_shared_caches {
-        app_handle.path().app_data_dir().unwrap().join("assets")
-    } else {
-        game_dir.join("assets")
-    };
+    let assets_dir = resolved_paths.assets.clone();
     let objects_dir = assets_dir.join("objects");
     let indexes_dir = assets_dir.join("indexes");
 
@@ -445,7 +496,8 @@ async fn start_game(
             .map_err(|e| e.to_string())?
     } else {
         println!("Downloading asset index from {}", asset_index.url);
-        let content = reqwest::get(&asset_index.url)
+        let asset_index_mirror_url = core::mirror::remap_url(&asset_index.url, mirror);
+        let content = reqwest::get(&asset_index_mirror_url)
             .await
             .map_err(|e| e.to_string())?
             .text()
@@ -479,13 +531,14 @@ async fn start_game(
 
     println!("Processing {} assets...", asset_index_parsed.objects.len());
 
+    let assets_base = core::mirror::assets_url(mirror);
     for (_name, object) in asset_index_parsed.objects {
         let hash = object.hash;
         let prefix = &hash[0..2];
         let path = objects_dir.join(prefix).join(&hash);
         let url = format!(
-            "https://resources.download.minecraft.net/{}/{}",
-            prefix, hash
+            "{}/{}/{}",
+            assets_base, prefix, hash
         );
 
         download_tasks.push(core::downloader::DownloadTask {
@@ -599,9 +652,64 @@ async fn start_game(
     args.push(format!("-Xmx{}M", config.max_memory));
     args.push(format!("-Xms{}M", config.min_memory));
 
+    // JVM GC preset args
+    match config.jvm_preset.as_str() {
+        "g1gc" => {
+            args.push("-XX:+UseG1GC".to_string());
+            args.push("-XX:+ParallelRefProcEnabled".to_string());
+            args.push("-XX:MaxGCPauseMillis=200".to_string());
+            args.push("-XX:+UnlockExperimentalVMOptions".to_string());
+            args.push("-XX:+DisableExplicitGC".to_string());
+            args.push("-XX:+AlwaysPreTouch".to_string());
+            args.push("-XX:G1NewSizePercent=30".to_string());
+            args.push("-XX:G1MaxNewSizePercent=40".to_string());
+            args.push("-XX:G1HeapRegionSize=8M".to_string());
+            args.push("-XX:G1ReservePercent=20".to_string());
+            args.push("-XX:G1HeapWastePercent=5".to_string());
+            args.push("-XX:G1MixedGCCountTarget=4".to_string());
+            args.push("-XX:InitiatingHeapOccupancyPercent=15".to_string());
+            args.push("-XX:G1MixedGCLiveThresholdPercent=90".to_string());
+            args.push("-XX:G1RSetUpdatingPauseTimePercent=5".to_string());
+            args.push("-XX:SurvivorRatio=32".to_string());
+            args.push("-XX:+PerfDisableSharedMem".to_string());
+            args.push("-XX:MaxTenuringThreshold=1".to_string());
+        }
+        "zgc" => {
+            args.push("-XX:+UseZGC".to_string());
+            args.push("-XX:+UnlockExperimentalVMOptions".to_string());
+            args.push("-XX:+ZGenerational".to_string());
+            args.push("-XX:+AlwaysPreTouch".to_string());
+            args.push("-XX:+DisableExplicitGC".to_string());
+        }
+        "shenandoah" => {
+            args.push("-XX:+UseShenandoahGC".to_string());
+            args.push("-XX:+UnlockExperimentalVMOptions".to_string());
+            args.push("-XX:+AlwaysPreTouch".to_string());
+            args.push("-XX:+DisableExplicitGC".to_string());
+            args.push("-XX:ShenandoahGCHeuristics=adaptive".to_string());
+        }
+        _ => {
+            // "default" — no extra GC args
+        }
+    }
+
     // Ensure natives path is set if not already in jvm args
     if !args.iter().any(|a| a.contains("-Djava.library.path")) {
         args.push(format!("-Djava.library.path={}", natives_path));
+    }
+
+    // Add GPU acceleration parameters if not already set by user
+    // JavaFX Prism rendering pipeline settings for hardware acceleration
+    // Only set prism.order if user hasn't already specified it
+    if !args.iter().any(|a| a.contains("-Dprism.order=")) {
+        // Platform-specific rendering order:
+        // - Windows: d3d (Direct3D) > es2 (OpenGL ES 2) > sw (software)
+        // - Linux/macOS: es2 > sw (no Direct3D available)
+        if cfg!(target_os = "windows") {
+            args.push("-Dprism.order=d3d,es2,sw".to_string());
+        } else {
+            args.push("-Dprism.order=es2,sw".to_string());
+        }
     }
 
     // Ensure classpath is set if not already
@@ -711,6 +819,41 @@ async fn start_game(
         }
     }
 
+    // 7d. Auto-join server (from instance settings)
+    if let Some(server_addr) = &instance.server_address {
+        if !server_addr.is_empty() {
+            let parts: Vec<&str> = server_addr.splitn(2, ':').collect();
+            args.push("--server".to_string());
+            args.push(parts[0].to_string());
+            if parts.len() == 2 {
+                args.push("--port".to_string());
+                args.push(parts[1].to_string());
+            }
+            emit_log!(window, format!("Auto-joining server: {}", server_addr));
+        }
+    }
+
+    // 7e. Instance-level JVM args override
+    if let Some(jvm_override) = &instance.jvm_args_override {
+        if !jvm_override.trim().is_empty() {
+            for arg in jvm_override.split_whitespace() {
+                // Insert JVM args before the main class (find it and insert before)
+                // These are already at end of args after game args, but that's ok for overrides
+                args.push(arg.to_string());
+            }
+        }
+    }
+
+    // 7f. Instance-level memory override
+    if let Some(mem) = &instance.memory_override {
+        // Remove existing memory args and replace
+        args.retain(|a| !a.starts_with("-Xmx") && !a.starts_with("-Xms"));
+        // Re-insert before main class
+        let main_class_pos = args.iter().position(|a| a == &version_details.main_class).unwrap_or(args.len());
+        args.insert(main_class_pos, format!("-Xms{}M", mem.min));
+        args.insert(main_class_pos, format!("-Xmx{}M", mem.max));
+    }
+
     emit_log!(
         window,
         format!("Preparing to launch game with {} arguments...", args.len())
@@ -792,6 +935,37 @@ async fn start_game(
         );
     }
 
+    // On Linux, inject GPU environment variables for hybrid graphics support
+    // but do not override values that are already set in the environment.
+    #[cfg(target_os = "linux")]
+    {
+        let mut injected_any = false;
+
+        // NVIDIA Prime Render Offload - enables discrete NVIDIA GPU on hybrid systems
+        if std::env::var_os("__NV_PRIME_RENDER_OFFLOAD").is_none() {
+            command.env("__NV_PRIME_RENDER_OFFLOAD", "1");
+            injected_any = true;
+        }
+
+        if std::env::var_os("__GLX_VENDOR_LIBRARY_NAME").is_none() {
+            command.env("__GLX_VENDOR_LIBRARY_NAME", "nvidia");
+            injected_any = true;
+        }
+
+        // AMD DRI_PRIME - enables discrete AMD GPU on hybrid systems
+        if std::env::var_os("DRI_PRIME").is_none() {
+            command.env("DRI_PRIME", "1");
+            injected_any = true;
+        }
+
+        if injected_any {
+            emit_log!(
+                window,
+                "Injected default GPU environment variables for Linux (NVIDIA Prime & AMD DRI_PRIME, only where unset)".to_string()
+            );
+        }
+    }
+
     // Spawn and handle output
     let mut child = command
         .spawn()
@@ -807,6 +981,15 @@ async fn start_game(
         .stderr
         .take()
         .expect("child did not have a handle to stderr");
+
+    {
+        let mut running_game = game_process_state.running_game.lock().await;
+        *running_game = Some(RunningGameProcess {
+            child,
+            instance_id: instance_id.clone(),
+            version_id: version_id.clone(),
+        });
+    }
 
     // Emit launcher log that game is running
     emit_log!(
@@ -829,6 +1012,7 @@ async fn start_game(
     let window_rx_err = window.clone();
     let assistant_arc_err = assistant_state.assistant.clone();
     let window_exit = window.clone();
+    let app_handle_exit = app_handle.clone();
     tokio::spawn(async move {
         let mut reader = BufReader::new(stderr).lines();
         while let Ok(Some(line)) = reader.next_line().await {
@@ -840,17 +1024,64 @@ async fn start_game(
     });
 
     // Monitor game process exit
+    let launch_instance_id = instance_id.clone();
+    let launch_version_id = version_id.clone();
     tokio::spawn(async move {
-        match child.wait().await {
-            Ok(status) => {
-                let msg = format!("Game process exited with status: {}", status);
+        loop {
+            let exit_event = {
+                let state: State<'_, GameProcessState> = app_handle_exit.state();
+                let mut running_game = state.running_game.lock().await;
+
+                let Some(active_game) = running_game.as_mut() else {
+                    break;
+                };
+
+                if active_game.instance_id != launch_instance_id {
+                    break;
+                }
+
+                match active_game.child.try_wait() {
+                    Ok(Some(status)) => {
+                        let exit_code = status.code();
+                        *running_game = None;
+                        Some(GameExitedEvent {
+                            instance_id: launch_instance_id.clone(),
+                            version_id: launch_version_id.clone(),
+                            exit_code,
+                            was_stopped: false,
+                        })
+                    }
+                    Ok(None) => None,
+                    Err(error) => {
+                        let _ = window_exit.emit(
+                            "launcher-log",
+                            format!("Error waiting for game process: {}", error),
+                        );
+                        *running_game = None;
+                        Some(GameExitedEvent {
+                            instance_id: launch_instance_id.clone(),
+                            version_id: launch_version_id.clone(),
+                            exit_code: None,
+                            was_stopped: false,
+                        })
+                    }
+                }
+            };
+
+            if let Some(event) = exit_event {
+                let msg = format!(
+                    "Game process exited for instance {} with status {:?}",
+                    event.instance_id, event.exit_code
+                );
                 let _ = window_exit.emit("launcher-log", &msg);
-                let _ = window_exit.emit("game-exited", status.code().unwrap_or(-1));
+                let _ = window_exit.emit("game-exited", &event);
+
+                let state: State<core::instance::InstanceState> = window_exit.app_handle().state();
+                state.end_operation(&event.instance_id);
+                break;
             }
-            Err(e) => {
-                let msg = format!("Error waiting for game process: {}", e);
-                let _ = window_exit.emit("launcher-log", &msg);
-            }
+
+            sleep(Duration::from_millis(500)).await;
         }
     });
 
@@ -861,6 +1092,70 @@ async fn start_game(
     }
 
     Ok(format!("Launched Minecraft {} successfully!", version_id))
+    }
+    .await;
+
+    if launch_result.is_err() {
+        instance_state.end_operation(&instance_id);
+    }
+
+    launch_result
+}
+
+#[tauri::command]
+#[dropout_macros::api]
+async fn stop_game(
+    window: Window,
+    game_process_state: State<'_, GameProcessState>,
+    instance_state: State<'_, core::instance::InstanceState>,
+) -> Result<String, String> {
+    let mut running_game = {
+        let mut state = game_process_state.running_game.lock().await;
+        state.take().ok_or("No running game process found")?
+    };
+
+    emit_log!(
+        window,
+        format!(
+            "Stopping game process for instance {}...",
+            running_game.instance_id
+        )
+    );
+
+    let exit_code = match running_game.child.try_wait() {
+        Ok(Some(status)) => status.code(),
+        Ok(None) => {
+            running_game
+                .child
+                .start_kill()
+                .map_err(|e| format!("Failed to stop game process: {}", e))?;
+
+            running_game
+                .child
+                .wait()
+                .await
+                .map_err(|e| format!("Failed while waiting for the game to stop: {}", e))?
+                .code()
+        }
+        Err(error) => {
+            return Err(format!("Failed to inspect running game process: {}", error));
+        }
+    };
+
+    let event = GameExitedEvent {
+        instance_id: running_game.instance_id.clone(),
+        version_id: running_game.version_id.clone(),
+        exit_code,
+        was_stopped: true,
+    };
+
+    let _ = window.emit("game-exited", &event);
+    instance_state.end_operation(&running_game.instance_id);
+
+    Ok(format!(
+        "Stopped Minecraft {} for instance {}",
+        running_game.version_id, running_game.instance_id
+    ))
 }
 
 /// Parse JVM arguments from version.json
@@ -934,14 +1229,27 @@ fn parse_jvm_arguments(
 }
 
 #[tauri::command]
-async fn get_versions(
+#[dropout_macros::api]
+async fn get_versions() -> Result<Vec<core::manifest::Version>, String> {
+    core::manifest::fetch_version_manifest()
+        .await
+        .map(|m| m.versions)
+        .map_err(|e| e.to_string())
+}
+
+/// Get all available versions from Mojang's version manifest
+#[tauri::command]
+#[dropout_macros::api]
+async fn get_versions_of_instance(
     _window: Window,
+    config_state: State<'_, core::config::ConfigState>,
     instance_state: State<'_, core::instance::InstanceState>,
     instance_id: String,
 ) -> Result<Vec<core::manifest::Version>, String> {
-    let game_dir = instance_state
-        .get_instance_game_dir(&instance_id)
-        .ok_or_else(|| format!("Instance {} not found", instance_id))?;
+    let config = config_state.config.lock().unwrap().clone();
+    let app_handle = _window.app_handle();
+    let resolved_paths = instance_state.resolve_paths(&instance_id, &config, &app_handle)?;
+    let game_dir = resolved_paths.root.clone();
 
     match core::manifest::fetch_version_manifest().await {
         Ok(manifest) => {
@@ -950,9 +1258,12 @@ async fn get_versions(
             // For each version, try to load Java version info and check installation status
             for version in &mut versions {
                 // Check if version is installed
-                let version_dir = game_dir.join("versions").join(&version.id);
+                let version_dir = resolved_paths.metadata_versions.join(&version.id);
                 let json_path = version_dir.join(format!("{}.json", version.id));
-                let client_jar_path = version_dir.join(format!("{}.jar", version.id));
+                let client_jar_path = resolved_paths
+                    .version_cache
+                    .join(&version.id)
+                    .join(format!("{}.jar", version.id));
 
                 // Version is installed if both JSON and client jar exist
                 let is_installed = json_path.exists() && client_jar_path.exists();
@@ -978,37 +1289,21 @@ async fn get_versions(
 
 /// Check if a version is installed (has client.jar)
 #[tauri::command]
+#[dropout_macros::api]
 async fn check_version_installed(
     _window: Window,
+    config_state: State<'_, core::config::ConfigState>,
     instance_state: State<'_, core::instance::InstanceState>,
     instance_id: String,
     version_id: String,
 ) -> Result<bool, String> {
-    let game_dir = instance_state
-        .get_instance_game_dir(&instance_id)
-        .ok_or_else(|| format!("Instance {} not found", instance_id))?;
+    let config = config_state.config.lock().unwrap().clone();
+    let app_handle = _window.app_handle();
+    let resolved_paths = instance_state.resolve_paths(&instance_id, &config, &app_handle)?;
+    let minecraft_version = resolve_minecraft_version(&version_id);
 
-    // For modded versions, check the parent vanilla version
-    let minecraft_version = if version_id.starts_with("fabric-loader-") {
-        // Format: fabric-loader-X.X.X-1.20.4
-        version_id
-            .split('-')
-            .next_back()
-            .unwrap_or(&version_id)
-            .to_string()
-    } else if version_id.contains("-forge-") {
-        // Format: 1.20.4-forge-49.0.38
-        version_id
-            .split("-forge-")
-            .next()
-            .unwrap_or(&version_id)
-            .to_string()
-    } else {
-        version_id.clone()
-    };
-
-    let client_jar = game_dir
-        .join("versions")
+    let client_jar = resolved_paths
+        .version_cache
         .join(&minecraft_version)
         .join(format!("{}.jar", minecraft_version));
 
@@ -1017,6 +1312,7 @@ async fn check_version_installed(
 
 /// Install a version (download client, libraries, assets) without launching
 #[tauri::command]
+#[dropout_macros::api]
 async fn install_version(
     window: Window,
     config_state: State<'_, core::config::ConfigState>,
@@ -1033,313 +1329,302 @@ async fn install_version(
     );
 
     let config = config_state.config.lock().unwrap().clone();
+    let mirror = core::mirror::MirrorSource::from_str(&config.mirror_source);
+    let app_handle = window.app_handle();
+    instance_state.begin_operation(&instance_id, core::instance::InstanceOperation::Install)?;
 
-    // Get game directory from instance
-    let game_dir = instance_state
-        .get_instance_game_dir(&instance_id)
-        .ok_or_else(|| format!("Instance {} not found", instance_id))?;
+    let install_result: Result<(), String> = async {
+        let resolved_paths = instance_state.resolve_paths(&instance_id, &config, &app_handle)?;
+        let game_dir = resolved_paths.root.clone();
 
-    // Ensure game directory exists
-    tokio::fs::create_dir_all(&game_dir)
-        .await
-        .map_err(|e| e.to_string())?;
+        // Ensure game directory exists
+        tokio::fs::create_dir_all(&game_dir)
+            .await
+            .map_err(|e| e.to_string())?;
 
-    emit_log!(window, format!("Game directory: {:?}", game_dir));
+        emit_log!(window, format!("Game directory: {:?}", game_dir));
 
-    // Load version (supports both vanilla and modded versions with inheritance)
-    emit_log!(
-        window,
-        format!("Loading version details for {}...", version_id)
-    );
+        // Load version (supports both vanilla and modded versions with inheritance)
+        emit_log!(
+            window,
+            format!("Loading version details for {}...", version_id)
+        );
 
-    // First, try to fetch the vanilla version from Mojang and save it locally
-    let _version_details = match core::manifest::load_local_version(&game_dir, &version_id).await {
-        Ok(v) => v,
-        Err(_) => {
-            // Not found locally, fetch from Mojang
-            emit_log!(
-                window,
-                format!("Fetching version {} from Mojang...", version_id)
-            );
-            let fetched = core::manifest::fetch_vanilla_version(&version_id)
-                .await
-                .map_err(|e| e.to_string())?;
+        // First, try to fetch the vanilla version from Mojang and save it locally
+        let _version_details =
+            match core::manifest::load_local_version(&game_dir, &version_id).await {
+                Ok(v) => v,
+                Err(_) => {
+                    // Not found locally, fetch from Mojang
+                    emit_log!(
+                        window,
+                        format!("Fetching version {} from Mojang...", version_id)
+                    );
+                    let fetched = core::manifest::fetch_vanilla_version(&version_id)
+                        .await
+                        .map_err(|e| e.to_string())?;
 
-            // Save the version JSON locally
-            emit_log!(window, format!("Saving version JSON..."));
-            core::manifest::save_local_version(&game_dir, &fetched)
-                .await
-                .map_err(|e| e.to_string())?;
+                    // Save the version JSON locally
+                    emit_log!(window, format!("Saving version JSON..."));
+                    core::manifest::save_local_version(&game_dir, &fetched)
+                        .await
+                        .map_err(|e| e.to_string())?;
 
-            fetched
-        }
-    };
-
-    // Now load the full version with inheritance resolved
-    let version_details = core::manifest::load_version(&game_dir, &version_id)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    emit_log!(
-        window,
-        format!(
-            "Version details loaded: main class = {}",
-            version_details.main_class
-        )
-    );
-
-    // Determine the actual minecraft version for client.jar
-    let minecraft_version = version_details
-        .inherits_from
-        .clone()
-        .unwrap_or_else(|| version_id.clone());
-
-    // Prepare download tasks
-    emit_log!(window, "Preparing download tasks...".to_string());
-    let mut download_tasks = Vec::new();
-
-    // --- Client Jar ---
-    let downloads = version_details
-        .downloads
-        .as_ref()
-        .ok_or("Version has no downloads information")?;
-    let client_jar = &downloads.client;
-    // Use shared caches for versions if enabled
-    let mut client_path = if config.use_shared_caches {
-        window
-            .app_handle()
-            .path()
-            .app_data_dir()
-            .unwrap()
-            .join("versions")
-    } else {
-        game_dir.join("versions")
-    };
-    client_path.push(&minecraft_version);
-    client_path.push(format!("{}.jar", minecraft_version));
-
-    download_tasks.push(core::downloader::DownloadTask {
-        url: client_jar.url.clone(),
-        path: client_path.clone(),
-        sha1: client_jar.sha1.clone(),
-        sha256: None,
-    });
-
-    // --- Libraries ---
-    // Use shared caches for libraries if enabled
-    let libraries_dir = if config.use_shared_caches {
-        window
-            .app_handle()
-            .path()
-            .app_data_dir()
-            .unwrap()
-            .join("libraries")
-    } else {
-        game_dir.join("libraries")
-    };
-
-    for lib in &version_details.libraries {
-        if core::rules::is_library_allowed(&lib.rules, Some(&config.feature_flags)) {
-            if let Some(downloads) = &lib.downloads {
-                if let Some(artifact) = &downloads.artifact {
-                    let path_str = artifact
-                        .path
-                        .clone()
-                        .unwrap_or_else(|| format!("{}.jar", lib.name));
-
-                    let mut lib_path = libraries_dir.clone();
-                    lib_path.push(path_str);
-
-                    download_tasks.push(core::downloader::DownloadTask {
-                        url: artifact.url.clone(),
-                        path: lib_path,
-                        sha1: artifact.sha1.clone(),
-                        sha256: None,
-                    });
+                    fetched
                 }
+            };
 
-                // Native Library (classifiers)
-                if let Some(classifiers) = &downloads.classifiers {
-                    // Determine candidate keys based on OS and architecture
-                    let arch = std::env::consts::ARCH;
-                    let mut candidates: Vec<String> = Vec::new();
-                    if cfg!(target_os = "linux") {
-                        candidates.push("natives-linux".to_string());
-                        candidates.push(format!("natives-linux-{}", arch));
-                        if arch == "aarch64" {
-                            candidates.push("natives-linux-arm64".to_string());
-                        }
-                    } else if cfg!(target_os = "windows") {
-                        candidates.push("natives-windows".to_string());
-                        candidates.push(format!("natives-windows-{}", arch));
-                    } else if cfg!(target_os = "macos") {
-                        candidates.push("natives-osx".to_string());
-                        candidates.push("natives-macos".to_string());
-                        candidates.push(format!("natives-macos-{}", arch));
+        // Now load the full version with inheritance resolved
+        let version_details = core::manifest::load_version(&game_dir, &version_id)
+            .await
+            .map_err(|e| e.to_string())?;
+
+        emit_log!(
+            window,
+            format!(
+                "Version details loaded: main class = {}",
+                version_details.main_class
+            )
+        );
+
+        // Determine the actual minecraft version for client.jar
+        let minecraft_version = version_details
+            .inherits_from
+            .clone()
+            .unwrap_or_else(|| version_id.clone());
+
+        // Prepare download tasks
+        emit_log!(window, "Preparing download tasks...".to_string());
+        let mut download_tasks = Vec::new();
+
+        // --- Client Jar ---
+        let downloads = version_details
+            .downloads
+            .as_ref()
+            .ok_or("Version has no downloads information")?;
+        let client_jar = &downloads.client;
+        let mut client_path = resolved_paths.version_cache.clone();
+        client_path.push(&minecraft_version);
+        client_path.push(format!("{}.jar", minecraft_version));
+
+        download_tasks.push(core::downloader::DownloadTask {
+            url: core::mirror::remap_url(&client_jar.url, mirror),
+            path: client_path.clone(),
+            sha1: client_jar.sha1.clone(),
+            sha256: None,
+        });
+
+        // --- Libraries ---
+        let libraries_dir = resolved_paths.libraries.clone();
+
+        for lib in &version_details.libraries {
+            if core::rules::is_library_allowed(&lib.rules, Some(&config.feature_flags)) {
+                if let Some(downloads) = &lib.downloads {
+                    if let Some(artifact) = &downloads.artifact {
+                        let path_str = artifact
+                            .path
+                            .clone()
+                            .unwrap_or_else(|| format!("{}.jar", lib.name));
+
+                        let mut lib_path = libraries_dir.clone();
+                        lib_path.push(path_str);
+
+                        download_tasks.push(core::downloader::DownloadTask {
+                            url: core::mirror::remap_url(&artifact.url, mirror),
+                            path: lib_path,
+                            sha1: artifact.sha1.clone(),
+                            sha256: None,
+                        });
                     }
 
-                    // Pick the first available classifier key
-                    let mut chosen: Option<core::game_version::DownloadArtifact> = None;
-                    for key in candidates {
-                        if let Some(native_artifact_value) = classifiers.get(&key) {
-                            if let Ok(artifact) =
-                                serde_json::from_value::<core::game_version::DownloadArtifact>(
-                                    native_artifact_value.clone(),
-                                )
-                            {
-                                chosen = Some(artifact);
-                                break;
+                    // Native Library (classifiers)
+                    if let Some(classifiers) = &downloads.classifiers {
+                        // Determine candidate keys based on OS and architecture
+                        let arch = std::env::consts::ARCH;
+                        let mut candidates: Vec<String> = Vec::new();
+                        if cfg!(target_os = "linux") {
+                            candidates.push("natives-linux".to_string());
+                            candidates.push(format!("natives-linux-{}", arch));
+                            if arch == "aarch64" {
+                                candidates.push("natives-linux-arm64".to_string());
+                            }
+                        } else if cfg!(target_os = "windows") {
+                            candidates.push("natives-windows".to_string());
+                            candidates.push(format!("natives-windows-{}", arch));
+                        } else if cfg!(target_os = "macos") {
+                            candidates.push("natives-osx".to_string());
+                            candidates.push("natives-macos".to_string());
+                            candidates.push(format!("natives-macos-{}", arch));
+                        }
+
+                        // Pick the first available classifier key
+                        let mut chosen: Option<core::game_version::DownloadArtifact> = None;
+                        for key in candidates {
+                            if let Some(native_artifact_value) = classifiers.get(&key) {
+                                if let Ok(artifact) =
+                                    serde_json::from_value::<core::game_version::DownloadArtifact>(
+                                        native_artifact_value.clone(),
+                                    )
+                                {
+                                    chosen = Some(artifact);
+                                    break;
+                                }
                             }
                         }
-                    }
 
-                    if let Some(native_artifact) = chosen {
-                        let path_str = native_artifact.path.clone().unwrap();
-                        let mut native_path = libraries_dir.clone();
-                        native_path.push(&path_str);
+                        if let Some(native_artifact) = chosen {
+                            let path_str = native_artifact.path.clone().unwrap();
+                            let mut native_path = libraries_dir.clone();
+                            native_path.push(&path_str);
 
-                        download_tasks.push(core::downloader::DownloadTask {
-                            url: native_artifact.url,
-                            path: native_path.clone(),
-                            sha1: native_artifact.sha1,
-                            sha256: None,
-                        });
+                            download_tasks.push(core::downloader::DownloadTask {
+                                url: core::mirror::remap_url(&native_artifact.url, mirror),
+                                path: native_path.clone(),
+                                sha1: native_artifact.sha1,
+                                sha256: None,
+                            });
+                        }
                     }
-                }
-            } else {
-                // Library without explicit downloads (mod loader libraries)
-                if let Some(url) =
-                    core::maven::resolve_library_url(&lib.name, None, lib.url.as_deref())
-                {
-                    if let Some(lib_path) = core::maven::get_library_path(&lib.name, &libraries_dir)
-                    {
-                        download_tasks.push(core::downloader::DownloadTask {
-                            url,
-                            path: lib_path,
-                            sha1: None,
-                            sha256: None,
-                        });
+                } else {
+                    // Library without explicit downloads (mod loader libraries)
+                    if let Some(url) = core::maven::resolve_library_url_with_mirror(
+                        &lib.name,
+                        None,
+                        lib.url.as_deref(),
+                        mirror,
+                    ) {
+                        if let Some(lib_path) =
+                            core::maven::get_library_path(&lib.name, &libraries_dir)
+                        {
+                            download_tasks.push(core::downloader::DownloadTask {
+                                url,
+                                path: lib_path,
+                                sha1: None,
+                                sha256: None,
+                            });
+                        }
                     }
                 }
             }
         }
-    }
 
-    // --- Assets ---
-    // Use shared caches for assets if enabled
-    let assets_dir = if config.use_shared_caches {
-        window
-            .app_handle()
-            .path()
-            .app_data_dir()
-            .unwrap()
-            .join("assets")
-    } else {
-        game_dir.join("assets")
-    };
-    let objects_dir = assets_dir.join("objects");
-    let indexes_dir = assets_dir.join("indexes");
+        // --- Assets ---
+        let assets_dir = resolved_paths.assets.clone();
+        let objects_dir = assets_dir.join("objects");
+        let indexes_dir = assets_dir.join("indexes");
 
-    let asset_index = version_details
-        .asset_index
-        .as_ref()
-        .ok_or("Version has no asset index information")?;
+        let asset_index = version_details
+            .asset_index
+            .as_ref()
+            .ok_or("Version has no asset index information")?;
 
-    let asset_index_path = indexes_dir.join(format!("{}.json", asset_index.id));
+        let asset_index_path = indexes_dir.join(format!("{}.json", asset_index.id));
 
-    let asset_index_content: String = if asset_index_path.exists() {
-        tokio::fs::read_to_string(&asset_index_path)
-            .await
-            .map_err(|e| e.to_string())?
-    } else {
-        emit_log!(window, format!("Downloading asset index..."));
-        let content = reqwest::get(&asset_index.url)
-            .await
-            .map_err(|e| e.to_string())?
-            .text()
-            .await
-            .map_err(|e| e.to_string())?;
+        let asset_index_content: String = if asset_index_path.exists() {
+            tokio::fs::read_to_string(&asset_index_path)
+                .await
+                .map_err(|e| e.to_string())?
+        } else {
+            emit_log!(window, format!("Downloading asset index..."));
+            let asset_idx_url = core::mirror::remap_url(&asset_index.url, mirror);
+            let content = reqwest::get(&asset_idx_url)
+                .await
+                .map_err(|e| e.to_string())?
+                .text()
+                .await
+                .map_err(|e| e.to_string())?;
 
-        tokio::fs::create_dir_all(&indexes_dir)
-            .await
-            .map_err(|e| e.to_string())?;
-        tokio::fs::write(&asset_index_path, &content)
-            .await
-            .map_err(|e| e.to_string())?;
-        content
-    };
+            tokio::fs::create_dir_all(&indexes_dir)
+                .await
+                .map_err(|e| e.to_string())?;
+            tokio::fs::write(&asset_index_path, &content)
+                .await
+                .map_err(|e| e.to_string())?;
+            content
+        };
 
-    #[derive(serde::Deserialize)]
-    struct AssetObject {
-        hash: String,
-    }
+        #[derive(serde::Deserialize)]
+        struct AssetObject {
+            hash: String,
+        }
 
-    #[derive(serde::Deserialize)]
-    struct AssetIndexJson {
-        objects: std::collections::HashMap<String, AssetObject>,
-    }
+        #[derive(serde::Deserialize)]
+        struct AssetIndexJson {
+            objects: std::collections::HashMap<String, AssetObject>,
+        }
 
-    let asset_index_parsed: AssetIndexJson =
-        serde_json::from_str(&asset_index_content).map_err(|e| e.to_string())?;
+        let asset_index_parsed: AssetIndexJson =
+            serde_json::from_str(&asset_index_content).map_err(|e| e.to_string())?;
 
-    emit_log!(
-        window,
-        format!("Processing {} assets...", asset_index_parsed.objects.len())
-    );
-
-    for (_name, object) in asset_index_parsed.objects {
-        let hash = object.hash;
-        let prefix = &hash[0..2];
-        let path = objects_dir.join(prefix).join(&hash);
-        let url = format!(
-            "https://resources.download.minecraft.net/{}/{}",
-            prefix, hash
+        emit_log!(
+            window,
+            format!("Processing {} assets...", asset_index_parsed.objects.len())
         );
 
-        download_tasks.push(core::downloader::DownloadTask {
-            url,
-            path,
-            sha1: Some(hash),
-            sha256: None,
-        });
+        let install_assets_base = core::mirror::assets_url(mirror);
+        for (_name, object) in asset_index_parsed.objects {
+            let hash = object.hash;
+            let prefix = &hash[0..2];
+            let path = objects_dir.join(prefix).join(&hash);
+            let url = format!("{}/{}/{}", install_assets_base, prefix, hash);
+
+            download_tasks.push(core::downloader::DownloadTask {
+                url,
+                path,
+                sha1: Some(hash),
+                sha256: None,
+            });
+        }
+
+        emit_log!(
+            window,
+            format!(
+                "Total download tasks: {} (Client + Libraries + Assets)",
+                download_tasks.len()
+            )
+        );
+
+        // Start Download
+        emit_log!(
+            window,
+            format!(
+                "Starting downloads with {} concurrent threads...",
+                config.download_threads
+            )
+        );
+        core::downloader::download_files(
+            window.clone(),
+            download_tasks,
+            config.download_threads as usize,
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+
+        emit_log!(
+            window,
+            format!("Installation of {} completed successfully!", version_id)
+        );
+
+        if let Some(mut instance) = instance_state.get_instance(&instance_id) {
+            instance.version_id = Some(version_id.clone());
+            instance.mod_loader = Some("vanilla".to_string());
+            instance.mod_loader_version = None;
+            instance_state.update_instance(instance)?;
+        }
+
+        // Emit event to notify frontend that version installation is complete
+        let _ = window.emit("version-installed", &version_id);
+
+        Ok(())
     }
+    .await;
 
-    emit_log!(
-        window,
-        format!(
-            "Total download tasks: {} (Client + Libraries + Assets)",
-            download_tasks.len()
-        )
-    );
-
-    // Start Download
-    emit_log!(
-        window,
-        format!(
-            "Starting downloads with {} concurrent threads...",
-            config.download_threads
-        )
-    );
-    core::downloader::download_files(
-        window.clone(),
-        download_tasks,
-        config.download_threads as usize,
-    )
-    .await
-    .map_err(|e| e.to_string())?;
-
-    emit_log!(
-        window,
-        format!("Installation of {} completed successfully!", version_id)
-    );
-
-    // Emit event to notify frontend that version installation is complete
-    let _ = window.emit("version-installed", &version_id);
-
-    Ok(())
+    instance_state.end_operation(&instance_id);
+    install_result
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn login_offline(
     window: Window,
     state: State<'_, core::auth::AccountState>,
@@ -1363,6 +1648,7 @@ async fn login_offline(
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn get_active_account(
     state: State<'_, core::auth::AccountState>,
 ) -> Result<Option<core::auth::Account>, String> {
@@ -1370,6 +1656,7 @@ async fn get_active_account(
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn logout(window: Window, state: State<'_, core::auth::AccountState>) -> Result<(), String> {
     // Get current account UUID before clearing
     let uuid = state
@@ -1395,7 +1682,116 @@ async fn logout(window: Window, state: State<'_, core::auth::AccountState>) -> R
     Ok(())
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "account.ts")]
+pub struct AccountSummary {
+    pub uuid: String,
+    pub username: String,
+    pub account_type: String,
+    pub is_active: bool,
+}
+
 #[tauri::command]
+#[dropout_macros::api]
+async fn get_all_accounts(window: Window) -> Result<Vec<AccountSummary>, String> {
+    let app_dir = window
+        .app_handle()
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?;
+    let storage = core::account_storage::AccountStorage::new(app_dir);
+    let store = storage.load();
+    let active_id = store.active_account_id.as_deref();
+
+    Ok(store
+        .accounts
+        .iter()
+        .map(|a| {
+            let (uuid, username, account_type) = match a {
+                core::account_storage::StoredAccount::Offline(o) => {
+                    (o.uuid.clone(), o.username.clone(), "offline")
+                }
+                core::account_storage::StoredAccount::Microsoft(m) => {
+                    (m.uuid.clone(), m.username.clone(), "microsoft")
+                }
+            };
+            AccountSummary {
+                is_active: active_id == Some(uuid.as_str()),
+                uuid,
+                username,
+                account_type: account_type.to_string(),
+            }
+        })
+        .collect())
+}
+
+#[tauri::command]
+#[dropout_macros::api]
+async fn switch_account(
+    window: Window,
+    uuid: String,
+    auth_state: State<'_, core::auth::AccountState>,
+    ms_state: State<'_, MsRefreshTokenState>,
+) -> Result<core::auth::Account, String> {
+    let app_handle = window.app_handle();
+    let app_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?;
+    let storage = core::account_storage::AccountStorage::new(app_dir);
+
+    storage.set_active_account(&uuid)?;
+    let (stored, ms_refresh) = storage
+        .get_active_account()
+        .ok_or("Account not found after switching")?;
+
+    let account = stored.to_account();
+
+    // If Microsoft account, store the refresh token
+    if let Some(token) = ms_refresh {
+        *ms_state.token.lock().unwrap() = Some(token);
+    }
+
+    *auth_state.active_account.lock().unwrap() = Some(account.clone());
+    Ok(account)
+}
+
+#[tauri::command]
+#[dropout_macros::api]
+async fn remove_account(
+    window: Window,
+    uuid: String,
+    auth_state: State<'_, core::auth::AccountState>,
+) -> Result<(), String> {
+    let app_dir = window
+        .app_handle()
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?;
+    let storage = core::account_storage::AccountStorage::new(app_dir);
+
+    // If removing the active account, clear runtime state
+    let is_active = auth_state
+        .active_account
+        .lock()
+        .unwrap()
+        .as_ref()
+        .map_or(false, |a| a.uuid() == uuid);
+
+    storage.remove_account(&uuid)?;
+
+    if is_active {
+        // Try to load the new active account (storage auto-selects next)
+        let next = storage.get_active_account().map(|(s, _)| s.to_account());
+        *auth_state.active_account.lock().unwrap() = next;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+#[dropout_macros::api]
 async fn get_settings(
     state: State<'_, core::config::ConfigState>,
 ) -> Result<core::config::LauncherConfig, String> {
@@ -1403,6 +1799,7 @@ async fn get_settings(
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn save_settings(
     state: State<'_, core::config::ConfigState>,
     config: core::config::LauncherConfig,
@@ -1413,11 +1810,13 @@ async fn save_settings(
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn get_config_path(state: State<'_, core::config::ConfigState>) -> Result<String, String> {
     Ok(state.file_path.to_string_lossy().to_string())
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn read_raw_config(state: State<'_, core::config::ConfigState>) -> Result<String, String> {
     tokio::fs::read_to_string(&state.file_path)
         .await
@@ -1425,16 +1824,21 @@ async fn read_raw_config(state: State<'_, core::config::ConfigState>) -> Result<
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn save_raw_config(
     state: State<'_, core::config::ConfigState>,
     content: String,
 ) -> Result<(), String> {
     // Validate JSON
-    let new_config: core::config::LauncherConfig =
+    let mut new_config: core::config::LauncherConfig =
         serde_json::from_str(&content).map_err(|e| format!("Invalid JSON: {}", e))?;
+    new_config.sanitize();
+
+    let normalized_content = serde_json::to_string_pretty(&new_config)
+        .map_err(|e| format!("Failed to serialize config: {}", e))?;
 
     // Save to file
-    tokio::fs::write(&state.file_path, &content)
+    tokio::fs::write(&state.file_path, &normalized_content)
         .await
         .map_err(|e| e.to_string())?;
 
@@ -1445,11 +1849,13 @@ async fn save_raw_config(
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn start_microsoft_login() -> Result<core::auth::DeviceCodeResponse, String> {
     core::auth::start_device_flow().await
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn complete_microsoft_login(
     window: Window,
     state: State<'_, core::auth::AccountState>,
@@ -1520,6 +1926,7 @@ async fn complete_microsoft_login(
 
 /// Refresh token for current Microsoft account
 #[tauri::command]
+#[dropout_macros::api]
 async fn refresh_account(
     window: Window,
     state: State<'_, core::auth::AccountState>,
@@ -1555,22 +1962,34 @@ async fn refresh_account(
 
 /// Detect Java installations on the system
 #[tauri::command]
+#[dropout_macros::api]
+async fn detect_all_java_installations(
+    app_handle: tauri::AppHandle,
+) -> Result<Vec<core::java::JavaInstallation>, String> {
+    Ok(core::java::detect_all_java_installations(&app_handle).await)
+}
+
+/// Alias for detect_all_java_installations (for backward compatibility)
+#[tauri::command]
+#[dropout_macros::api]
 async fn detect_java(
     app_handle: tauri::AppHandle,
 ) -> Result<Vec<core::java::JavaInstallation>, String> {
-    Ok(core::java::detect_all_java_installations(&app_handle))
+    Ok(core::java::detect_all_java_installations(&app_handle).await)
 }
 
 /// Get recommended Java for a specific Minecraft version
 #[tauri::command]
+#[dropout_macros::api]
 async fn get_recommended_java(
     required_major_version: Option<u64>,
 ) -> Result<Option<core::java::JavaInstallation>, String> {
-    Ok(core::java::get_recommended_java(required_major_version))
+    Ok(core::java::get_recommended_java(required_major_version).await)
 }
 
 /// Get Adoptium Java download info
 #[tauri::command]
+#[dropout_macros::api]
 async fn fetch_adoptium_java(
     major_version: u32,
     image_type: String,
@@ -1579,11 +1998,14 @@ async fn fetch_adoptium_java(
         "jdk" => core::java::ImageType::Jdk,
         _ => core::java::ImageType::Jre,
     };
-    core::java::fetch_java_release(major_version, img_type).await
+    core::java::fetch_java_release(major_version, img_type)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Download and install Adoptium Java
 #[tauri::command]
+#[dropout_macros::api]
 async fn download_adoptium_java(
     app_handle: tauri::AppHandle,
     major_version: u32,
@@ -1595,33 +2017,45 @@ async fn download_adoptium_java(
         _ => core::java::ImageType::Jre,
     };
     let path = custom_path.map(std::path::PathBuf::from);
-    core::java::download_and_install_java(&app_handle, major_version, img_type, path).await
+    core::java::download_and_install_java(&app_handle, major_version, img_type, path)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Get available Adoptium Java versions
 #[tauri::command]
+#[dropout_macros::api]
 async fn fetch_available_java_versions() -> Result<Vec<u32>, String> {
-    core::java::fetch_available_versions().await
+    core::java::fetch_available_versions()
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Fetch Java catalog with platform availability (uses cache)
 #[tauri::command]
+#[dropout_macros::api]
 async fn fetch_java_catalog(
     app_handle: tauri::AppHandle,
 ) -> Result<core::java::JavaCatalog, String> {
-    core::java::fetch_java_catalog(&app_handle, false).await
+    core::java::fetch_java_catalog(&app_handle, false)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Refresh Java catalog (bypass cache)
 #[tauri::command]
+#[dropout_macros::api]
 async fn refresh_java_catalog(
     app_handle: tauri::AppHandle,
 ) -> Result<core::java::JavaCatalog, String> {
-    core::java::fetch_java_catalog(&app_handle, true).await
+    core::java::fetch_java_catalog(&app_handle, true)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Cancel current Java download
 #[tauri::command]
+#[dropout_macros::api]
 async fn cancel_java_download() -> Result<(), String> {
     core::java::cancel_current_download();
     Ok(())
@@ -1629,6 +2063,7 @@ async fn cancel_java_download() -> Result<(), String> {
 
 /// Get pending Java downloads
 #[tauri::command]
+#[dropout_macros::api]
 async fn get_pending_java_downloads(
     app_handle: tauri::AppHandle,
 ) -> Result<Vec<core::downloader::PendingJavaDownload>, String> {
@@ -1637,6 +2072,7 @@ async fn get_pending_java_downloads(
 
 /// Resume pending Java downloads
 #[tauri::command]
+#[dropout_macros::api]
 async fn resume_java_downloads(
     app_handle: tauri::AppHandle,
 ) -> Result<Vec<core::java::JavaInstallation>, String> {
@@ -1645,6 +2081,7 @@ async fn resume_java_downloads(
 
 /// Get Minecraft versions supported by Fabric
 #[tauri::command]
+#[dropout_macros::api]
 async fn get_fabric_game_versions() -> Result<Vec<core::fabric::FabricGameVersion>, String> {
     core::fabric::fetch_supported_game_versions()
         .await
@@ -1653,6 +2090,7 @@ async fn get_fabric_game_versions() -> Result<Vec<core::fabric::FabricGameVersio
 
 /// Get available Fabric loader versions
 #[tauri::command]
+#[dropout_macros::api]
 async fn get_fabric_loader_versions() -> Result<Vec<core::fabric::FabricLoaderVersion>, String> {
     core::fabric::fetch_loader_versions()
         .await
@@ -1661,6 +2099,7 @@ async fn get_fabric_loader_versions() -> Result<Vec<core::fabric::FabricLoaderVe
 
 /// Get Fabric loaders available for a specific Minecraft version
 #[tauri::command]
+#[dropout_macros::api]
 async fn get_fabric_loaders_for_version(
     game_version: String,
 ) -> Result<Vec<core::fabric::FabricLoaderEntry>, String> {
@@ -1671,6 +2110,7 @@ async fn get_fabric_loaders_for_version(
 
 /// Install Fabric loader for a specific Minecraft version
 #[tauri::command]
+#[dropout_macros::api]
 async fn install_fabric(
     window: Window,
     instance_state: State<'_, core::instance::InstanceState>,
@@ -1686,35 +2126,44 @@ async fn install_fabric(
         )
     );
 
-    let game_dir = instance_state
-        .get_instance_game_dir(&instance_id)
-        .ok_or_else(|| format!("Instance {} not found", instance_id))?;
+    instance_state.begin_operation(&instance_id, core::instance::InstanceOperation::Install)?;
 
-    let result = core::fabric::install_fabric(&game_dir, &game_version, &loader_version)
-        .await
-        .map_err(|e| e.to_string())?;
+    let install_result: Result<core::fabric::InstalledFabricVersion, String> = async {
+        let game_dir = instance_state
+            .get_instance_game_dir(&instance_id)
+            .ok_or_else(|| format!("Instance {} not found", instance_id))?;
 
-    emit_log!(
-        window,
-        format!("Fabric installed successfully: {}", result.id)
-    );
+        let result = core::fabric::install_fabric(&game_dir, &game_version, &loader_version)
+            .await
+            .map_err(|e| e.to_string())?;
 
-    // Update Instance's mod_loader metadata and version_id
-    if let Some(mut instance) = instance_state.get_instance(&instance_id) {
-        instance.mod_loader = Some("fabric".to_string());
-        instance.mod_loader_version = Some(loader_version.clone());
-        instance.version_id = Some(result.id.clone());
-        instance_state.update_instance(instance)?;
+        emit_log!(
+            window,
+            format!("Fabric installed successfully: {}", result.id)
+        );
+
+        // Update Instance's mod_loader metadata and version_id
+        if let Some(mut instance) = instance_state.get_instance(&instance_id) {
+            instance.mod_loader = Some("fabric".to_string());
+            instance.mod_loader_version = Some(loader_version.clone());
+            instance.version_id = Some(result.id.clone());
+            instance_state.update_instance(instance)?;
+        }
+
+        // Emit event to notify frontend
+        let _ = window.emit("fabric-installed", &result.id);
+
+        Ok(result)
     }
+    .await;
 
-    // Emit event to notify frontend
-    let _ = window.emit("fabric-installed", &result.id);
-
-    Ok(result)
+    instance_state.end_operation(&instance_id);
+    install_result
 }
 
 /// List installed Fabric versions
 #[tauri::command]
+#[dropout_macros::api]
 async fn list_installed_fabric_versions(
     _window: Window,
     instance_state: State<'_, core::instance::InstanceState>,
@@ -1731,6 +2180,7 @@ async fn list_installed_fabric_versions(
 
 /// Get Java version requirement for a specific version
 #[tauri::command]
+#[dropout_macros::api]
 async fn get_version_java_version(
     _window: Window,
     instance_state: State<'_, core::instance::InstanceState>,
@@ -1749,28 +2199,29 @@ async fn get_version_java_version(
 }
 
 /// Version metadata for display in the UI
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "core.ts")]
 struct VersionMetadata {
     id: String,
-    #[serde(rename = "javaVersion")]
     java_version: Option<u64>,
-    #[serde(rename = "isInstalled")]
     is_installed: bool,
 }
 
 /// Delete a version (remove version directory)
 #[tauri::command]
+#[dropout_macros::api]
 async fn delete_version(
     window: Window,
+    config_state: State<'_, core::config::ConfigState>,
     instance_state: State<'_, core::instance::InstanceState>,
     instance_id: String,
     version_id: String,
 ) -> Result<(), String> {
-    let game_dir = instance_state
-        .get_instance_game_dir(&instance_id)
-        .ok_or_else(|| format!("Instance {} not found", instance_id))?;
-
-    let version_dir = game_dir.join("versions").join(&version_id);
+    let config = config_state.config.lock().unwrap().clone();
+    let app_handle = window.app_handle();
+    let resolved_paths = instance_state.resolve_paths(&instance_id, &config, &app_handle)?;
+    let version_dir = resolved_paths.metadata_versions.join(&version_id);
 
     if !version_dir.exists() {
         return Err(format!("Version {} not found", version_id));
@@ -1814,15 +2265,18 @@ async fn delete_version(
 
 /// Get detailed metadata for a specific version
 #[tauri::command]
+#[dropout_macros::api]
 async fn get_version_metadata(
     _window: Window,
+    config_state: State<'_, core::config::ConfigState>,
     instance_state: State<'_, core::instance::InstanceState>,
     instance_id: String,
     version_id: String,
 ) -> Result<VersionMetadata, String> {
-    let game_dir = instance_state
-        .get_instance_game_dir(&instance_id)
-        .ok_or_else(|| format!("Instance {} not found", instance_id))?;
+    let config = config_state.config.lock().unwrap().clone();
+    let app_handle = _window.app_handle();
+    let resolved_paths = instance_state.resolve_paths(&instance_id, &config, &app_handle)?;
+    let game_dir = resolved_paths.root.clone();
 
     // Initialize metadata
     let mut metadata = VersionMetadata {
@@ -1843,35 +2297,15 @@ async fn get_version_metadata(
     }
 
     // Check if version is installed (both JSON and client jar must exist)
-    let version_dir = game_dir.join("versions").join(&version_id);
+    let version_dir = resolved_paths.metadata_versions.join(&version_id);
     let json_path = version_dir.join(format!("{}.json", version_id));
 
     // For modded versions, check the parent vanilla version's client jar
-    let client_jar_path = if version_id.starts_with("fabric-loader-") {
-        // Format: fabric-loader-X.X.X-1.20.4
-        let minecraft_version = version_id
-            .split('-')
-            .next_back()
-            .unwrap_or(&version_id)
-            .to_string();
-        game_dir
-            .join("versions")
-            .join(&minecraft_version)
-            .join(format!("{}.jar", minecraft_version))
-    } else if version_id.contains("-forge-") {
-        // Format: 1.20.4-forge-49.0.38
-        let minecraft_version = version_id
-            .split("-forge-")
-            .next()
-            .unwrap_or(&version_id)
-            .to_string();
-        game_dir
-            .join("versions")
-            .join(&minecraft_version)
-            .join(format!("{}.jar", minecraft_version))
-    } else {
-        version_dir.join(format!("{}.jar", version_id))
-    };
+    let minecraft_version = resolve_minecraft_version(&version_id);
+    let client_jar_path = resolved_paths
+        .version_cache
+        .join(&minecraft_version)
+        .join(format!("{}.jar", minecraft_version));
 
     metadata.is_installed = json_path.exists() && client_jar_path.exists();
 
@@ -1899,7 +2333,9 @@ async fn get_version_metadata(
 }
 
 /// Installed version info
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "core.ts")]
 struct InstalledVersion {
     id: String,
     #[serde(rename = "type")]
@@ -1909,6 +2345,7 @@ struct InstalledVersion {
 /// List all installed versions from the data directory
 /// Simply lists all folders in the versions directory without validation
 #[tauri::command]
+#[dropout_macros::api]
 async fn list_installed_versions(
     _window: Window,
     instance_state: State<'_, core::instance::InstanceState>,
@@ -1995,6 +2432,7 @@ async fn list_installed_versions(
 
 /// Check if Fabric is installed for a specific version
 #[tauri::command]
+#[dropout_macros::api]
 async fn is_fabric_installed(
     _window: Window,
     instance_state: State<'_, core::instance::InstanceState>,
@@ -2015,6 +2453,7 @@ async fn is_fabric_installed(
 
 /// Get Minecraft versions supported by Forge
 #[tauri::command]
+#[dropout_macros::api]
 async fn get_forge_game_versions() -> Result<Vec<String>, String> {
     core::forge::fetch_supported_game_versions()
         .await
@@ -2023,6 +2462,7 @@ async fn get_forge_game_versions() -> Result<Vec<String>, String> {
 
 /// Get available Forge versions for a specific Minecraft version
 #[tauri::command]
+#[dropout_macros::api]
 async fn get_forge_versions_for_game(
     game_version: String,
 ) -> Result<Vec<core::forge::ForgeVersion>, String> {
@@ -2033,6 +2473,7 @@ async fn get_forge_versions_for_game(
 
 /// Install Forge for a specific Minecraft version
 #[tauri::command]
+#[dropout_macros::api]
 async fn install_forge(
     window: Window,
     config_state: State<'_, core::config::ConfigState>,
@@ -2049,86 +2490,212 @@ async fn install_forge(
         )
     );
 
-    let game_dir = instance_state
-        .get_instance_game_dir(&instance_id)
-        .ok_or_else(|| format!("Instance {} not found", instance_id))?;
+    instance_state.begin_operation(&instance_id, core::instance::InstanceOperation::Install)?;
 
-    // Get Java path from config or detect
-    let config = config_state.config.lock().unwrap().clone();
-    let app_handle = window.app_handle();
-    let java_path_str = if !config.java_path.is_empty() && config.java_path != "java" {
-        config.java_path.clone()
-    } else {
-        // Try to find a suitable Java installation
-        let javas = core::java::detect_all_java_installations(app_handle);
-        if let Some(java) = javas.first() {
-            java.path.clone()
-        } else {
-            return Err(
-                "No Java installation found. Please configure Java in settings.".to_string(),
-            );
-        }
-    };
-    let java_path = utils::path::normalize_java_path(&java_path_str)?;
+    let install_result: Result<core::forge::InstalledForgeVersion, String> = async {
+        let game_dir = instance_state
+            .get_instance_game_dir(&instance_id)
+            .ok_or_else(|| format!("Instance {} not found", instance_id))?;
 
-    emit_log!(window, "Running Forge installer...".to_string());
+        // Get Java path from config or detect (needed for 1.13+ installer)
+        let config = config_state.config.lock().unwrap().clone();
+        let app_handle = window.app_handle();
+        let java_path = {
+            let java_path_str = if !config.java_path.is_empty() && config.java_path != "java" {
+                config.java_path.clone()
+            } else {
+                let javas = core::java::detect_all_java_installations(app_handle).await;
+                if let Some(java) = javas.first() {
+                    java.path.clone()
+                } else {
+                    String::new()
+                }
+            };
+            if java_path_str.is_empty() {
+                None
+            } else {
+                Some(utils::path::normalize_java_path(&java_path_str)?)
+            }
+        };
 
-    // Run the Forge installer to properly patch the client
-    core::forge::run_forge_installer(&game_dir, &game_version, &forge_version, &java_path)
-        .await
-        .map_err(|e| format!("Forge installer failed: {}", e))?;
-
-    emit_log!(
-        window,
-        "Forge installer completed, creating version profile...".to_string()
-    );
-
-    // Check if the version JSON already exists
-    let version_id = core::forge::generate_version_id(&game_version, &forge_version);
-    let json_path = game_dir
-        .join("versions")
-        .join(&version_id)
-        .join(format!("{}.json", version_id));
-
-    let result = if json_path.exists() {
-        // Version JSON was created by the installer, load it
         emit_log!(
             window,
-            "Using version profile created by Forge installer".to_string()
+            "Installing Forge (auto-detecting era)...".to_string()
         );
-        core::forge::InstalledForgeVersion {
-            id: version_id,
-            minecraft_version: game_version.clone(),
-            forge_version: forge_version.clone(),
-            path: json_path,
+
+        // Unified install: handles legacy/transitional/modern automatically
+        let result = core::forge::install_forge(
+            &game_dir,
+            &game_version,
+            &forge_version,
+            java_path.as_deref(),
+        )
+        .await
+        .map_err(|e| format!("Forge installation failed: {}", e))?;
+
+        emit_log!(
+            window,
+            format!("Forge installed successfully: {}", result.id)
+        );
+
+        // Update Instance's mod_loader metadata and version_id
+        if let Some(mut instance) = instance_state.get_instance(&instance_id) {
+            instance.mod_loader = Some("forge".to_string());
+            instance.mod_loader_version = Some(forge_version.clone());
+            instance.version_id = Some(result.id.clone());
+            instance_state.update_instance(instance)?;
         }
-    } else {
-        // Installer didn't create JSON, create it manually
-        core::forge::install_forge(&game_dir, &game_version, &forge_version)
-            .await
-            .map_err(|e| e.to_string())?
+
+        // Emit event to notify frontend
+        let _ = window.emit("forge-installed", &result.id);
+
+        Ok(result)
+    }
+    .await;
+
+    instance_state.end_operation(&instance_id);
+    install_result
+}
+
+/// Convert an instance's mod loader (e.g., Fabric -> Forge or Forge -> Fabric).
+///
+/// The instance must have a base Minecraft version. The old loader version JSON
+/// is preserved (not deleted) so the user can switch back.
+#[tauri::command]
+#[dropout_macros::api]
+async fn convert_mod_loader(
+    window: Window,
+    config_state: State<'_, core::config::ConfigState>,
+    instance_state: State<'_, core::instance::InstanceState>,
+    instance_id: String,
+    target_loader: String,  // "fabric", "forge", or "vanilla"
+    loader_version: String, // loader version string
+) -> Result<String, String> {
+    let instance = instance_state
+        .get_instance(&instance_id)
+        .ok_or_else(|| format!("Instance {} not found", instance_id))?;
+
+    // Determine the base Minecraft version
+    let game_version = {
+        let vid = instance.version_id.as_deref().unwrap_or_default();
+        // Extract base MC version from modded version IDs
+        if vid.starts_with("fabric-loader-") {
+            // "fabric-loader-0.15.6-1.20.4" -> "1.20.4"
+            vid.rsplit('-')
+                .take(3)
+                .collect::<Vec<_>>()
+                .into_iter()
+                .rev()
+                .collect::<Vec<_>>()
+                .join(".")
+                .split('.')
+                .filter(|s| s.parse::<u32>().is_ok())
+                .collect::<Vec<_>>()
+                .join(".")
+        } else if vid.contains("-forge-") {
+            // "1.20.1-forge-47.1.0" -> "1.20.1"
+            vid.split("-forge-").next().unwrap_or(vid).to_string()
+        } else {
+            vid.to_string()
+        }
     };
+
+    if game_version.is_empty() {
+        return Err("Instance has no Minecraft version set".into());
+    }
 
     emit_log!(
         window,
-        format!("Forge installed successfully: {}", result.id)
+        format!(
+            "Converting instance {} from {:?} to {} (MC {})",
+            instance.name,
+            instance.mod_loader.as_deref().unwrap_or("vanilla"),
+            target_loader,
+            game_version
+        )
     );
 
-    // Update Instance's mod_loader metadata and version_id
-    if let Some(mut instance) = instance_state.get_instance(&instance_id) {
-        instance.mod_loader = Some("forge".to_string());
-        instance.mod_loader_version = Some(forge_version.clone());
-        instance.version_id = Some(result.id.clone());
-        instance_state.update_instance(instance)?;
+    instance_state.begin_operation(&instance_id, core::instance::InstanceOperation::Install)?;
+
+    let result: Result<String, String> = async {
+        let game_dir = instance_state
+            .get_instance_game_dir(&instance_id)
+            .ok_or_else(|| format!("Instance {} not found", instance_id))?;
+
+        let new_version_id = match target_loader.as_str() {
+            "vanilla" => game_version.clone(),
+            "fabric" => {
+                let result =
+                    core::fabric::install_fabric(&game_dir, &game_version, &loader_version)
+                        .await
+                        .map_err(|e| format!("Fabric installation failed: {}", e))?;
+                result.id
+            }
+            "forge" => {
+                let config = config_state.config.lock().unwrap().clone();
+                let app_handle = window.app_handle();
+                let java_path = {
+                    let java_path_str =
+                        if !config.java_path.is_empty() && config.java_path != "java" {
+                            config.java_path.clone()
+                        } else {
+                            let javas = core::java::detect_all_java_installations(app_handle).await;
+                            javas.first().map(|j| j.path.clone()).unwrap_or_default()
+                        };
+                    if java_path_str.is_empty() {
+                        None
+                    } else {
+                        Some(utils::path::normalize_java_path(&java_path_str)?)
+                    }
+                };
+
+                let result = core::forge::install_forge(
+                    &game_dir,
+                    &game_version,
+                    &loader_version,
+                    java_path.as_deref(),
+                )
+                .await
+                .map_err(|e| format!("Forge installation failed: {}", e))?;
+                result.id
+            }
+            _ => {
+                return Err(format!("Unknown target loader: {}", target_loader));
+            }
+        };
+
+        // Update instance metadata
+        if let Some(mut inst) = instance_state.get_instance(&instance_id) {
+            inst.version_id = Some(new_version_id.clone());
+            inst.mod_loader = if target_loader == "vanilla" {
+                Some("vanilla".to_string())
+            } else {
+                Some(target_loader.clone())
+            };
+            inst.mod_loader_version = if target_loader == "vanilla" {
+                None
+            } else {
+                Some(loader_version.clone())
+            };
+            instance_state.update_instance(inst)?;
+        }
+
+        emit_log!(
+            window,
+            format!("Conversion complete: now using {}", new_version_id)
+        );
+
+        Ok(new_version_id)
     }
+    .await;
 
-    // Emit event to notify frontend
-    let _ = window.emit("forge-installed", &result.id);
-
-    Ok(result)
+    instance_state.end_operation(&instance_id);
+    result
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "core.ts")]
 struct GithubRelease {
     tag_name: String,
     name: String,
@@ -2138,10 +2705,22 @@ struct GithubRelease {
 }
 
 #[tauri::command]
-async fn get_github_releases() -> Result<Vec<GithubRelease>, String> {
+#[dropout_macros::api]
+async fn get_github_releases(
+    config_state: State<'_, core::config::ConfigState>,
+) -> Result<Vec<GithubRelease>, String> {
+    let proxy = config_state.config.lock().unwrap().github_proxy.clone();
+
+    let base_url = "https://api.github.com/repos/HydroRoll-Team/DropOut/releases";
+    let url = if proxy.is_empty() {
+        base_url.to_string()
+    } else {
+        format!("{}/{}", proxy.trim_end_matches('/'), base_url)
+    };
+
     let client = reqwest::Client::new();
     let res = client
-        .get("https://api.github.com/repos/HydroRoll-Team/DropOut/releases")
+        .get(&url)
         .header("User-Agent", "DropOut-Launcher")
         .send()
         .await
@@ -2174,12 +2753,14 @@ async fn get_github_releases() -> Result<Vec<GithubRelease>, String> {
     Ok(result)
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, TS)]
+#[ts(export, export_to = "core.ts")]
 struct PastebinResponse {
     url: String,
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn upload_to_pastebin(
     state: State<'_, core::config::ConfigState>,
     content: String,
@@ -2249,6 +2830,7 @@ async fn upload_to_pastebin(
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn assistant_check_health(
     assistant_state: State<'_, core::assistant::AssistantState>,
     config_state: State<'_, core::config::ConfigState>,
@@ -2259,6 +2841,7 @@ async fn assistant_check_health(
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn assistant_chat(
     assistant_state: State<'_, core::assistant::AssistantState>,
     config_state: State<'_, core::config::ConfigState>,
@@ -2270,6 +2853,7 @@ async fn assistant_chat(
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn list_ollama_models(
     assistant_state: State<'_, core::assistant::AssistantState>,
     endpoint: String,
@@ -2279,6 +2863,7 @@ async fn list_ollama_models(
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn list_openai_models(
     assistant_state: State<'_, core::assistant::AssistantState>,
     config_state: State<'_, core::config::ConfigState>,
@@ -2292,6 +2877,7 @@ async fn list_openai_models(
 
 /// Create a new instance
 #[tauri::command]
+#[dropout_macros::api]
 async fn create_instance(
     window: Window,
     state: State<'_, core::instance::InstanceState>,
@@ -2303,6 +2889,7 @@ async fn create_instance(
 
 /// Delete an instance
 #[tauri::command]
+#[dropout_macros::api]
 async fn delete_instance(
     state: State<'_, core::instance::InstanceState>,
     instance_id: String,
@@ -2312,6 +2899,7 @@ async fn delete_instance(
 
 /// Update an instance
 #[tauri::command]
+#[dropout_macros::api]
 async fn update_instance(
     state: State<'_, core::instance::InstanceState>,
     instance: core::instance::Instance,
@@ -2321,6 +2909,7 @@ async fn update_instance(
 
 /// Get all instances
 #[tauri::command]
+#[dropout_macros::api]
 async fn list_instances(
     state: State<'_, core::instance::InstanceState>,
 ) -> Result<Vec<core::instance::Instance>, String> {
@@ -2329,6 +2918,7 @@ async fn list_instances(
 
 /// Get a single instance by ID
 #[tauri::command]
+#[dropout_macros::api]
 async fn get_instance(
     state: State<'_, core::instance::InstanceState>,
     instance_id: String,
@@ -2340,6 +2930,7 @@ async fn get_instance(
 
 /// Set the active instance
 #[tauri::command]
+#[dropout_macros::api]
 async fn set_active_instance(
     state: State<'_, core::instance::InstanceState>,
     instance_id: String,
@@ -2349,6 +2940,7 @@ async fn set_active_instance(
 
 /// Get the active instance
 #[tauri::command]
+#[dropout_macros::api]
 async fn get_active_instance(
     state: State<'_, core::instance::InstanceState>,
 ) -> Result<Option<core::instance::Instance>, String> {
@@ -2357,6 +2949,7 @@ async fn get_active_instance(
 
 /// Duplicate an instance
 #[tauri::command]
+#[dropout_macros::api]
 async fn duplicate_instance(
     window: Window,
     state: State<'_, core::instance::InstanceState>,
@@ -2367,7 +2960,45 @@ async fn duplicate_instance(
     state.duplicate_instance(&instance_id, new_name, app_handle)
 }
 
+/// Export an instance to a zip archive
 #[tauri::command]
+#[dropout_macros::api]
+async fn export_instance(
+    state: State<'_, core::instance::InstanceState>,
+    instance_id: String,
+    archive_path: String,
+) -> Result<String, String> {
+    state
+        .export_instance(&instance_id, std::path::Path::new(&archive_path))
+        .map(|path| path.to_string_lossy().to_string())
+}
+
+/// Import an instance from a zip archive
+#[tauri::command]
+#[dropout_macros::api]
+async fn import_instance(
+    window: Window,
+    state: State<'_, core::instance::InstanceState>,
+    archive_path: String,
+    new_name: Option<String>,
+) -> Result<core::instance::Instance, String> {
+    let app_handle = window.app_handle();
+    state.import_instance(std::path::Path::new(&archive_path), app_handle, new_name)
+}
+
+/// Repair instance index from on-disk directories
+#[tauri::command]
+#[dropout_macros::api]
+async fn repair_instances(
+    window: Window,
+    state: State<'_, core::instance::InstanceState>,
+) -> Result<core::instance::InstanceRepairResult, String> {
+    let app_handle = window.app_handle();
+    state.repair_instances(app_handle)
+}
+
+#[tauri::command]
+#[dropout_macros::api]
 async fn assistant_chat_stream(
     window: tauri::Window,
     assistant_state: State<'_, core::assistant::AssistantState>,
@@ -2382,7 +3013,9 @@ async fn assistant_chat_stream(
 }
 
 /// Migrate instance caches to shared global caches
-#[derive(Serialize)]
+#[derive(Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "core.ts")]
 struct MigrationResult {
     moved_files: usize,
     hardlinks: usize,
@@ -2392,6 +3025,7 @@ struct MigrationResult {
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn migrate_shared_caches(
     window: Window,
     instance_state: State<'_, core::instance::InstanceState>,
@@ -2414,11 +3048,11 @@ async fn migrate_shared_caches(
     );
 
     // Automatically enable shared caches config
-    let mut config = config_state.config.lock().unwrap().clone();
-    config.use_shared_caches = true;
-    drop(config);
-    *config_state.config.lock().unwrap() = config_state.config.lock().unwrap().clone();
-    config_state.config.lock().unwrap().use_shared_caches = true;
+    {
+        let mut config = config_state.config.lock().unwrap();
+        config.use_shared_caches = true;
+        config.keep_legacy_per_instance_storage = false;
+    }
     config_state.save()?;
 
     Ok(MigrationResult {
@@ -2431,7 +3065,9 @@ async fn migrate_shared_caches(
 }
 
 /// File information for instance file browser
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "core.ts")]
 struct FileInfo {
     name: String,
     path: String,
@@ -2442,16 +3078,17 @@ struct FileInfo {
 
 /// List files in an instance subdirectory (mods, resourcepacks, shaderpacks, saves, screenshots)
 #[tauri::command]
+#[dropout_macros::api]
 async fn list_instance_directory(
+    app: Window,
+    config_state: State<'_, core::config::ConfigState>,
     instance_state: State<'_, core::instance::InstanceState>,
     instance_id: String,
     folder: String, // "mods" | "resourcepacks" | "shaderpacks" | "saves" | "screenshots"
 ) -> Result<Vec<FileInfo>, String> {
-    let game_dir = instance_state
-        .get_instance_game_dir(&instance_id)
-        .ok_or_else(|| format!("Instance {} not found", instance_id))?;
-
-    let target_dir = game_dir.join(&folder);
+    let config = config_state.config.lock().unwrap().clone();
+    let target_dir =
+        instance_state.resolve_directory(&instance_id, &folder, &config, app.app_handle())?;
     if !target_dir.exists() {
         tokio::fs::create_dir_all(&target_dir)
             .await
@@ -2493,6 +3130,7 @@ async fn list_instance_directory(
 
 /// Delete a file in an instance directory
 #[tauri::command]
+#[dropout_macros::api]
 async fn delete_instance_file(path: String) -> Result<(), String> {
     let path_buf = std::path::PathBuf::from(&path);
     if path_buf.is_dir() {
@@ -2509,6 +3147,7 @@ async fn delete_instance_file(path: String) -> Result<(), String> {
 
 /// Open instance directory in system file explorer
 #[tauri::command]
+#[dropout_macros::api]
 async fn open_file_explorer(path: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
@@ -2534,16 +3173,278 @@ async fn open_file_explorer(path: String) -> Result<(), String> {
     Ok(())
 }
 
+// --- Mods Management ---
+
+#[tauri::command]
+#[dropout_macros::api]
+async fn scan_instance_mods(
+    instance_id: String,
+    instance_state: State<'_, core::instance::InstanceState>,
+) -> Result<Vec<core::mods::ModInfo>, String> {
+    let game_dir = instance_state
+        .get_instance(&instance_id)
+        .ok_or("Instance not found")?
+        .game_dir;
+    core::mods::scan_mods(&game_dir)
+}
+
+#[tauri::command]
+#[dropout_macros::api]
+async fn toggle_mod(
+    instance_id: String,
+    file_name: String,
+    instance_state: State<'_, core::instance::InstanceState>,
+) -> Result<core::mods::ModInfo, String> {
+    let game_dir = instance_state
+        .get_instance(&instance_id)
+        .ok_or("Instance not found")?
+        .game_dir;
+    core::mods::toggle_mod(&game_dir, &file_name)
+}
+
+#[tauri::command]
+#[dropout_macros::api]
+async fn delete_mod(
+    instance_id: String,
+    file_name: String,
+    instance_state: State<'_, core::instance::InstanceState>,
+) -> Result<(), String> {
+    let game_dir = instance_state
+        .get_instance(&instance_id)
+        .ok_or("Instance not found")?
+        .game_dir;
+    core::mods::delete_mod(&game_dir, &file_name)
+}
+
+// --- Launcher Migration ---
+
+#[tauri::command]
+#[dropout_macros::api]
+async fn detect_launchers() -> Result<Vec<core::migration::DetectedLauncher>, String> {
+    Ok(core::migration::detect_launchers())
+}
+
+#[tauri::command]
+#[dropout_macros::api]
+async fn scan_launcher_instances(
+    instances_dir: String,
+) -> Result<Vec<core::migration::ImportableInstance>, String> {
+    core::migration::scan_instances(std::path::Path::new(&instances_dir))
+}
+
+#[tauri::command]
+#[dropout_macros::api]
+async fn import_from_launcher(
+    window: Window,
+    source_path: String,
+    new_name: Option<String>,
+    instance_state: State<'_, core::instance::InstanceState>,
+) -> Result<core::instance::Instance, String> {
+    let app_handle = window.app_handle();
+    let source = std::path::Path::new(&source_path);
+
+    // Parse source instance info
+    let cfg = std::fs::read_to_string(source.join("instance.cfg")).unwrap_or_default();
+    let default_name = source
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "Imported".to_string());
+
+    let name = new_name.unwrap_or_else(|| {
+        cfg.lines()
+            .find_map(|l| l.strip_prefix("name=").map(|v| v.trim().to_string()))
+            .unwrap_or(default_name)
+    });
+
+    // Create new instance
+    let instance = instance_state.create_instance(name, app_handle)?;
+
+    // Copy game files
+    core::migration::copy_instance_files(source, &instance.game_dir)?;
+
+    // Parse and set mod loader info from mmc-pack.json
+    if let Ok(content) = std::fs::read_to_string(source.join("mmc-pack.json")) {
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+            let mut mc_version = None;
+            let mut mod_loader = None;
+            let mut mod_loader_version = None;
+
+            for comp in json["components"].as_array().into_iter().flatten() {
+                let ver = comp["version"].as_str().map(String::from);
+                match comp["uid"].as_str().unwrap_or("") {
+                    "net.minecraft" => mc_version = ver,
+                    "net.minecraftforge" => {
+                        mod_loader = Some("forge".into());
+                        mod_loader_version = ver;
+                    }
+                    "net.fabricmc.fabric-loader" => {
+                        mod_loader = Some("fabric".into());
+                        mod_loader_version = ver;
+                    }
+                    _ => {}
+                }
+            }
+
+            let mut updated = instance.clone();
+            updated.version_id = mc_version;
+            updated.mod_loader = mod_loader;
+            updated.mod_loader_version = mod_loader_version;
+            instance_state.update_instance(updated)?;
+        }
+    }
+
+    instance_state
+        .get_instance(&instance.id)
+        .ok_or("Failed to get imported instance".to_string())
+}
+
+// --- Custom Game Directory ---
+
+#[tauri::command]
+#[dropout_macros::api]
+async fn change_instance_directory(
+    instance_id: String,
+    new_dir: String,
+    migrate_files: bool,
+    instance_state: State<'_, core::instance::InstanceState>,
+) -> Result<core::instance::Instance, String> {
+    let instance = instance_state
+        .get_instance(&instance_id)
+        .ok_or("Instance not found")?;
+
+    let new_path = std::path::PathBuf::from(&new_dir);
+    if !new_path.exists() {
+        std::fs::create_dir_all(&new_path).map_err(|e| e.to_string())?;
+    }
+
+    if migrate_files && instance.game_dir.exists() {
+        core::migration::copy_dir_recursive(&instance.game_dir, &new_path)?;
+        // Remove old directory after successful copy
+        let _ = std::fs::remove_dir_all(&instance.game_dir);
+    }
+
+    let mut updated = instance;
+    updated.game_dir = new_path;
+    instance_state.update_instance(updated)?;
+
+    instance_state
+        .get_instance(&instance_id)
+        .ok_or("Instance not found after directory change".to_string())
+}
+
+// ── Content Browser Commands ──
+
+#[tauri::command]
+#[dropout_macros::api]
+async fn search_content(
+    query: String,
+    project_type: String,
+    game_versions: Vec<String>,
+    loaders: Vec<String>,
+    sort_by: String,
+    offset: u32,
+    limit: u32,
+) -> Result<core::content_search::ContentSearchResult, String> {
+    core::content_search::search_modrinth(
+        &query,
+        &project_type,
+        &game_versions,
+        &loaders,
+        &sort_by,
+        offset,
+        limit,
+    )
+    .await
+}
+
+#[tauri::command]
+#[dropout_macros::api]
+async fn get_content_versions(
+    project_id: String,
+    game_versions: Vec<String>,
+    loaders: Vec<String>,
+) -> Result<Vec<core::content_search::ContentVersion>, String> {
+    core::content_search::get_modrinth_versions(&project_id, &game_versions, &loaders).await
+}
+
+#[tauri::command]
+#[dropout_macros::api]
+async fn download_content_file(
+    instance_id: String,
+    url: String,
+    file_name: String,
+    subfolder: String,
+    instance_state: State<'_, core::instance::InstanceState>,
+) -> Result<String, String> {
+    let instance = instance_state
+        .get_instance(&instance_id)
+        .ok_or("Instance not found")?;
+    core::content_search::download_content_to_instance(
+        &instance.game_dir.to_string_lossy(),
+        &url,
+        &file_name,
+        &subfolder,
+    )
+    .await
+}
+
+fn setup_system_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    use tauri::menu::{MenuBuilder, MenuItemBuilder};
+    use tauri::tray::TrayIconBuilder;
+
+    let show_item = MenuItemBuilder::with_id("show", "Show Window").build(app)?;
+    let quit_item = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
+    let menu = MenuBuilder::new(app)
+        .items(&[&show_item, &quit_item])
+        .build()?;
+
+    TrayIconBuilder::new()
+        .tooltip("DropOut Minecraft Launcher")
+        .menu(&menu)
+        .on_menu_event(|app: &tauri::AppHandle, event| match event.id().as_ref() {
+            "show" => {
+                if let Some(win) = app.get_webview_window("main") {
+                    let _ = win.show();
+                    let _ = win.set_focus();
+                }
+            }
+            "quit" => {
+                app.exit(0);
+            }
+            _ => {}
+        })
+        .on_tray_icon_event(|tray: &tauri::tray::TrayIcon, event| {
+            if let tauri::tray::TrayIconEvent::DoubleClick { .. } = event {
+                if let Some(win) = tray.app_handle().get_webview_window("main") {
+                    let _ = win.show();
+                    let _ = win.set_focus();
+                }
+            }
+        })
+        .build(app)?;
+
+    Ok(())
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(core::auth::AccountState::new())
         .manage(MsRefreshTokenState::new())
+        .manage(GameProcessState::new())
         .manage(core::assistant::AssistantState::new())
         .setup(|app| {
             let config_state = core::config::ConfigState::new(app.handle());
+
+            // Set up system tray if enabled
+            let tray_enabled = config_state.config.lock().unwrap().enable_system_tray;
+            if tray_enabled {
+                setup_system_tray(app)?;
+            }
+
             app.manage(config_state);
 
             // Initialize instance state
@@ -2581,11 +3482,28 @@ fn main() {
                 let _ = app.emit("pending-java-downloads", pending.len());
             }
 
+            // Store tray_enabled flag so window event handler can reference it
+            app.manage(TrayEnabledState(tray_enabled));
+
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                let tray_state = window.app_handle().try_state::<TrayEnabledState>();
+                if let Some(state) = tray_state {
+                    if state.0 {
+                        // Hide window instead of closing when tray is enabled
+                        api.prevent_close();
+                        let _ = window.hide();
+                    }
+                }
+            }
         })
         .invoke_handler(tauri::generate_handler![
             start_game,
+            stop_game,
             get_versions,
+            get_versions_of_instance,
             check_version_installed,
             install_version,
             list_installed_versions,
@@ -2595,6 +3513,9 @@ fn main() {
             login_offline,
             get_active_account,
             logout,
+            get_all_accounts,
+            switch_account,
+            remove_account,
             get_settings,
             save_settings,
             get_config_path,
@@ -2625,6 +3546,7 @@ fn main() {
             get_forge_game_versions,
             get_forge_versions_for_game,
             install_forge,
+            convert_mod_loader,
             get_github_releases,
             upload_to_pastebin,
             assistant_check_health,
@@ -2641,10 +3563,27 @@ fn main() {
             set_active_instance,
             get_active_instance,
             duplicate_instance,
+            export_instance,
+            import_instance,
+            repair_instances,
             migrate_shared_caches,
             list_instance_directory,
             delete_instance_file,
-            open_file_explorer
+            open_file_explorer,
+            // Mods management
+            scan_instance_mods,
+            toggle_mod,
+            delete_mod,
+            // Migration
+            detect_launchers,
+            scan_launcher_instances,
+            import_from_launcher,
+            // Custom directory
+            change_instance_directory,
+            // Content browser
+            search_content,
+            get_content_versions,
+            download_content_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

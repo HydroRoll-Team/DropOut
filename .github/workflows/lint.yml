@@ -29,16 +29,13 @@ jobs:
           cache: "pnpm"
           cache-dependency-path: "pnpm-lock.yaml"
 
-      - run: pnpm install
+      - run: pnpm -C packages/ui --lockfile-dir "${{ github.workspace }}" install --frozen-lockfile
 
-      - run: pnpm format
-        working-directory: packages/ui
-
-      - run: pnpm lint:fix
+      - run: pnpm lint --fix
         working-directory: packages/ui
 
       - name: Commit changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "style: auto format and lint fix [skip ci]"
-          file_pattern: "ui/**"
+          file_pattern: "packages/ui/**"

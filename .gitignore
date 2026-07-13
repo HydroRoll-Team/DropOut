@@ -28,3 +28,18 @@ __pycache__/
 
 # Tauri artifacts
 artifacts/
+
+# Local secrets (do not commit)
+.env
+.env.local
+
+# AUR Release
+release/
+
+# claude code
+.claude/
+
+# Vscode
+.vscode/
+
+.pnpm-store/

@@ -1,0 +1,239 @@
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { open } from "@tauri-apps/plugin-shell";
+import { Mutex } from "es-toolkit";
+import { toString as stringify } from "es-toolkit/compat";
+import { toast } from "sonner";
+import { create } from "zustand";
+import {
+  completeMicrosoftLogin,
+  getActiveAccount,
+  getAllAccounts,
+  loginOffline,
+  logout,
+  removeAccount as removeAccountApi,
+  startMicrosoftLogin,
+  switchAccount as switchAccountApi,
+} from "@/client";
+import type { Account, AccountSummary, DeviceCodeResponse } from "@/types";
+
+function getAuthErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+export interface AuthState {
+  account: Account | null;
+  accounts: AccountSummary[];
+  loginMode: Account["type"] | null;
+  deviceCode: DeviceCodeResponse | null;
+  _pollingInterval: number | null;
+  _mutex: Mutex;
+  statusMessage: string | null;
+  _progressUnlisten: UnlistenFn | null;
+
+  init: () => Promise<void>;
+  setLoginMode: (mode: Account["type"] | null) => void;
+  loginOnline: (onSuccess?: () => void | Promise<void>) => Promise<void>;
+  _pollLoginStatus: (
+    deviceCode: string,
+    onSuccess?: () => void | Promise<void>,
+  ) => Promise<void>;
+  cancelLoginOnline: () => Promise<void>;
+  loginOffline: (username: string) => Promise<void>;
+  logout: () => Promise<void>;
+  refreshAccounts: () => Promise<void>;
+  switchAccount: (uuid: string) => Promise<void>;
+  removeAccount: (uuid: string) => Promise<void>;
+}
+
+export const useAuthStore = create<AuthState>((set, get) => ({
+  account: null,
+  accounts: [],
+  loginMode: null,
+  deviceCode: null,
+  _pollingInterval: null,
+  statusMessage: null,
+  _progressUnlisten: null,
+  _mutex: new Mutex(),
+
+  init: async () => {
+    try {
+      const [account, accounts] = await Promise.all([
+        getActiveAccount(),
+        getAllAccounts(),
+      ]);
+      set({ account, accounts });
+    } catch (error) {
+      console.error("Failed to initialize auth store:", error);
+    }
+  },
+  setLoginMode: (mode) => set({ loginMode: mode }),
+  loginOnline: async (onSuccess) => {
+    const { _pollLoginStatus } = get();
+
+    set({ statusMessage: "Waiting for authorization..." });
+
+    try {
+      const unlisten = await listen("auth-progress", (event) => {
+        const message = event.payload;
+        console.log(message);
+        set({ statusMessage: stringify(message), _progressUnlisten: unlisten });
+      });
+    } catch (error) {
+      console.warn("Failed to attch auth-progress listener:", error);
+      toast.warning("Failed to attch auth-progress listener");
+    }
+
+    try {
+      const deviceCode = await startMicrosoftLogin();
+
+      navigator.clipboard?.writeText(deviceCode.userCode).catch((err) => {
+        console.error("Failed to copy to clipboard:", err);
+      });
+      open(deviceCode.verificationUri).catch((err) => {
+        console.error("Failed to open browser:", err);
+      });
+
+      const ms = Math.max(1, Number(deviceCode.interval) || 5) * 1000;
+      const interval = setInterval(() => {
+        _pollLoginStatus(deviceCode.deviceCode, onSuccess);
+      }, ms);
+
+      set({
+        _pollingInterval: interval,
+        deviceCode,
+        statusMessage: deviceCode.message ?? "Waiting for authorization...",
+      });
+    } catch (error) {
+      const message = getAuthErrorMessage(error);
+      console.error("Failed to start Microsoft login:", error);
+      set({
+        loginMode: null,
+        statusMessage: `Failed to start login: ${message}`,
+      });
+      toast.error(`Failed to start Microsoft login: ${message}`);
+    }
+  },
+  _pollLoginStatus: async (deviceCode, onSuccess) => {
+    const { _pollingInterval, _mutex: mutex, _progressUnlisten } = get();
+    if (mutex.isLocked) return;
+
+    await mutex.acquire();
+
+    try {
+      const account = await completeMicrosoftLogin(deviceCode);
+      clearInterval(_pollingInterval ?? undefined);
+      _progressUnlisten?.();
+      onSuccess?.();
+      set({
+        account,
+        loginMode: "microsoft",
+        deviceCode: null,
+        _pollingInterval: null,
+        _progressUnlisten: null,
+        statusMessage: "Login successful",
+      });
+      get().refreshAccounts();
+    } catch (error: unknown) {
+      const message = getAuthErrorMessage(error);
+
+      if (message.includes("authorization_pending")) {
+        set({ statusMessage: "Waiting for authorization..." });
+        return;
+      }
+
+      if (message.includes("slow_down")) {
+        set({ statusMessage: "Microsoft asked to slow down polling..." });
+        return;
+      }
+
+      clearInterval(_pollingInterval ?? undefined);
+      _progressUnlisten?.();
+
+      set({
+        loginMode: null,
+        deviceCode: null,
+        _pollingInterval: null,
+        _progressUnlisten: null,
+        statusMessage: `Login failed: ${message}`,
+      });
+
+      console.error("Failed to poll login status:", error);
+      toast.error(`Microsoft login failed: ${message}`);
+    } finally {
+      mutex.release();
+    }
+  },
+  cancelLoginOnline: async () => {
+    const { account, logout, _pollingInterval, _progressUnlisten } = get();
+    clearInterval(_pollingInterval ?? undefined);
+    _progressUnlisten?.();
+    if (account) {
+      await logout();
+    }
+    set({
+      loginMode: null,
+      deviceCode: null,
+      _pollingInterval: null,
+      statusMessage: null,
+      _progressUnlisten: null,
+    });
+  },
+  loginOffline: async (username: string) => {
+    const trimmedUsername = username.trim();
+    if (trimmedUsername.length === 0) {
+      throw new Error("Username cannot be empty");
+    }
+
+    try {
+      const account = await loginOffline(trimmedUsername);
+      set({ account, loginMode: "offline" });
+      get().refreshAccounts();
+    } catch (error) {
+      console.error("Failed to login offline:", error);
+      toast.error("Failed to login offline");
+    }
+  },
+  logout: async () => {
+    try {
+      await logout();
+      set({ account: null });
+      get().refreshAccounts();
+    } catch (error) {
+      console.error("Failed to logout:", error);
+      toast.error("Failed to logout");
+    }
+  },
+  refreshAccounts: async () => {
+    try {
+      const accounts = await getAllAccounts();
+      set({ accounts });
+    } catch (error) {
+      console.error("Failed to refresh accounts:", error);
+    }
+  },
+  switchAccount: async (uuid: string) => {
+    try {
+      const account = await switchAccountApi(uuid);
+      set({ account });
+      get().refreshAccounts();
+      toast.success(`Switched to ${account.username}`);
+    } catch (error) {
+      console.error("Failed to switch account:", error);
+      toast.error("Failed to switch account");
+    }
+  },
+  removeAccount: async (uuid: string) => {
+    try {
+      const { account } = get();
+      await removeAccountApi(uuid);
+      if (account && account.uuid === uuid) {
+        set({ account: null });
+      }
+      get().refreshAccounts();
+      toast.success("Account removed");
+    } catch (error) {
+      console.error("Failed to remove account:", error);
+      toast.error("Failed to remove account");
+    }
+  },
+}));

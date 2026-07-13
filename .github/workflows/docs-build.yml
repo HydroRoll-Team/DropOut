@@ -1,0 +1,47 @@
+name: Docs Build Check
+
+on:
+  push:
+    branches: ["main", "dev"]
+    paths:
+      - "packages/docs/**"
+      - ".github/workflows/docs-build.yml"
+      - "pnpm-lock.yaml"
+      - "package.json"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "packages/docs/**"
+      - ".github/workflows/docs-build.yml"
+      - "pnpm-lock.yaml"
+      - "package.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Docs
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+          cache-dependency-path: "pnpm-lock.yaml"
+
+      - name: Install Dependencies
+        run: pnpm -C packages/docs --lockfile-dir "${{ github.workspace }}" install --frozen-lockfile
+
+      - name: Build Docs
+        working-directory: packages/docs
+        run: pnpm build

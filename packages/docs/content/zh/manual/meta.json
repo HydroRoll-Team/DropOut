@@ -1,0 +1,10 @@
+{
+  "title": "使用文档",
+  "pages": [
+    "index",
+    "getting-started",
+    "architecture",
+    "features",
+    "troubleshooting"
+  ]
+}

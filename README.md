@@ -10,14 +10,15 @@
 
 <p align="center">
   <a href="https://github.com/HydroRoll-Team/DropOut"><img src="https://img.shields.io/github/stars/HydroRoll-Team/DropOut?logo=github" alt="GitHub stars"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-65a30d?style=flat" alt="MIT license"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-65a30d?style=flat" alt="AGPL-3.0 license"></a>
   <a href="https://github.com/HydroRoll-Team/DropOut/releases"><img src="https://img.shields.io/github/v/release/HydroRoll-Team/DropOut?display_name=tag&sort=semver" alt="Latest release"></a>
   <a href="https://github.com/HydroRoll-Team/DropOut/actions/workflows/test.yml"><img src="https://github.com/HydroRoll-Team/DropOut/actions/workflows/test.yml/badge.svg" alt="Test and build"></a>
   <a href="https://github.com/HydroRoll-Team/DropOut/actions/workflows/codeql.yml"><img src="https://github.com/HydroRoll-Team/DropOut/actions/workflows/codeql.yml/badge.svg?branch=main" alt="CodeQL"></a>
+  <a href="https://github.com/HydroRoll-Team/DropOut/actions/workflows/semifold-ci.yaml"><img src="https://github.com/HydroRoll-Team/DropOut/actions/workflows/semifold-ci.yaml/badge.svg" alt="Semifold CI"></a>
   <br>
   <img src="https://img.shields.io/badge/Tauri_2-000?style=flat&logo=tauri" alt="Tauri 2">
   <img src="https://img.shields.io/badge/Rust-000?style=flat&logo=rust" alt="Rust">
-  <img src="https://img.shields.io/badge/Svelte_5-000?style=flat&logo=svelte" alt="Svelte 5">
+  <img src="https://img.shields.io/badge/React_19-000?style=flat&logo=react" alt="React 19">
   <img src="https://img.shields.io/badge/Tailwind_CSS_4-000?style=flat&logo=tailwindcss" alt="Tailwind CSS 4">
   <img src="https://img.shields.io/badge/TypeScript-000?style=flat&logo=typescript" alt="TypeScript">
   <img src="https://img.shields.io/badge/pnpm_10-000?style=flat&logo=pnpm" alt="pnpm 10">
@@ -46,10 +47,10 @@ DropOut is a desktop application with three active surfaces:
 | Surface | Path | Stack | Purpose |
 |---|---|---|---|
 | Desktop shell | `src-tauri/` | Rust, Tauri 2 | Authentication, downloads, Java/version resolution, instance storage, launch orchestration |
-| Launcher UI | `packages/ui/` | Svelte 5, Vite/Rolldown, Tailwind CSS 4 | Main application interface rendered inside the Tauri webview |
+| Launcher UI | `packages/ui/` | React 19, shadcn/ui, Vite/Rolldown, Tailwind CSS 4 | Main application interface rendered inside the Tauri webview |
 | Documentation | `packages/docs/` | Fumadocs, React 19, React Router 7 | Bilingual product and developer documentation |
 
-The Rust core owns side effects. The Svelte UI invokes Tauri commands and renders state. The docs package explains the product, architecture, and user workflows.
+The Rust core owns side effects. The React UI invokes Tauri commands and renders state. The docs package explains the product, architecture, and user workflows.
 
 ---
 
@@ -77,38 +78,42 @@ The Rust core owns side effects. The Svelte UI invokes Tauri commands and render
 - pnpm 10+
 - OS dependencies from the [Tauri v2 prerequisites](https://v2.tauri.app/start/prerequisites/)
 
-### Install
+### Install Dependencies
+
+This repository does not use `pnpm-workspace.yaml`. Install each JavaScript surface against the root lockfile:
 
 ```bash
 pnpm install
+pnpm -C packages/ui --lockfile-dir "$PWD" install
+pnpm -C packages/docs --lockfile-dir "$PWD" install
 ```
 
 `pnpm install` also runs the repository `prepare` script, which installs the local `prek` hooks.
 
-### Run the desktop app
+### Run The Desktop App
 
 ```bash
 pnpm exec tauri dev
 ```
 
-Tauri starts the Svelte dev server through `src-tauri/tauri.conf.json` and opens the desktop window at `http://localhost:5173`.
+Tauri starts the React UI dev server through `src-tauri/tauri.conf.json` and opens the desktop window at `http://localhost:1420`.
 
-### Build a desktop release
+### Build A Desktop Release
 
 ```bash
 pnpm exec tauri build
 ```
 
-Release artifacts are produced by Tauri under the Rust target directory and the configured bundle target directories.
+Release artifacts are produced by Tauri under the Rust target directory and configured bundle directories.
 
-### Run package surfaces directly
+### Run Package Surfaces Directly
 
 ```bash
-pnpm --filter @dropout/ui dev       # UI only, browser preview
-pnpm --filter @dropout/docs dev     # documentation site
+pnpm -C packages/ui dev
+pnpm -C packages/docs dev
 ```
 
-The UI can run in a browser for layout work, but Tauri-only commands require the desktop shell.
+The UI can run in a browser for layout work, but Tauri-backed flows require the desktop shell.
 
 ---
 
@@ -116,15 +121,17 @@ The UI can run in a browser for layout work, but Tauri-only commands require the
 
 | Task | Command |
 |---|---|
-| Install workspace dependencies | `pnpm install` |
+| Install root tooling | `pnpm install` |
+| Install UI dependencies | `pnpm -C packages/ui --lockfile-dir "$PWD" install` |
+| Install docs dependencies | `pnpm -C packages/docs --lockfile-dir "$PWD" install` |
 | Run desktop app | `pnpm exec tauri dev` |
 | Build desktop app | `pnpm exec tauri build` |
-| Build UI bundle | `pnpm --filter @dropout/ui build` |
-| Check UI types | `pnpm --filter @dropout/ui check` |
-| Lint UI | `pnpm --filter @dropout/ui lint` |
-| Run docs site | `pnpm --filter @dropout/docs dev` |
-| Build docs site | `pnpm --filter @dropout/docs build` |
-| Check docs types/content | `pnpm --filter @dropout/docs types:check` |
+| Run UI dev server | `pnpm -C packages/ui dev` |
+| Build UI bundle | `pnpm -C packages/ui build` |
+| Lint UI | `pnpm -C packages/ui lint` |
+| Run docs site | `pnpm -C packages/docs dev` |
+| Build docs site | `pnpm -C packages/docs build` |
+| Check docs types/content | `pnpm -C packages/docs types:check` |
 | Test Rust workspace | `cargo test --workspace` |
 
 ---
@@ -134,14 +141,15 @@ The UI can run in a browser for layout work, but Tauri-only commands require the
 ```text
 .
 |-- assets/                 # README and project media
+|-- crates/                 # Rust support crates and macros
 |-- packages/
 |   |-- docs/               # Fumadocs + React Router documentation site
-|   `-- ui/                 # Svelte launcher frontend
-|-- scripts/                # Workspace maintenance scripts
+|   `-- ui/                 # React launcher frontend
+|-- scripts/                # Release and maintenance scripts
 |-- src-tauri/              # Rust desktop backend and Tauri configuration
 |-- Cargo.toml              # Rust workspace
-|-- package.json            # pnpm workspace metadata and root tooling
-`-- pnpm-workspace.yaml     # JavaScript workspace packages
+|-- package.json            # Root tooling
+`-- pnpm-lock.yaml          # Shared pnpm lockfile
 ```
 
 ---
@@ -152,12 +160,13 @@ The command boundary is registered in [`src-tauri/src/main.rs`](src-tauri/src/ma
 
 - `auth.rs` and `account_storage.rs` handle Microsoft and offline account state.
 - `instance.rs` owns isolated instance directories and metadata.
-- `game_version.rs`, `manifest.rs`, `version_merge.rs`, and `rules.rs` resolve Minecraft versions and launch rules.
+- `game_version.rs`, `manifest.rs`, and `migration.rs` resolve Minecraft versions and launch rules.
 - `fabric.rs`, `forge.rs`, `maven.rs`, and `downloader.rs` install loaders, libraries, assets, and version files.
-- `java.rs` detects and downloads compatible runtimes.
+- `java/` detects, validates, and persists compatible Java runtimes.
+- `modpack/`, `mods.rs`, and `content_search.rs` handle modpack parsing, mod metadata, and content discovery.
 - `assistant.rs` powers the optional troubleshooting assistant.
 
-The UI keeps long-lived state in Svelte stores under `packages/ui/src/stores/`, then renders views from `packages/ui/src/components/`.
+The UI keeps long-lived state in `packages/ui/src/models/`, renders routes from `packages/ui/src/pages/`, and shares reusable controls from `packages/ui/src/components/`.
 
 ---
 
@@ -174,7 +183,7 @@ The UI keeps long-lived state in Svelte stores under `packages/ui/src/stores/`, 
 - [ ] Built-in mods manager
 - [ ] Custom game directory selection
 - [ ] Launcher auto-updater
-- [ ] Import from MultiMC, Prism Launcher, and other profiles
+- [ ] Import from PCL, HMCL, MultiMC, Prism Launcher, and other profiles
 
 The public roadmap is tracked at <https://roadmap.sh/r/minecraft-launcher-dev>.
 
@@ -197,6 +206,6 @@ Use the standard GitHub flow: fork, branch, commit, and open a pull request agai
 
 ## License
 
-[![MIT](https://img.shields.io/badge/license-MIT-65a30d)](LICENSE)
+[![AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-65a30d)](LICENSE)
 
-MIT (c) Hsiang Nianian
+Distributed under the GNU Affero General Public License v3.0. See [LICENSE](LICENSE) for details.

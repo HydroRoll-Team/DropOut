@@ -1,0 +1,131 @@
+---
+title: Authentication
+description: Microsoft OAuth and offline authentication in DropOut
+---
+
+# Authentication
+
+DropOut supports two authentication methods: Microsoft Account (for official Minecraft) and Offline Mode (for testing and offline play).
+
+## Microsoft Authentication
+
+### Overview
+
+DropOut uses the **Device Code Flow** for Microsoft authentication, featuring:
+- No redirect URL required (no browser integration needed)
+- Works on any device with a browser
+- Provides simple code-based authentication
+- Fully compliant with Microsoft OAuth 2.0 standards
+
+### Authentication Process
+
+The authentication chain consists of multiple steps. DropOut automatically handles these complex exchange processes, including interactions with Microsoft, Xbox Live, and Minecraft services. If you are interested in detailed API implementation, please refer to [Internal Implementation](/docs/development/implementation#1-authentication-system).
+
+### Token Management
+
+**Access Token:**
+- Short-lived (typically 1 hour)
+- Used for game authentication
+- Automatically refreshed when expired
+
+**Refresh Token:**
+- Long-lived (typically 90 days)
+- Stored securely in `accounts.json`
+- Used to obtain new access tokens
+
+**Auto-refresh:**
+When the token expires, DropOut attempts to automatically update your login status using the refresh token when you launch the game, ensuring a seamless start.
+
+### Security Considerations
+
+- Tokens are stored in the platform-specific application data directory
+- All API calls use HTTPS only
+- No credentials stored (only tokens)
+- User-Agent header required (bypasses MS WAF)
+
+### Troubleshooting Microsoft Login
+
+**"Device code expired"**
+- The code expires after 15 minutes
+- Restart the login process
+
+**"Authorization pending"**
+- Normal during the waiting phase
+- Complete authorization in your browser
+
+**"Invalid token"**
+- The token may have expired
+- Log out and log back in (use "Switch Account" to clear token)
+
+**"You don't own Minecraft"**
+- Verify your Microsoft account owns Minecraft: Java Edition
+- Check at https://www.minecraft.net/profile
+
+## Offline Authentication
+
+### Overview
+
+Offline mode creates a local account that does not require an internet connection or a Microsoft account. This is useful for:
+- Testing and development
+- Playing without internet
+- LAN multiplayer
+- Mod development
+
+### Creating an Offline Account
+
+1. Click "Offline Mode" on the login screen
+2. Enter a username (3-16 characters)
+3. Click "Create Account"
+
+### How It Works
+
+**UUID Generation:**
+Offline mode uses a deterministic UUID generation algorithm based on the username (UUID v3). This means the same username will always get the same UUID in the same launcher instance, maintaining single-player save consistency.
+
+- Deterministic: Same username = Same UUID
+- No network requests needed
+
+**Authentication:**
+- Returns `"null"` as the access token
+- Minecraft accepts empty tokens in offline mode
+- Username and UUID are stored locally
+
+### Limitations
+
+- Cannot join online servers (online-mode=true)
+- No custom skins support
+- No capes support
+- Cannot use Microsoft account features
+
+## Account Management
+
+### Switching Accounts
+
+Currently, DropOut supports only one active account at a time. Multi-account support is planned.
+
+**Steps to switch accounts:**
+1. Log out of the current account
+2. Log in with the new account
+
+### Account Storage
+
+Account data is stored in `accounts.json` within the application folder. This file contains encrypted tokens, expiration times, and basic profile information for logged-in accounts.
+
+### Deleting an Account
+
+Steps to delete an account:
+1. Open Settings
+2. Navigate to Account
+3. Click "Log out"
+4. Or manually delete `accounts.json`
+
+## API Reference
+
+For low-level implementation of authentication, OAuth 2.0 flow details, and related Tauri command interfaces, please refer to the development documentation: [Implementation Details: Authentication](/docs/development/implementation#1-authentication-system).
+
+## Best Practices
+
+1. **Use Microsoft Account for Official Servers**: To join official servers and use official skins, always use a Microsoft account.
+2. **Keep Tokens Secure**: Do not share the `accounts.json` file or its contents with others, as it contains your login credentials.
+3. **Refresh Tokens Regularly**: Long-unused offline accounts or expired Microsoft tokens can be refreshed by re-logging in or launching the game.
+4. **Use Offline Mode Only for Testing**: Offline mode does not support skins and some multiplayer features.

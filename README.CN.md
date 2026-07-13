@@ -10,14 +10,15 @@
 
 <p align="center">
   <a href="https://github.com/HydroRoll-Team/DropOut"><img src="https://img.shields.io/github/stars/HydroRoll-Team/DropOut?logo=github" alt="GitHub stars"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-65a30d?style=flat" alt="MIT license"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-65a30d?style=flat" alt="AGPL-3.0 license"></a>
   <a href="https://github.com/HydroRoll-Team/DropOut/releases"><img src="https://img.shields.io/github/v/release/HydroRoll-Team/DropOut?display_name=tag&sort=semver" alt="Latest release"></a>
   <a href="https://github.com/HydroRoll-Team/DropOut/actions/workflows/test.yml"><img src="https://github.com/HydroRoll-Team/DropOut/actions/workflows/test.yml/badge.svg" alt="Test and build"></a>
   <a href="https://github.com/HydroRoll-Team/DropOut/actions/workflows/codeql.yml"><img src="https://github.com/HydroRoll-Team/DropOut/actions/workflows/codeql.yml/badge.svg?branch=main" alt="CodeQL"></a>
+  <a href="https://github.com/HydroRoll-Team/DropOut/actions/workflows/semifold-ci.yaml"><img src="https://github.com/HydroRoll-Team/DropOut/actions/workflows/semifold-ci.yaml/badge.svg" alt="Semifold CI"></a>
   <br>
   <img src="https://img.shields.io/badge/Tauri_2-000?style=flat&logo=tauri" alt="Tauri 2">
   <img src="https://img.shields.io/badge/Rust-000?style=flat&logo=rust" alt="Rust">
-  <img src="https://img.shields.io/badge/Svelte_5-000?style=flat&logo=svelte" alt="Svelte 5">
+  <img src="https://img.shields.io/badge/React_19-000?style=flat&logo=react" alt="React 19">
   <img src="https://img.shields.io/badge/Tailwind_CSS_4-000?style=flat&logo=tailwindcss" alt="Tailwind CSS 4">
   <img src="https://img.shields.io/badge/TypeScript-000?style=flat&logo=typescript" alt="TypeScript">
   <img src="https://img.shields.io/badge/pnpm_10-000?style=flat&logo=pnpm" alt="pnpm 10">
@@ -46,10 +47,10 @@ DropOut 由三个活跃部分组成：
 | 部分 | 路径 | 技术栈 | 用途 |
 |---|---|---|---|
 | 桌面外壳 | `src-tauri/` | Rust, Tauri 2 | 认证、下载、Java/版本解析、实例存储、启动编排 |
-| 启动器 UI | `packages/ui/` | Svelte 5, Vite/Rolldown, Tailwind CSS 4 | Tauri WebView 中的主应用界面 |
+| 启动器 UI | `packages/ui/` | React 19, shadcn/ui, Vite/Rolldown, Tailwind CSS 4 | Tauri WebView 中的主应用界面 |
 | 文档站 | `packages/docs/` | Fumadocs, React 19, React Router 7 | 中英文产品文档和开发文档 |
 
-Rust 核心负责副作用。Svelte UI 调用 Tauri 命令并渲染状态。文档包负责解释产品、架构和使用流程。
+Rust 核心负责副作用。React UI 调用 Tauri 命令并渲染状态。文档包负责解释产品、架构和使用流程。
 
 ---
 
@@ -79,8 +80,12 @@ Rust 核心负责副作用。Svelte UI 调用 Tauri 命令并渲染状态。文�
 
 ### 安装依赖
 
+这个仓库不使用 `pnpm-workspace.yaml`。每个 JavaScript 包都需要基于根目录 lockfile 安装依赖：
+
 ```bash
 pnpm install
+pnpm -C packages/ui --lockfile-dir "$PWD" install
+pnpm -C packages/docs --lockfile-dir "$PWD" install
 ```
 
 `pnpm install` 会运行仓库的 `prepare` 脚本，安装本地 `prek` hooks。
@@ -91,7 +96,7 @@ pnpm install
 pnpm exec tauri dev
 ```
 
-Tauri 会根据 `src-tauri/tauri.conf.json` 启动 Svelte 开发服务器，并打开指向 `http://localhost:5173` 的桌面窗口。
+Tauri 会根据 `src-tauri/tauri.conf.json` 启动 React 开发服务器，并打开指向 `http://localhost:1420` 的桌面窗口。
 
 ### 构建桌面发布包
 
@@ -104,8 +109,8 @@ pnpm exec tauri build
 ### 单独运行子项目
 
 ```bash
-pnpm --filter @dropout/ui dev       # 仅 UI，浏览器预览
-pnpm --filter @dropout/docs dev     # 文档站
+pnpm -C packages/ui dev
+pnpm -C packages/docs dev
 ```
 
 UI 可以在浏览器中用于布局开发，但依赖 Tauri 的功能需要在桌面外壳中验证。
@@ -116,15 +121,17 @@ UI 可以在浏览器中用于布局开发，但依赖 Tauri 的功能需要在�
 
 | 任务 | 命令 |
 |---|---|
-| 安装 workspace 依赖 | `pnpm install` |
+| 安装根工具依赖 | `pnpm install` |
+| 安装 UI 依赖 | `pnpm -C packages/ui --lockfile-dir "$PWD" install` |
+| 安装文档站依赖 | `pnpm -C packages/docs --lockfile-dir "$PWD" install` |
 | 运行桌面应用 | `pnpm exec tauri dev` |
 | 构建桌面应用 | `pnpm exec tauri build` |
-| 构建 UI | `pnpm --filter @dropout/ui build` |
-| 检查 UI 类型 | `pnpm --filter @dropout/ui check` |
-| Lint UI | `pnpm --filter @dropout/ui lint` |
-| 运行文档站 | `pnpm --filter @dropout/docs dev` |
-| 构建文档站 | `pnpm --filter @dropout/docs build` |
-| 检查文档类型/内容 | `pnpm --filter @dropout/docs types:check` |
+| 运行 UI 开发服务器 | `pnpm -C packages/ui dev` |
+| 构建 UI | `pnpm -C packages/ui build` |
+| Lint UI | `pnpm -C packages/ui lint` |
+| 运行文档站 | `pnpm -C packages/docs dev` |
+| 构建文档站 | `pnpm -C packages/docs build` |
+| 检查文档类型/内容 | `pnpm -C packages/docs types:check` |
 | 测试 Rust workspace | `cargo test --workspace` |
 
 ---
@@ -134,14 +141,15 @@ UI 可以在浏览器中用于布局开发，但依赖 Tauri 的功能需要在�
 ```text
 .
 |-- assets/                 # README 和项目媒体
+|-- crates/                 # Rust 辅助 crate 和宏
 |-- packages/
 |   |-- docs/               # Fumadocs + React Router 文档站
-|   `-- ui/                 # Svelte 启动器前端
-|-- scripts/                # workspace 维护脚本
+|   `-- ui/                 # React 启动器前端
+|-- scripts/                # 发布和维护脚本
 |-- src-tauri/              # Rust 桌面后端和 Tauri 配置
 |-- Cargo.toml              # Rust workspace
-|-- package.json            # pnpm workspace 元数据和根工具
-`-- pnpm-workspace.yaml     # JavaScript workspace 包配置
+|-- package.json            # 根工具配置
+`-- pnpm-lock.yaml          # 共享 pnpm lockfile
 ```
 
 ---
@@ -152,12 +160,13 @@ Tauri 命令边界注册在 [`src-tauri/src/main.rs`](src-tauri/src/main.rs)。�
 
 - `auth.rs` 和 `account_storage.rs` 处理 Microsoft 与离线账户状态。
 - `instance.rs` 管理隔离实例目录和元数据。
-- `game_version.rs`、`manifest.rs`、`version_merge.rs`、`rules.rs` 解析 Minecraft 版本和启动规则。
+- `game_version.rs`、`manifest.rs`、`migration.rs` 解析 Minecraft 版本和启动规则。
 - `fabric.rs`、`forge.rs`、`maven.rs`、`downloader.rs` 安装加载器、依赖库、资源和版本文件。
-- `java.rs` 检测并下载兼容 Java 运行时。
+- `java/` 检测、校验并持久化兼容 Java 运行时。
+- `modpack/`、`mods.rs`、`content_search.rs` 处理整合包解析、模组元数据和内容发现。
 - `assistant.rs` 提供可选的故障排查助手能力。
 
-UI 的长期状态放在 `packages/ui/src/stores/`，界面由 `packages/ui/src/components/` 渲染。
+UI 的长期状态位于 `packages/ui/src/models/`，页面位于 `packages/ui/src/pages/`，共享控件位于 `packages/ui/src/components/`。
 
 ---
 
@@ -174,7 +183,7 @@ UI 的长期状态放在 `packages/ui/src/stores/`，界面由 `packages/ui/src/
 - [ ] 内置模组管理器
 - [ ] 自定义游戏目录选择
 - [ ] 启动器自动更新
-- [ ] 从 MultiMC、Prism Launcher 和其他配置导入
+- [ ] 从 PCL、HMCL、MultiMC、Prism Launcher 和其他配置导入
 
 公开路线图见 <https://roadmap.sh/r/minecraft-launcher-dev>。
 
@@ -182,7 +191,7 @@ UI 的长期状态放在 `packages/ui/src/stores/`，界面由 `packages/ui/src/
 
 ## 贡献
 
-DropOut 面向长期可维护性构建。比较有价值的贡献通常集中在：
+DropOut 面向长期维护。适合贡献的方向包括：
 
 - 实例和配置文件工作流
 - 模组加载器兼容性
@@ -191,12 +200,12 @@ DropOut 面向长期可维护性构建。比较有价值的贡献通常集中在
 - UI/UX 清晰度
 - 文档和故障排查覆盖
 
-使用标准 GitHub 流程：fork、创建分支、提交，然后向 [HydroRoll-Team/DropOut](https://github.com/HydroRoll-Team/DropOut) 发起 pull request。
+使用标准 GitHub 流程：fork、创建分支、提交，然后向 [HydroRoll-Team/DropOut](https://github.com/HydroRoll-Team/DropOut) 打开 pull request。
 
 ---
 
 ## 许可证
 
-[![MIT](https://img.shields.io/badge/license-MIT-65a30d)](LICENSE)
+[![AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-65a30d)](LICENSE)
 
-MIT (c) Hsiang Nianian
+本项目基于 GNU Affero General Public License v3.0 分发。详见 [LICENSE](LICENSE)。

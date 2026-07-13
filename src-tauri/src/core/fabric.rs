@@ -8,11 +8,18 @@
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::path::PathBuf;
+use ts_rs::TS;
 
 const FABRIC_META_URL: &str = "https://meta.fabricmc.net/v2";
 
+fn fabric_meta_base(mirror: crate::core::mirror::MirrorSource) -> &'static str {
+    crate::core::mirror::fabric_meta_url(mirror)
+}
+
 /// Represents a Fabric loader version from the Meta API.
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "fabric.ts")]
 pub struct FabricLoaderVersion {
     pub separator: String,
     pub build: i32,
@@ -22,7 +29,9 @@ pub struct FabricLoaderVersion {
 }
 
 /// Represents a Fabric intermediary mapping version.
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "fabric.ts")]
 pub struct FabricIntermediaryVersion {
     pub maven: String,
     pub version: String,
@@ -30,7 +39,9 @@ pub struct FabricIntermediaryVersion {
 }
 
 /// Represents a combined loader + intermediary version entry.
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "fabric.ts")]
 pub struct FabricLoaderEntry {
     pub loader: FabricLoaderVersion,
     pub intermediary: FabricIntermediaryVersion,
@@ -39,7 +50,9 @@ pub struct FabricLoaderEntry {
 }
 
 /// Launcher metadata from Fabric Meta API.
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "fabric.ts")]
 pub struct FabricLauncherMeta {
     pub version: i32,
     pub libraries: FabricLibraries,
@@ -48,7 +61,9 @@ pub struct FabricLauncherMeta {
 }
 
 /// Libraries required by Fabric loader.
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "fabric.ts")]
 pub struct FabricLibraries {
     pub client: Vec<FabricLibrary>,
     pub common: Vec<FabricLibrary>,
@@ -56,7 +71,9 @@ pub struct FabricLibraries {
 }
 
 /// A single Fabric library dependency.
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "fabric.ts")]
 pub struct FabricLibrary {
     pub name: String,
     pub url: Option<String>,
@@ -64,7 +81,9 @@ pub struct FabricLibrary {
 
 /// Main class configuration for Fabric.
 /// Can be either a struct with client/server fields or a simple string.
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "fabric.ts", untagged)]
 #[serde(untagged)]
 pub enum FabricMainClass {
     Structured { client: String, server: String },
@@ -89,14 +108,18 @@ impl FabricMainClass {
 }
 
 /// Represents a Minecraft version supported by Fabric.
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "fabric.ts")]
 pub struct FabricGameVersion {
     pub version: String,
     pub stable: bool,
 }
 
 /// Information about an installed Fabric version.
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Clone, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "fabric.ts")]
 pub struct InstalledFabricVersion {
     pub id: String,
     pub minecraft_version: String,
@@ -108,9 +131,15 @@ pub struct InstalledFabricVersion {
 ///
 /// # Returns
 /// A list of game versions that have Fabric intermediary mappings available.
-pub async fn fetch_supported_game_versions(
+pub async fn fetch_supported_game_versions()
+-> Result<Vec<FabricGameVersion>, Box<dyn Error + Send + Sync>> {
+    fetch_supported_game_versions_with_mirror(crate::core::mirror::MirrorSource::Official).await
+}
+
+pub async fn fetch_supported_game_versions_with_mirror(
+    mirror: crate::core::mirror::MirrorSource,
 ) -> Result<Vec<FabricGameVersion>, Box<dyn Error + Send + Sync>> {
-    let url = format!("{}/versions/game", FABRIC_META_URL);
+    let url = format!("{}/versions/game", fabric_meta_base(mirror));
     let resp = reqwest::get(&url)
         .await?
         .json::<Vec<FabricGameVersion>>()
@@ -122,9 +151,15 @@ pub async fn fetch_supported_game_versions(
 ///
 /// # Returns
 /// A list of all Fabric loader versions, ordered by build number (newest first).
-pub async fn fetch_loader_versions(
+pub async fn fetch_loader_versions()
+-> Result<Vec<FabricLoaderVersion>, Box<dyn Error + Send + Sync>> {
+    fetch_loader_versions_with_mirror(crate::core::mirror::MirrorSource::Official).await
+}
+
+pub async fn fetch_loader_versions_with_mirror(
+    mirror: crate::core::mirror::MirrorSource,
 ) -> Result<Vec<FabricLoaderVersion>, Box<dyn Error + Send + Sync>> {
-    let url = format!("{}/versions/loader", FABRIC_META_URL);
+    let url = format!("{}/versions/loader", fabric_meta_base(mirror));
     let resp = reqwest::get(&url)
         .await?
         .json::<Vec<FabricLoaderVersion>>()
@@ -142,7 +177,22 @@ pub async fn fetch_loader_versions(
 pub async fn fetch_loaders_for_game_version(
     game_version: &str,
 ) -> Result<Vec<FabricLoaderEntry>, Box<dyn Error + Send + Sync>> {
-    let url = format!("{}/versions/loader/{}", FABRIC_META_URL, game_version);
+    fetch_loaders_for_game_version_with_mirror(
+        game_version,
+        crate::core::mirror::MirrorSource::Official,
+    )
+    .await
+}
+
+pub async fn fetch_loaders_for_game_version_with_mirror(
+    game_version: &str,
+    mirror: crate::core::mirror::MirrorSource,
+) -> Result<Vec<FabricLoaderEntry>, Box<dyn Error + Send + Sync>> {
+    let url = format!(
+        "{}/versions/loader/{}",
+        fabric_meta_base(mirror),
+        game_version
+    );
     let resp = reqwest::get(&url)
         .await?
         .json::<Vec<FabricLoaderEntry>>()
@@ -162,9 +212,24 @@ pub async fn fetch_version_profile(
     game_version: &str,
     loader_version: &str,
 ) -> Result<serde_json::Value, Box<dyn Error + Send + Sync>> {
+    fetch_version_profile_with_mirror(
+        game_version,
+        loader_version,
+        crate::core::mirror::MirrorSource::Official,
+    )
+    .await
+}
+
+pub async fn fetch_version_profile_with_mirror(
+    game_version: &str,
+    loader_version: &str,
+    mirror: crate::core::mirror::MirrorSource,
+) -> Result<serde_json::Value, Box<dyn Error + Send + Sync>> {
     let url = format!(
         "{}/versions/loader/{}/{}/profile/json",
-        FABRIC_META_URL, game_version, loader_version
+        fabric_meta_base(mirror),
+        game_version,
+        loader_version
     );
     let resp = reqwest::get(&url)
         .await?
@@ -202,8 +267,23 @@ pub async fn install_fabric(
     game_version: &str,
     loader_version: &str,
 ) -> Result<InstalledFabricVersion, Box<dyn Error + Send + Sync>> {
+    install_fabric_with_mirror(
+        game_dir,
+        game_version,
+        loader_version,
+        crate::core::mirror::MirrorSource::Official,
+    )
+    .await
+}
+
+pub async fn install_fabric_with_mirror(
+    game_dir: &std::path::Path,
+    game_version: &str,
+    loader_version: &str,
+    mirror: crate::core::mirror::MirrorSource,
+) -> Result<InstalledFabricVersion, Box<dyn Error + Send + Sync>> {
     // Fetch the version profile from Fabric Meta
-    let profile = fetch_version_profile(game_version, loader_version).await?;
+    let profile = fetch_version_profile_with_mirror(game_version, loader_version, mirror).await?;
 
     // Get the version ID from the profile or generate it
     let version_id = profile

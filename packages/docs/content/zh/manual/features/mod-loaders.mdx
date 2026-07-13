@@ -1,0 +1,242 @@
+---
+title: 模组加载器
+description: Fabric 和 Forge 安装和管理
+---
+
+# 模组加载器
+
+DropOut 支持两个最流行的 Minecraft 模组加载器：Fabric 和 Forge。两者都可以直接从启动器中轻松安装和管理。
+
+## Fabric 支持
+
+### 概述
+
+Fabric 是一个轻量级、模块化的模组工具链，专注于：
+- 快速更新至新的 Minecraft 版本
+- 干净、极简的 API
+- 强大的开发者社区
+- 优异的性能
+
+### 安装
+
+1. 导航至 **Versions** 选项卡
+2. 点击 **"Install Fabric"**
+3. 选择 Minecraft 版本
+4. 选择 Fabric 加载器版本
+5. 点击 **"Install"**
+6. 等待安装完成
+
+### 工作原理
+
+DropOut 集成了 Fabric 的 Meta API，能够自动获取兼容的加载器版本。在后台，它会生成版本 JSON，处理库依赖，并利用继承系统确保与原版 Minecraft 的完美兼容。详细的 JSON 结构可参阅[技术细节](/docs/development/implementation#fabric-集成)。
+
+### Fabric 版本
+
+**加载器版本：**
+- 最新稳定版（推荐）
+- 用于兼容性的特定版本
+- Beta/快照版本
+
+**游戏版本：**
+- 所有 1.14+ 的 Minecraft 版本
+- 支持快照版本
+- 支持战斗测试版本
+
+### 库管理
+
+Fabric 的依赖项通常托管在其官方 Maven 仓库中。DropOut 自动解析并下载所有必需的库文件。
+
+### Fabric API
+
+Fabric Loader ≠ Fabric API：
+- **Fabric Loader**: 模组加载器（由 DropOut 安装）
+- **Fabric API**: 库模组（单独下载）
+
+许多模组需要 Fabric API：
+1. 从 [Modrinth](https://modrinth.com/mod/fabric-api) 或 [CurseForge](https://www.curseforge.com/minecraft/mc-mods/fabric-api) 下载
+2. 放置在实例的 `mods/` 文件夹中
+
+## Forge 支持
+
+### 概述
+
+Forge 是原始的、最流行的 Minecraft 模组加载器：
+- 广泛的模组生态系统
+- 成熟的 API
+- 广泛的版本支持
+- 庞大的社区
+
+### 安装
+
+1. 导航至 **Versions** 选项卡
+2. 点击 **"Install Forge"**
+3. 选择 Minecraft 版本
+4. 选择 Forge 版本
+5. 点击 **"Install"**
+6. 等待安装程序运行
+7. 安装完成
+
+### 工作原理
+
+DropOut 会为您下载 Forge 安装程序。通过在后台以无头模式运行安装程序，我们能够生成所需的版本配置文件并处理复杂的补丁程序。详细实现请参考[技术实现](/docs/development/implementation#forge-支持)。
+
+### Forge 版本
+
+**发布类型：**
+- **Latest**: 最新的稳定版本
+- **Recommended**: 生产环境中最稳定的版本
+- **Specific**: 版本锁定以确保兼容性
+
+**Minecraft 版本支持：**
+- 旧版本 (1.6.4+)
+- 现代版本 (1.13+)
+- 最新版本 (1.20+)
+
+### 库管理
+
+Forge 的运行依赖于大量的库文件，包括底层的 `fmlloader` 和字节码操作库。DropOut 能够自动解析复杂的依赖树，并从 Forge 官方 Maven 仓库以及 Minecraft 官方库中获取这些文件。
+
+关于 Forge 库的详细解析逻辑，请参考[实现细节：Forge 核心库解析](../development/implementation.mdx#核心库解析)。
+
+### Forge 处理器
+
+某些 Forge 版本在安装期间运行"处理器"：
+- 字节码操纵
+- 库修补
+- 映射生成
+
+DropOut 自动处理这些操作。
+
+## 版本继承
+
+Fabric 和 Forge 都利用了 Minecraft 的版本继承机制。在这种模式下，模组加载器的版本 JSON 仅包含相对于原版版本的增量变化，通过 `inheritsFrom` 字段递归向上寻址。
+
+DropOut 的启动引擎能够自动处理这种复杂的合并：
+- **库 (Libraries)**：自动排重并确保加载顺序。
+- **参数 (Arguments)**：合并游戏参数与 JVM 参数。
+- **主类 (Main Class)**：自动切换至模组加载器的入口点。
+
+具体的合并逻辑和代码实现请查看[实现细节：版本合并](../development/implementation.mdx#版本合并机制)。
+
+## 对比
+
+| 功能 | Fabric | Forge |
+|---------|--------|-------|
+| **性能** | 优异 | 良好 |
+| **更新速度** | 非常快 | 中等 |
+| **模组选择** | 增长中 | 广泛 |
+| **API 简洁性** | 简洁 | 复杂 |
+| **版本支持** | 1.14+ | 1.6.4+ |
+| **开发者友好** | 非常友好 | 中等 |
+| **稳定性** | 优异 | 优异 |
+
+## 安装模组
+
+### Fabric 模组
+
+1. 创建/选择实例
+2. 确保 Fabric 已安装
+3. 从以下位置下载模组：
+   - [Modrinth](https://modrinth.com/)
+   - [CurseForge](https://www.curseforge.com/)
+   - [GitHub Releases](https://github.com/)
+4. 将 `.jar` 文件放置在 `instances/<name>/mods/`
+5. 启动游戏
+
+**兼容性：**
+- 检查 Minecraft 版本
+- 检查 Fabric Loader 版本
+- 检查 Fabric API 需求
+- 阅读模组依赖项
+
+### Forge 模组
+
+1. 创建/选择实例
+2. 确保 Forge 已安装
+3. 从以下位置下载模组：
+   - [CurseForge](https://www.curseforge.com/)
+   - [Modrinth](https://modrinth.com/)
+4. 将 `.jar` 文件放置在 `instances/<name>/mods/`
+5. 启动游戏
+
+**兼容性：**
+- 精确检查 Minecraft 版本
+- 检查 Forge 版本范围
+- 阅读模组依赖项
+- 检查冲突
+
+## 故障排除
+
+### Fabric 问题
+
+**"Fabric Loader not found"**
+- 重新安装 Fabric
+- 检查版本 JSON 是否存在
+- 验证库是否已下载
+
+**"Mixin apply failed"**
+- 模组不兼容
+- 删除冲突的模组
+- 更新 Fabric Loader
+
+**"Fabric API required"**
+- 下载 Fabric API
+- 匹配 Minecraft 版本
+- 放置在 mods 文件夹中
+
+### Forge 问题
+
+**"Forge installer failed"**
+- 验证 Java 安装
+- 检查磁盘空间
+- 尝试旧版本的 Forge
+- 检查日志获取详细信息
+
+**"Missing dependencies"**
+- 安装所需的模组
+- 检查模组版本兼容性
+- 仔细阅读错误消息
+
+**"Class not found"**
+- Forge 版本不匹配
+- 重新安装 Forge
+- 验证库是否已下载
+
+### 常见模组问题
+
+**启动时崩溃：**
+1. 检查崩溃报告
+2. 识别有问题的模组
+3. 删除或更新模组
+4. 使用最少的模组测试
+5. 逐步添加模组回来
+
+**性能问题：**
+1. 安装了太多模组
+2. 增加内存分配
+3. 安装性能模组：
+   - Fabric: Sodium, Lithium
+   - Forge: OptiFine, Magnesium
+4. 删除资源密集型模组
+
+## API 参考
+
+如果您正在为 DropOut 开发自定义主题或进行二次开发，可以使用我们提供的 Tauri 命令和事件接口。
+
+具体的命令接口、参数说明及进度推送事件详见开发文档：[实现细节：模组加载器 API](../development/implementation.mdx#api-参考)。
+
+## 最佳实践
+
+1. **每个实例选择一个模组加载器**：不要在同一个实例中混用 Fabric 和 Forge。
+2. **精确匹配版本**：确保 Minecraft 版本与模组加载器版本高度兼容。
+3. **安装前阅读要求**：许多模组需要额外的依赖库（如 Fabric API 或 Architectury）。
+4. **循序渐进**：首次构建模组包时，应分批添加模组以便于排查问题。
+5. **养成备份习惯**：在安装大型模组包或进行版本大更新前，请备份您的存档。
+
+更多面向开发者和模组包创作者的进阶指南，请参阅[开发文档：分发最佳实践](../development/implementation.mdx#对于模组包modpack创建者)。
+
+## 规划与展望
+
+我们致力于为 DropOut 打造最便捷的模组体验。未来，我们计划引入模组浏览器、自动更新监控以及智能冲突检测等功能。
+
+详见[开发路线图](../development/implementation.mdx#模组管理系统)。

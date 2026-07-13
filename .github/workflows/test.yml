@@ -15,6 +15,7 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
+  CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
 
 jobs:
   test:
@@ -78,7 +79,7 @@ jobs:
 
       - name: Install Frontend Dependencies
         if: github.event_name == 'workflow_dispatch'
-        run: pnpm install
+        run: pnpm -C packages/ui --lockfile-dir "${{ github.workspace }}" install --frozen-lockfile
 
       - name: Install Tauri CLI
         if: github.event_name == 'workflow_dispatch'
