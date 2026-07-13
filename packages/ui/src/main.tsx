@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
+import "./i18n";
 import { RouterProvider } from "react-router";
 import { Toaster } from "./components/ui/sonner";
 import { LanguageProvider } from "./lib/i18n";

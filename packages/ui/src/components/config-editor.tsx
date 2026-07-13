@@ -35,10 +35,34 @@ const launcherConfigSchema: ZodType<LauncherConfig> = z.object({
   theme: z.string(),
   logUploadService: z.string(),
   pastebinApiKey: z.string().nullable(),
-  assistant: z.any(), // TODO: AssistantConfig schema
+  assistant: z.object({
+    enabled: z.boolean(),
+    llmProvider: z.string(),
+    ollamaEndpoint: z.string(),
+    ollamaModel: z.string(),
+    openaiApiKey: z.string().nullable(),
+    openaiEndpoint: z.string(),
+    openaiModel: z.string(),
+    systemPrompt: z.string(),
+    responseLanguage: z.string(),
+    ttsEnabled: z.boolean(),
+    ttsProvider: z.string(),
+  }),
   useSharedCaches: z.boolean(),
   keepLegacyPerInstanceStorage: z.boolean(),
-  featureFlags: z.any(), // TODO: FeatureFlags schema
+  featureFlags: z.object({
+    demoUser: z.boolean(),
+    quickPlayEnabled: z.boolean(),
+    quickPlayPath: z.string().nullable(),
+    quickPlaySingleplayer: z.boolean(),
+    quickPlayMultiplayerServer: z.string().nullable(),
+  }),
+  mirrorSource: z.string(),
+  language: z.string(),
+  enableSystemTray: z.boolean(),
+  firstLaunchCompleted: z.boolean(),
+  jvmPreset: z.string(),
+  githubProxy: z.string(),
 });
 
 export interface ConfigEditorProps

@@ -111,6 +111,7 @@ DropOut 专注于保持你的游戏稳定、可调试和可重现。
 
    ```bash
    # 这将启动前端服务器和 Tauri 应用窗口
+   cargo install tauri-cli
    cargo tauri dev
    ```
 

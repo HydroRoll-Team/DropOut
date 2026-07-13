@@ -103,6 +103,41 @@ pub struct LauncherConfig {
     pub keep_legacy_per_instance_storage: bool, // Keep old per-instance caches (no migration)
     // Feature-gated argument flags
     pub feature_flags: FeatureFlags,
+    /// Download mirror source: "official", "bmclapi", "mcbbs"
+    #[serde(default = "default_mirror_source")]
+    pub mirror_source: String,
+    /// Language / locale code: "auto", "zh-CN", "en"
+    #[serde(default = "default_language")]
+    pub language: String,
+    /// Enable system tray (minimize to tray)
+    #[serde(default)]
+    pub enable_system_tray: bool,
+    /// Whether the guided tour has been completed
+    #[serde(default)]
+    pub first_launch_completed: bool,
+    /// JVM optimization preset: "default", "g1gc", "zgc", "shenandoah"
+    #[serde(default = "default_jvm_preset")]
+    pub jvm_preset: String,
+    /// GitHub download proxy URL, e.g. "https://ghproxy.hydroroll.team"
+    /// When non-empty, GitHub release download URLs will be proxied through this.
+    #[serde(default = "default_github_proxy")]
+    pub github_proxy: String,
+}
+
+fn default_mirror_source() -> String {
+    "official".to_string()
+}
+
+fn default_language() -> String {
+    "auto".to_string()
+}
+
+fn default_jvm_preset() -> String {
+    "default".to_string()
+}
+
+fn default_github_proxy() -> String {
+    "https://ghproxy.hydroroll.team".to_string()
 }
 
 impl Default for LauncherConfig {
@@ -125,6 +160,12 @@ impl Default for LauncherConfig {
             use_shared_caches: false,
             keep_legacy_per_instance_storage: true,
             feature_flags: FeatureFlags::default(),
+            mirror_source: "official".to_string(),
+            language: "auto".to_string(),
+            enable_system_tray: false,
+            first_launch_completed: false,
+            jvm_preset: "default".to_string(),
+            github_proxy: "https://ghproxy.hydroroll.team".to_string(),
         }
     }
 }

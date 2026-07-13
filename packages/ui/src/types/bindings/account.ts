@@ -11,6 +11,13 @@ export type AccountStore = {
   active_account_id: string | null;
 };
 
+export type AccountSummary = {
+  uuid: string;
+  username: string;
+  accountType: string;
+  isActive: boolean;
+};
+
 export type StoredAccount =
   | ({ type: "Offline" } & OfflineAccount)
   | ({ type: "Microsoft" } & StoredMicrosoftAccount);

@@ -1,7 +1,7 @@
 import { toast } from "sonner";
 import { create } from "zustand/react";
 import { getConfigPath, getSettings, saveSettings } from "@/client";
-import { translate } from "@/lib/i18n";
+import { setLanguage } from "@/i18n";
 import type { LauncherConfig } from "@/types";
 
 export interface SettingsState {
@@ -54,9 +54,13 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       const path = await getConfigPath();
       set({ config: settings, configPath: path });
       applyTheme(settings.theme);
+      // Apply language from config
+      if (settings.language) {
+        setLanguage(settings.language);
+      }
     } catch (error) {
       console.error("Failed to load settings:", error);
-      toast.error(translate("settings.loadFailed"));
+      toast.error("Failed to load settings");
     }
   },
   save: async () => {

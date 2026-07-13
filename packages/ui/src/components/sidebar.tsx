@@ -1,6 +1,14 @@
-import { Folder, Home, LogOutIcon, Settings } from "lucide-react";
+import {
+  Folder,
+  Home,
+  LogOutIcon,
+  PlusIcon,
+  Settings,
+  Trash2Icon,
+  UserIcon,
+} from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router";
-import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/models/auth";
 import { Button } from "./ui/button";
@@ -9,6 +17,8 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { UserAvatar } from "./user-avatar";
@@ -45,7 +55,8 @@ function NavItem({ Icon, label, to }: NavItemProps) {
 
 export function Sidebar() {
   const authStore = useAuthStore();
-  const { t } = useI18n();
+  const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const renderUserAvatar = () => {
     return (
@@ -61,8 +72,8 @@ export function Sidebar() {
             </p>
             <p className="text-xs text-zinc-400">
               {authStore.account?.type === "microsoft"
-                ? t("sidebar.online")
-                : t("sidebar.offline")}
+                ? t("common.online")
+                : t("common.offline")}
             </p>
           </div>
         </div>
@@ -177,29 +188,73 @@ export function Sidebar() {
         </div>
       </div>
 
-      <nav className="w-full flex flex-col space-y-1 px-3 items-center">
-        <NavItem Icon={Home} label={t("sidebar.overview")} to="/" />
-        <NavItem Icon={Folder} label={t("sidebar.instances")} to="/instances" />
-        <NavItem Icon={Settings} label={t("sidebar.settings")} to="/settings" />
+      <nav
+        className="w-full flex flex-col space-y-1 px-3 items-center"
+        data-tour="sidebar-nav"
+      >
+        <NavItem Icon={Home} label={t("nav.overview")} to="/" />
+        <NavItem Icon={Folder} label={t("nav.instances")} to="/instances" />
+        <NavItem Icon={Settings} label={t("nav.settings")} to="/settings" />
       </nav>
 
-      <div className="w-full lg:px-3 flex-1 flex flex-col justify-end">
+      <div
+        className="w-full lg:px-3 flex-1 flex flex-col justify-end"
+        data-tour="sidebar-account"
+      >
         <DropdownMenu>
           <DropdownMenuTrigger
             render={renderUserAvatar()}
             nativeButton={false}
             className="w-full"
           >
-            {t("common.open")}
+            Open
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" side="right" sideOffset={20}>
+            {authStore.accounts.length > 1 && (
+              <>
+                <DropdownMenuLabel>Accounts</DropdownMenuLabel>
+                <DropdownMenuGroup>
+                  {authStore.accounts
+                    .filter((a) => !a.isActive)
+                    .map((a) => (
+                      <DropdownMenuItem
+                        key={a.uuid}
+                        onClick={() => authStore.switchAccount(a.uuid)}
+                      >
+                        <UserIcon className="size-4" />
+                        <span className="truncate">{a.username}</span>
+                        <span className="ml-auto text-xs text-muted-foreground">
+                          {a.accountType === "microsoft" ? "MS" : "Offline"}
+                        </span>
+                      </DropdownMenuItem>
+                    ))}
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+              </>
+            )}
             <DropdownMenuGroup>
+              <DropdownMenuItem onClick={() => navigate("/")}>
+                <PlusIcon className="size-4" />
+                {t("account.addAccount")}
+              </DropdownMenuItem>
+              {authStore.accounts.length > 1 && (
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => {
+                    const active = authStore.accounts.find((a) => a.isActive);
+                    if (active) authStore.removeAccount(active.uuid);
+                  }}
+                >
+                  <Trash2Icon className="size-4" />
+                  {t("account.removeCurrent")}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem
                 variant="destructive"
                 onClick={authStore.logout}
               >
                 <LogOutIcon />
-                {t("sidebar.logout")}
+                {t("common.logout")}
               </DropdownMenuItem>
             </DropdownMenuGroup>
           </DropdownMenuContent>

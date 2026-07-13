@@ -35,6 +35,12 @@ pub struct Instance {
     #[serde(default)]
     pub memory_override: Option<MemoryOverride>, // 内存设置覆盖（可选）
     pub java_path_override: Option<String>, // 实例级Java路径覆盖（可选）
+    /// Auto-join server address in "host:port" or "host" format
+    #[serde(default)]
+    pub server_address: Option<String>,
+    /// Custom offline skin path (PNG file)
+    #[serde(default)]
+    pub skin_path: Option<String>,
 }
 
 /// Memory settings override for an instance
@@ -111,6 +117,8 @@ struct ExportedInstance {
     jvm_args_override: Option<String>,
     memory_override: Option<MemoryOverride>,
     java_path_override: Option<String>,
+    server_address: Option<String>,
+    skin_path: Option<String>,
 }
 
 /// State management for instances
@@ -332,6 +340,8 @@ impl InstanceState {
             jvm_args_override: None,
             memory_override: None,
             java_path_override: None,
+            server_address: None,
+            skin_path: None,
         };
 
         self.insert_instance(instance.clone(), true)?;
@@ -505,6 +515,8 @@ impl InstanceState {
             jvm_args_override: source_instance.jvm_args_override.clone(),
             memory_override: source_instance.memory_override.clone(),
             java_path_override: source_instance.java_path_override.clone(),
+            server_address: source_instance.server_address.clone(),
+            skin_path: source_instance.skin_path.clone(),
         };
 
         self.insert_instance(new_instance.clone(), false)?;
@@ -538,6 +550,8 @@ impl InstanceState {
             jvm_args_override: instance.jvm_args_override.clone(),
             memory_override: instance.memory_override.clone(),
             java_path_override: instance.java_path_override.clone(),
+            server_address: instance.server_address.clone(),
+            skin_path: instance.skin_path.clone(),
         };
 
         writer
@@ -620,6 +634,8 @@ impl InstanceState {
         hydrated.jvm_args_override = exported.jvm_args_override;
         hydrated.memory_override = exported.memory_override;
         hydrated.java_path_override = exported.java_path_override;
+        hydrated.server_address = exported.server_address;
+        hydrated.skin_path = exported.skin_path;
         self.update_instance(hydrated.clone())?;
         self.end_operation(&imported.id);
 
@@ -673,6 +689,8 @@ impl InstanceState {
                 jvm_args_override: None,
                 memory_override: None,
                 java_path_override: None,
+                server_address: None,
+                skin_path: None,
             };
 
             config.instances.push(recovered);

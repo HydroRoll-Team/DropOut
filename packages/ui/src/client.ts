@@ -1,6 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   Account,
+  AccountSummary,
+  ContentSearchResult,
+  ContentVersion,
+  DetectedLauncher,
   DeviceCodeResponse,
   FabricGameVersion,
   FabricLoaderEntry,
@@ -8,6 +12,7 @@ import type {
   FileInfo,
   ForgeVersion,
   GithubRelease,
+  ImportableInstance,
   InstalledFabricVersion,
   InstalledForgeVersion,
   InstalledVersion,
@@ -20,6 +25,7 @@ import type {
   Message,
   MigrationResult,
   ModelInfo,
+  ModInfo,
   PastebinResponse,
   PendingJavaDownload,
   Version,
@@ -268,6 +274,18 @@ export function installForge(
   });
 }
 
+export function convertModLoader(
+  instanceId: string,
+  targetLoader: string,
+  loaderVersion: string,
+): Promise<string> {
+  return invoke<string>("convert_mod_loader", {
+    instanceId,
+    targetLoader,
+    loaderVersion,
+  });
+}
+
 export function installVersion(
   instanceId: string,
   versionId: string,
@@ -425,5 +443,119 @@ export function updateInstance(instance: Instance): Promise<void> {
 export function uploadToPastebin(content: string): Promise<PastebinResponse> {
   return invoke<PastebinResponse>("upload_to_pastebin", {
     content,
+  });
+}
+
+// --- Multi-account ---
+
+export function getAllAccounts(): Promise<AccountSummary[]> {
+  return invoke<AccountSummary[]>("get_all_accounts");
+}
+
+export function switchAccount(uuid: string): Promise<Account> {
+  return invoke<Account>("switch_account", { uuid });
+}
+
+export function removeAccount(uuid: string): Promise<void> {
+  return invoke<void>("remove_account", { uuid });
+}
+
+// --- Mods management ---
+
+export function scanInstanceMods(instanceId: string): Promise<ModInfo[]> {
+  return invoke<ModInfo[]>("scan_instance_mods", { instanceId });
+}
+
+export function toggleMod(
+  instanceId: string,
+  fileName: string,
+): Promise<ModInfo> {
+  return invoke<ModInfo>("toggle_mod", { instanceId, fileName });
+}
+
+export function deleteMod(instanceId: string, fileName: string): Promise<void> {
+  return invoke<void>("delete_mod", { instanceId, fileName });
+}
+
+// --- Migration ---
+
+export function detectLaunchers(): Promise<DetectedLauncher[]> {
+  return invoke<DetectedLauncher[]>("detect_launchers");
+}
+
+export function scanLauncherInstances(
+  instancesDir: string,
+): Promise<ImportableInstance[]> {
+  return invoke<ImportableInstance[]>("scan_launcher_instances", {
+    instancesDir,
+  });
+}
+
+export function importFromLauncher(
+  sourcePath: string,
+  newName?: string,
+): Promise<Instance> {
+  return invoke<Instance>("import_from_launcher", { sourcePath, newName });
+}
+
+// --- Custom directory ---
+
+export function changeInstanceDirectory(
+  instanceId: string,
+  newDir: string,
+  migrateFiles: boolean,
+): Promise<Instance> {
+  return invoke<Instance>("change_instance_directory", {
+    instanceId,
+    newDir,
+    migrateFiles,
+  });
+}
+
+// --- Content Browser ---
+
+export function searchContent(
+  query: string,
+  projectType: string,
+  gameVersions: string[],
+  loaders: string[],
+  sortBy: string,
+  offset: number,
+  limit: number,
+): Promise<ContentSearchResult> {
+  return invoke<ContentSearchResult>("search_content", {
+    query,
+    projectType,
+    gameVersions,
+    loaders,
+    sortBy,
+    offset,
+    limit,
+  });
+}
+
+export function getContentVersions(
+  projectId: string,
+  gameVersions: string[],
+  loaders: string[],
+): Promise<ContentVersion[]> {
+  return invoke<ContentVersion[]>("get_content_versions", {
+    projectId,
+    gameVersions,
+    loaders,
+  });
+}
+
+export function downloadContentFile(
+  instanceId: string,
+  url: string,
+  fileName: string,
+  subfolder: string,
+): Promise<string> {
+  return invoke<string>("download_content_file", {
+    instanceId,
+    url,
+    fileName,
+    subfolder,
   });
 }

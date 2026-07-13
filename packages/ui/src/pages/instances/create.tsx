@@ -17,6 +17,7 @@ import {
   useFormContext,
   Watch,
 } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import z from "zod";
@@ -69,17 +70,16 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-import { translate, useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { useInstanceStore } from "@/models/instance";
 import type { FabricLoaderEntry, ForgeVersion, Version } from "@/types";
 
 const versionSchema = z.object({
-  versionId: z.string(translate("create.versionRequired")),
+  versionId: z.string("Version is required"),
 });
 
 function VersionComponent() {
-  const { t, locale } = useI18n();
+  const { t } = useTranslation();
   const {
     control,
     formState: { errors },
@@ -101,12 +101,12 @@ function VersionComponent() {
       setVersions(versions);
     } catch (e) {
       console.error("Failed to load versions:", e);
-      setErrorMessage(t("create.loadVersionsFailed", { error: String(e) }));
+      setErrorMessage(`Failed to load versions: ${String(e)}`);
       return;
     } finally {
       setIsLoading(false);
     }
-  }, [t]);
+  }, []);
   useEffect(() => {
     if (!versions) loadVersions();
   }, [versions, loadVersions]);
@@ -145,7 +145,7 @@ function VersionComponent() {
             onValueChange={(value) => setVersionFilter(value)}
           >
             <SelectTrigger>
-              <SelectValue placeholder={t("create.filterType")} />
+              <SelectValue placeholder={t("create.filterByType")} />
             </SelectTrigger>
             <SelectContent alignItemWithTrigger={false}>
               <SelectItem value="all">{t("create.allVersions")}</SelectItem>
@@ -155,12 +155,8 @@ function VersionComponent() {
               <SelectItem value="snapshot">
                 {t("create.snapshotVersions")}
               </SelectItem>
-              <SelectItem value="old_alpha">
-                {t("create.oldAlphaVersions")}
-              </SelectItem>
-              <SelectItem value="old_beta">
-                {t("create.oldBetaVersions")}
-              </SelectItem>
+              <SelectItem value="old_alpha">{t("create.oldAlpha")}</SelectItem>
+              <SelectItem value="old_beta">{t("create.oldBeta")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -202,9 +198,7 @@ function VersionComponent() {
                             <Badge variant="outline">{version.type}</Badge>
                           </FieldTitle>
                           <FieldDescription>
-                            {new Date(version.releaseTime).toLocaleString(
-                              locale === "zh" ? "zh-CN" : "en-US",
-                            )}
+                            {new Date(version.releaseTime).toLocaleString()}
                           </FieldDescription>
                         </FieldContent>
                         <div className="flex flex-row space-x-2 items-center">
@@ -236,14 +230,14 @@ function VersionComponent() {
 }
 
 const instanceSchema = z.object({
-  name: z.string().min(1, translate("create.instanceNameRequired")),
-  notes: z.string().max(100, translate("create.notesMax")).optional(),
+  name: z.string().min(1, "Instance name is required"),
+  notes: z.string().max(100, "Notes must be at most 100 characters").optional(),
   modLoader: z.enum(["fabric", "forge"]).optional(),
   modLoaderVersion: z.string().optional(),
 });
 
 function InstanceComponent() {
-  const { t } = useI18n();
+  const { t } = useTranslation();
   const {
     control,
     register,
@@ -263,32 +257,32 @@ function InstanceComponent() {
   const [isLoadingFabric, setIsLoadingFabric] = useState(false);
   const loadForgeVersions = useCallback(async () => {
     if (forgeVersions) return;
-    if (!versionId) return toast.error(t("create.versionIdMissing"));
+    if (!versionId) return toast.error("Version ID is not set");
     setIsLoadingForge(true);
     try {
       const versions = await getForgeVersionsForGame(versionId);
       setForgeVersions(versions);
     } catch (e) {
       console.error("Failed to load Forge versions:", e);
-      toast.error(t("create.loadForgeFailed", { error: String(e) }));
+      toast.error(`Failed to load Forge versions: ${String(e)}`);
     } finally {
       setIsLoadingForge(false);
     }
-  }, [versionId, forgeVersions, t]);
+  }, [versionId, forgeVersions]);
   const loadFabricVersions = useCallback(async () => {
     if (fabricVersions) return;
-    if (!versionId) return toast.error(t("create.versionIdMissing"));
+    if (!versionId) return toast.error("Version ID is not set");
     setIsLoadingFabric(true);
     try {
       const versions = await getFabricLoadersForVersion(versionId);
       setFabricVersions(versions);
     } catch (e) {
       console.error("Failed to load Fabric versions:", e);
-      toast.error(t("create.loadFabricFailed", { error: String(e) }));
+      toast.error(`Failed to load Fabric versions: ${String(e)}`);
     } finally {
       setIsLoadingFabric(false);
     }
-  }, [versionId, fabricVersions, t]);
+  }, [versionId, fabricVersions]);
 
   const modLoaderField = register("modLoader");
   const modLoaderVersionField = register("modLoaderVersion");
@@ -402,9 +396,7 @@ function InstanceComponent() {
                         }}
                       >
                         Forge {version.version} for Minecraft{" "}
-                        {t("create.forMinecraft", {
-                          version: version.minecraftVersion,
-                        })}
+                        {version.minecraftVersion}
                       </Button>
                       {idx !== forgeVersions.length - 1 && <Separator />}
                     </React.Fragment>
@@ -496,9 +488,7 @@ function InstanceComponent() {
                         }}
                       >
                         Fabric {version.loader.version} for Minecraft{" "}
-                        {t("create.forMinecraft", {
-                          version: version.intermediary.version,
-                        })}
+                        {version.intermediary.version}
                       </Button>
                       {idx !== fabricVersions.length - 1 && <Separator />}
                     </React.Fragment>
@@ -519,20 +509,20 @@ export const useVersionId = () => useContext(VersionIdContext);
 const { useStepper, Stepper } = defineStepper(
   {
     id: "version",
-    title: translate("create.step.version"),
+    title: "Version",
     Component: VersionComponent,
     schema: versionSchema,
   },
   {
     id: "instance",
-    title: translate("create.step.instance"),
+    title: "Instance",
     Component: InstanceComponent,
     schema: instanceSchema,
   },
 );
 
 export function CreateInstancePage() {
-  const { t } = useI18n();
+  const { t } = useTranslation();
   const stepper = useStepper();
   const schema = stepper.state.current.data.schema;
   const form = useForm<z.infer<typeof schema>>({
@@ -587,7 +577,7 @@ export function CreateInstancePage() {
         switch (instanceMeta.modLoader) {
           case "fabric":
             if (!instanceMeta.modLoaderVersion) {
-              toast.error(t("create.selectFabricFirst"));
+              toast.error(t("create.selectFabricVersion"));
               return;
             }
             await installFabric(
@@ -598,7 +588,7 @@ export function CreateInstancePage() {
             break;
           case "forge":
             if (!instanceMeta.modLoaderVersion) {
-              toast.error(t("create.selectForgeFirst"));
+              toast.error(t("create.selectForgeVersion"));
               return;
             }
             await installForge(
@@ -608,14 +598,14 @@ export function CreateInstancePage() {
             );
             break;
           default:
-            toast.error(t("create.unsupportedModLoader"));
+            toast.error("Unsupported mod loader");
             break;
         }
 
         navigate("/instances");
       } catch (error) {
         console.error(error);
-        toast.error(t("create.failed"));
+        toast.error(t("create.failedCreate"));
       } finally {
         setIsCreating(false);
       }
@@ -692,7 +682,7 @@ export function CreateInstancePage() {
               {isCreating ? (
                 <>
                   <Spinner />
-                  {t("common.creating")}
+                  {t("create.creating")}
                 </>
               ) : (
                 t("common.create")
@@ -708,7 +698,7 @@ export function CreateInstancePage() {
 }
 
 function PageWrapper() {
-  const { t } = useI18n();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [showCancelDialog, setShowCancelDialog] = useState(false);
 

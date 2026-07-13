@@ -20,9 +20,13 @@
     "core:app:allow-version",
     "core:path:default",
     "core:window:default",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:window:allow-set-focus",
     "shell:allow-open",
     "dialog:default",
     "fs:default",
+    "updater:default",
     {
       "identifier": "fs:allow-read",
       "allow": [{ "path": "**" }]

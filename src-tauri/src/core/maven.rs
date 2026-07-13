@@ -133,6 +133,37 @@ impl MavenCoordinate {
     }
 }
 
+/// Resolve the download URL for a library, with optional mirror support.
+pub fn resolve_library_url_with_mirror(
+    name: &str,
+    explicit_url: Option<&str>,
+    maven_url: Option<&str>,
+    mirror: crate::core::mirror::MirrorSource,
+) -> Option<String> {
+    // If there's an explicit URL, remap it through the mirror
+    if let Some(url) = explicit_url {
+        return Some(crate::core::mirror::remap_url(url, mirror));
+    }
+
+    // Parse the Maven coordinate
+    let coord = MavenCoordinate::parse(name)?;
+
+    // Determine the base Maven URL
+    let base_url = maven_url.unwrap_or_else(|| {
+        if coord.group.starts_with("net.fabricmc") {
+            crate::core::mirror::remap_url(FABRIC_MAVEN, mirror).leak()
+        } else if coord.group.starts_with("net.minecraftforge")
+            || coord.group.starts_with("cpw.mods")
+        {
+            crate::core::mirror::remap_url(FORGE_MAVEN, mirror).leak()
+        } else {
+            crate::core::mirror::remap_url(MOJANG_LIBRARIES, mirror).leak()
+        }
+    });
+
+    Some(coord.to_url(base_url))
+}
+
 /// Resolve the download URL for a library.
 ///
 /// This function handles both:

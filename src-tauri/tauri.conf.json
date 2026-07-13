@@ -41,5 +41,13 @@
         "bundleMediaFramework": false
       }
     }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/HydroRoll-Team/DropOut/releases/latest/download/latest.json"
+      ],
+      "pubkey": ""
+    }
   }
 }

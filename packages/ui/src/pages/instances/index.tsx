@@ -4,15 +4,19 @@ import {
   EditIcon,
   EllipsisIcon,
   FolderOpenIcon,
+  GlobeIcon,
+  PackageIcon,
   Plus,
   RocketIcon,
   Trash2Icon,
   XIcon,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { openFileExplorer } from "@/client";
+import { ImportWizard } from "@/components/import-wizard";
 import InstanceEditorModal from "@/components/instance-editor-modal";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,7 +28,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/models/auth";
 import { useGameStore } from "@/models/game";
@@ -32,7 +35,7 @@ import { useInstanceStore } from "@/models/instance";
 import type { Instance } from "@/types";
 
 export function InstancesPage() {
-  const { t } = useI18n();
+  const { t } = useTranslation();
   const instancesStore = useInstanceStore();
   const navigate = useNavigate();
 
@@ -52,6 +55,7 @@ export function InstancesPage() {
   const [isImporting, setIsImporting] = useState(false);
   const [repairing, setRepairing] = useState(false);
   const [exportingId, setExportingId] = useState<string | null>(null);
+  const [showImportWizard, setShowImportWizard] = useState(false);
 
   // Selected / editing instance state
   const [selectedInstance, setSelectedInstance] = useState<Instance | null>(
@@ -83,7 +87,7 @@ export function InstancesPage() {
 
   const openDuplicate = (instance: Instance) => {
     setSelectedInstance(instance);
-    setDuplicateName(`${instance.name} Copy`);
+    setDuplicateName(`${instance.name} (Copy)`);
     setShowDuplicateModal(true);
   };
 
@@ -162,7 +166,14 @@ export function InstancesPage() {
             onClick={handleImport}
             disabled={isImporting}
           >
-            {isImporting ? t("instances.importing") : t("instances.import")}
+            {isImporting ? t("instances.importing") : t("instances.importZip")}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setShowImportWizard(true)}
+          >
+            {t("instances.fromLauncher")}
           </Button>
           <Button
             type="button"
@@ -170,7 +181,7 @@ export function InstancesPage() {
             onClick={handleRepair}
             disabled={repairing}
           >
-            {repairing ? t("instances.repairing") : t("instances.repair")}
+            {repairing ? t("instances.repairing") : t("instances.repairIndex")}
           </Button>
           <Button
             type="button"
@@ -186,8 +197,8 @@ export function InstancesPage() {
       {instancesStore.instances.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center text-gray-500 dark:text-gray-400">
-            <p className="text-lg mb-2">{t("instances.emptyTitle")}</p>
-            <p className="text-sm">{t("instances.emptyDesc")}</p>
+            <p className="text-lg mb-2">{t("instances.noInstances")}</p>
+            <p className="text-sm">{t("instances.noInstancesHint")}</p>
           </div>
         </div>
       ) : (
@@ -208,7 +219,7 @@ export function InstancesPage() {
                       await instancesStore.setActiveInstance(instance);
                     } catch (e) {
                       console.error("Failed to set active instance:", e);
-                      toast.error(t("instances.setActiveFailed"));
+                      toast.error("Error setting active instance");
                     }
                   }
                 }}
@@ -268,7 +279,7 @@ export function InstancesPage() {
                               "Failed to set active instance:",
                               error,
                             );
-                            toast.error(t("instances.setActiveFailed"));
+                            toast.error("Error setting active instance");
                             return;
                           }
 
@@ -278,7 +289,7 @@ export function InstancesPage() {
                           }
 
                           if (!instance.versionId) {
-                            toast.error(t("instances.noVersionInstalled"));
+                            toast.error(t("instances.noVersionError"));
                             return;
                           }
 
@@ -291,7 +302,7 @@ export function InstancesPage() {
                             await startGame(instance.id, instance.versionId);
                           } catch (error) {
                             console.error("Failed to start game:", error);
-                            toast.error(t("instances.startFailed"));
+                            toast.error("Error starting game");
                           }
                         }}
                         disabled={
@@ -347,6 +358,28 @@ export function InstancesPage() {
                         size="icon"
                         onClick={(e) => {
                           e.stopPropagation();
+                          navigate(`/instances/${instance.id}/mods`);
+                        }}
+                        title={t("instances.manageMods")}
+                      >
+                        <PackageIcon />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/instances/${instance.id}/browse`);
+                        }}
+                        title={t("instances.browseContent")}
+                      >
+                        <GlobeIcon />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
                           openEdit(instance);
                         }}
                       >
@@ -391,7 +424,7 @@ export function InstancesPage() {
           <DialogHeader>
             <DialogTitle>{t("instances.deleteTitle")}</DialogTitle>
             <DialogDescription>
-              {t("instances.deleteDesc", { name: selectedInstance?.name })}
+              {t("instances.deleteConfirm", { name: selectedInstance?.name })}
             </DialogDescription>
           </DialogHeader>
 
@@ -423,7 +456,7 @@ export function InstancesPage() {
           <DialogHeader>
             <DialogTitle>{t("instances.duplicateTitle")}</DialogTitle>
             <DialogDescription>
-              {t("instances.duplicateDesc")}
+              {t("instances.duplicateHint")}
             </DialogDescription>
           </DialogHeader>
 
@@ -431,7 +464,7 @@ export function InstancesPage() {
             <Input
               value={duplicateName}
               onChange={(e) => setDuplicateName(e.target.value)}
-              placeholder={t("instances.newName")}
+              placeholder={t("instances.duplicatePlaceholder")}
               onKeyDown={(e) => e.key === "Enter" && confirmDuplicate()}
             />
           </div>
@@ -458,6 +491,12 @@ export function InstancesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ImportWizard
+        open={showImportWizard}
+        onOpenChange={setShowImportWizard}
+        onComplete={() => instancesStore.refresh()}
+      />
     </div>
   );
 }
