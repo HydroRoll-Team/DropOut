@@ -1,6 +1,7 @@
 import { Play, User, XIcon } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
+import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/models/auth";
 import { useGameStore } from "@/models/game";
@@ -18,6 +19,7 @@ import {
 import { Spinner } from "./ui/spinner";
 
 export function BottomBar() {
+  const { t } = useI18n();
   const account = useAuthStore((state) => state.account);
 
   const { instances, activeInstance, setActiveInstance } = useInstanceStore();
@@ -48,15 +50,15 @@ export function BottomBar() {
         await setActiveInstance(nextInstance);
       } catch (error) {
         console.error("Failed to activate instance:", error);
-        toast.error(`Failed to activate instance: ${String(error)}`);
+        toast.error(t("bottom.activateFailed", { error: String(error) }));
       }
     },
-    [activeInstance?.id, instances, setActiveInstance],
+    [activeInstance?.id, instances, setActiveInstance, t],
   );
 
   const handleStartGame = async () => {
     if (!activeInstance) {
-      toast.info("Please select an instance first!");
+      toast.info(t("bottom.selectInstanceFirst"));
       return;
     }
 
@@ -77,7 +79,7 @@ export function BottomBar() {
           size="lg"
           onClick={() => setShowLoginModal(true)}
         >
-          <User /> Login
+          <User /> {t("bottom.login")}
         </Button>
       );
     }
@@ -90,7 +92,7 @@ export function BottomBar() {
           disabled={stoppingInstanceId !== null}
         >
           {stoppingInstanceId ? <Spinner /> : <XIcon />}
-          Close
+          {t("bottom.close")}
         </Button>
       );
     }
@@ -106,7 +108,7 @@ export function BottomBar() {
         disabled={launchingInstanceId === activeInstance?.id}
       >
         {launchingInstanceId === activeInstance?.id ? <Spinner /> : <Play />}
-        Start
+        {t("bottom.start")}
       </Button>
     );
   };
@@ -133,8 +135,8 @@ export function BottomBar() {
                 <SelectValue
                   placeholder={
                     instances.length === 0
-                      ? "No instances available"
-                      : "Please select an instance"
+                      ? t("bottom.noInstances")
+                      : t("bottom.selectInstance")
                   }
                 />
               </SelectTrigger>
@@ -145,7 +147,7 @@ export function BottomBar() {
                       <div className="flex min-w-0 flex-col">
                         <span className="truncate">{instance.name}</span>
                         <span className="text-muted-foreground truncate text-[11px]">
-                          {instance.versionId ?? "No version selected"}
+                          {instance.versionId ?? t("bottom.noVersion")}
                         </span>
                       </div>
                     </SelectItem>

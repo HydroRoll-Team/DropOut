@@ -69,15 +69,17 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import { translate, useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { useInstanceStore } from "@/models/instance";
 import type { FabricLoaderEntry, ForgeVersion, Version } from "@/types";
 
 const versionSchema = z.object({
-  versionId: z.string("Version is required"),
+  versionId: z.string(translate("create.versionRequired")),
 });
 
 function VersionComponent() {
+  const { t, locale } = useI18n();
   const {
     control,
     formState: { errors },
@@ -99,12 +101,12 @@ function VersionComponent() {
       setVersions(versions);
     } catch (e) {
       console.error("Failed to load versions:", e);
-      setErrorMessage(`Failed to load versions: ${String(e)}`);
+      setErrorMessage(t("create.loadVersionsFailed", { error: String(e) }));
       return;
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [t]);
   useEffect(() => {
     if (!versions) loadVersions();
   }, [versions, loadVersions]);
@@ -127,47 +129,57 @@ function VersionComponent() {
     <div className="flex flex-col min-h-0 h-full overflow-hidden">
       <div className="flex flex-row items-center mb-4 space-x-2">
         <div className="flex flex-row space-x-2 w-full">
-          <FieldLabel className="text-nowrap">Versions</FieldLabel>
+          <FieldLabel className="text-nowrap">
+            {t("create.versions")}
+          </FieldLabel>
           <Input
-            placeholder="Search versions..."
+            placeholder={t("create.searchVersions")}
             value={versionSearch}
             onChange={(e) => setVersionSearch(e.target.value)}
           />
         </div>
         <div className="flex flex-row space-x-2">
-          <FieldLabel className="text-nowrap">Type</FieldLabel>
+          <FieldLabel className="text-nowrap">{t("create.type")}</FieldLabel>
           <Select
             value={versionFilter}
             onValueChange={(value) => setVersionFilter(value)}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Filter by type" />
+              <SelectValue placeholder={t("create.filterType")} />
             </SelectTrigger>
             <SelectContent alignItemWithTrigger={false}>
-              <SelectItem value="all">All Versions</SelectItem>
-              <SelectItem value="release">Release Versions</SelectItem>
-              <SelectItem value="snapshot">Snapshot Versions</SelectItem>
-              <SelectItem value="old_alpha">Old Alpha Versions</SelectItem>
-              <SelectItem value="old_beta">Old Beta Versions</SelectItem>
+              <SelectItem value="all">{t("create.allVersions")}</SelectItem>
+              <SelectItem value="release">
+                {t("create.releaseVersions")}
+              </SelectItem>
+              <SelectItem value="snapshot">
+                {t("create.snapshotVersions")}
+              </SelectItem>
+              <SelectItem value="old_alpha">
+                {t("create.oldAlphaVersions")}
+              </SelectItem>
+              <SelectItem value="old_beta">
+                {t("create.oldBetaVersions")}
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
         <Button onClick={loadVersions} disabled={isLoading}>
-          Refresh
+          {t("common.refresh")}
         </Button>
       </div>
       {errorMessage && (
         <div className="size-full flex flex-col items-center justify-center space-y-2">
           <p className="text-red-500">{errorMessage}</p>
           <Button variant="outline" onClick={loadVersions}>
-            Retry
+            {t("common.retry")}
           </Button>
         </div>
       )}
       {isLoading && !errorMessage ? (
         <div className="size-full flex flex-col items-center justify-center">
           <Spinner />
-          <p>Loading versions...</p>
+          <p>{t("create.loadingVersions")}</p>
         </div>
       ) : (
         <div className="flex-1 overflow-hidden">
@@ -190,7 +202,9 @@ function VersionComponent() {
                             <Badge variant="outline">{version.type}</Badge>
                           </FieldTitle>
                           <FieldDescription>
-                            {new Date(version.releaseTime).toLocaleString()}
+                            {new Date(version.releaseTime).toLocaleString(
+                              locale === "zh" ? "zh-CN" : "en-US",
+                            )}
                           </FieldDescription>
                         </FieldContent>
                         <div className="flex flex-row space-x-2 items-center">
@@ -222,13 +236,14 @@ function VersionComponent() {
 }
 
 const instanceSchema = z.object({
-  name: z.string().min(1, "Instance name is required"),
-  notes: z.string().max(100, "Notes must be at most 100 characters").optional(),
+  name: z.string().min(1, translate("create.instanceNameRequired")),
+  notes: z.string().max(100, translate("create.notesMax")).optional(),
   modLoader: z.enum(["fabric", "forge"]).optional(),
   modLoaderVersion: z.string().optional(),
 });
 
 function InstanceComponent() {
+  const { t } = useI18n();
   const {
     control,
     register,
@@ -248,32 +263,32 @@ function InstanceComponent() {
   const [isLoadingFabric, setIsLoadingFabric] = useState(false);
   const loadForgeVersions = useCallback(async () => {
     if (forgeVersions) return;
-    if (!versionId) return toast.error("Version ID is not set");
+    if (!versionId) return toast.error(t("create.versionIdMissing"));
     setIsLoadingForge(true);
     try {
       const versions = await getForgeVersionsForGame(versionId);
       setForgeVersions(versions);
     } catch (e) {
       console.error("Failed to load Forge versions:", e);
-      toast.error(`Failed to load Forge versions: ${String(e)}`);
+      toast.error(t("create.loadForgeFailed", { error: String(e) }));
     } finally {
       setIsLoadingForge(false);
     }
-  }, [versionId, forgeVersions]);
+  }, [versionId, forgeVersions, t]);
   const loadFabricVersions = useCallback(async () => {
     if (fabricVersions) return;
-    if (!versionId) return toast.error("Version ID is not set");
+    if (!versionId) return toast.error(t("create.versionIdMissing"));
     setIsLoadingFabric(true);
     try {
       const versions = await getFabricLoadersForVersion(versionId);
       setFabricVersions(versions);
     } catch (e) {
       console.error("Failed to load Fabric versions:", e);
-      toast.error(`Failed to load Fabric versions: ${String(e)}`);
+      toast.error(t("create.loadFabricFailed", { error: String(e) }));
     } finally {
       setIsLoadingFabric(false);
     }
-  }, [versionId, fabricVersions]);
+  }, [versionId, fabricVersions, t]);
 
   const modLoaderField = register("modLoader");
   const modLoaderVersionField = register("modLoaderVersion");
@@ -285,14 +300,14 @@ function InstanceComponent() {
           <FieldSet className="w-full">
             <Field orientation="horizontal">
               <FieldLabel htmlFor="name" className="text-nowrap" required>
-                Instance Name
+                {t("create.instanceName")}
               </FieldLabel>
               <Input {...register("name")} aria-invalid={!!errors.name} />
               {errors.name && <FieldError errors={[errors.name]} />}
             </Field>
             <Field>
               <FieldLabel htmlFor="notes" className="text-nowrap">
-                Instance Notes
+                {t("create.instanceNotes")}
               </FieldLabel>
               <Textarea
                 className="resize-none min-h-0"
@@ -360,7 +375,7 @@ function InstanceComponent() {
               {isLoadingForge ? (
                 <div className="h-full flex flex-col items-center justify-center">
                   <Spinner />
-                  <p>Loading Forge versions...</p>
+                  <p>{t("create.loadingForge")}</p>
                 </div>
               ) : (
                 <div className="h-full flex flex-col">
@@ -387,7 +402,9 @@ function InstanceComponent() {
                         }}
                       >
                         Forge {version.version} for Minecraft{" "}
-                        {version.minecraftVersion}
+                        {t("create.forMinecraft", {
+                          version: version.minecraftVersion,
+                        })}
                       </Button>
                       {idx !== forgeVersions.length - 1 && <Separator />}
                     </React.Fragment>
@@ -452,7 +469,7 @@ function InstanceComponent() {
               {isLoadingFabric ? (
                 <div className="h-full flex flex-col items-center justify-center">
                   <Spinner />
-                  <p>Loading Fabric versions...</p>
+                  <p>{t("create.loadingFabric")}</p>
                 </div>
               ) : (
                 <div className="h-full flex flex-col">
@@ -479,7 +496,9 @@ function InstanceComponent() {
                         }}
                       >
                         Fabric {version.loader.version} for Minecraft{" "}
-                        {version.intermediary.version}
+                        {t("create.forMinecraft", {
+                          version: version.intermediary.version,
+                        })}
                       </Button>
                       {idx !== fabricVersions.length - 1 && <Separator />}
                     </React.Fragment>
@@ -500,19 +519,20 @@ export const useVersionId = () => useContext(VersionIdContext);
 const { useStepper, Stepper } = defineStepper(
   {
     id: "version",
-    title: "Version",
+    title: translate("create.step.version"),
     Component: VersionComponent,
     schema: versionSchema,
   },
   {
     id: "instance",
-    title: "Instance",
+    title: translate("create.step.instance"),
     Component: InstanceComponent,
     schema: instanceSchema,
   },
 );
 
 export function CreateInstancePage() {
+  const { t } = useI18n();
   const stepper = useStepper();
   const schema = stepper.state.current.data.schema;
   const form = useForm<z.infer<typeof schema>>({
@@ -551,7 +571,7 @@ export function CreateInstancePage() {
           setInstanceMeta(data as z.infer<typeof instanceSchema>);
       }
 
-      if (!versionId) return toast.error("Please select a version first");
+      if (!versionId) return toast.error(t("create.selectVersionFirst"));
 
       setIsCreating(true);
 
@@ -567,7 +587,7 @@ export function CreateInstancePage() {
         switch (instanceMeta.modLoader) {
           case "fabric":
             if (!instanceMeta.modLoaderVersion) {
-              toast.error("Please select a Fabric loader version");
+              toast.error(t("create.selectFabricFirst"));
               return;
             }
             await installFabric(
@@ -578,7 +598,7 @@ export function CreateInstancePage() {
             break;
           case "forge":
             if (!instanceMeta.modLoaderVersion) {
-              toast.error("Please select a Forge loader version");
+              toast.error(t("create.selectForgeFirst"));
               return;
             }
             await installForge(
@@ -588,19 +608,19 @@ export function CreateInstancePage() {
             );
             break;
           default:
-            toast.error("Unsupported mod loader");
+            toast.error(t("create.unsupportedModLoader"));
             break;
         }
 
         navigate("/instances");
       } catch (error) {
         console.error(error);
-        toast.error("Failed to create instance");
+        toast.error(t("create.failed"));
       } finally {
         setIsCreating(false);
       }
     },
-    [stepper, instanceStore.create, versionId, navigate],
+    [stepper, instanceStore.create, versionId, navigate, t],
   );
 
   return (
@@ -663,7 +683,7 @@ export function CreateInstancePage() {
                 disabled={isCreating}
                 {...domProps}
               >
-                Previous
+                {t("common.previous")}
               </Button>
             )}
           />
@@ -672,14 +692,14 @@ export function CreateInstancePage() {
               {isCreating ? (
                 <>
                   <Spinner />
-                  Creating
+                  {t("common.creating")}
                 </>
               ) : (
-                "Create"
+                t("common.create")
               )}
             </Button>
           ) : (
-            <Button type="submit">Next</Button>
+            <Button type="submit">{t("common.next")}</Button>
           )}
         </div>
       </form>
@@ -688,6 +708,7 @@ export function CreateInstancePage() {
 }
 
 function PageWrapper() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [showCancelDialog, setShowCancelDialog] = useState(false);
 
@@ -710,10 +731,10 @@ function PageWrapper() {
               >
                 <ArrowLeftIcon />
               </Button>
-              <h1 className="text-2xl font-bold">Create Instance</h1>
+              <h1 className="text-2xl font-bold">{t("create.title")}</h1>
             </div>
             <p className="text-sm text-muted-foreground">
-              Create a new Minecraft instance.
+              {t("create.subtitle")}
             </p>
             <CreateInstancePage />
           </>
@@ -723,18 +744,18 @@ function PageWrapper() {
       <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogTitle>{t("create.cancelTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              All your progress will be lost.
+              {t("create.cancelDesc")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
               onClick={() => navigate(-1)}
             >
-              Continue
+              {t("common.continue")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

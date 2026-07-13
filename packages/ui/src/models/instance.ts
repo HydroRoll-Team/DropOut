@@ -13,6 +13,7 @@ import {
   setActiveInstance as setActiveInstanceCommand,
   updateInstance,
 } from "@/client";
+import { translate } from "@/lib/i18n";
 import type { Instance } from "@/types";
 
 interface InstanceState {
@@ -58,7 +59,7 @@ export const useInstanceStore = create<InstanceState>((set, get) => ({
       set({ instances, activeInstance });
     } catch (e) {
       console.error("Failed to load instances:", e);
-      toast.error("Error loading instances");
+      toast.error(translate("store.instancesLoadFailed"));
     }
   },
 
@@ -67,7 +68,7 @@ export const useInstanceStore = create<InstanceState>((set, get) => ({
     const instance = await createInstance(name);
     await setActiveInstanceCommand(instance.id);
     await refresh();
-    toast.success(`Instance "${name}" created successfully`);
+    toast.success(translate("store.instanceCreated", { name }));
     return instance;
   },
 
@@ -77,7 +78,7 @@ export const useInstanceStore = create<InstanceState>((set, get) => ({
       await deleteInstance(id);
       await refresh();
 
-      toast.success("Instance deleted successfully");
+      toast.success(translate("store.instanceDeleted"));
     } catch (e) {
       console.error("Failed to delete instance:", e);
       toast.error(String(e));
@@ -89,10 +90,10 @@ export const useInstanceStore = create<InstanceState>((set, get) => ({
     try {
       await updateInstance(instance);
       await refresh();
-      toast.success("Instance updated successfully");
+      toast.success(translate("store.instanceUpdated"));
     } catch (e) {
       console.error("Failed to update instance:", e);
-      toast.error("Error updating instance");
+      toast.error(translate("store.instanceUpdateFailed"));
     }
   },
 
@@ -107,7 +108,7 @@ export const useInstanceStore = create<InstanceState>((set, get) => ({
       const instance = await duplicateInstance(id, newName);
       await setActiveInstanceCommand(instance.id);
       await refresh();
-      toast.success(`Instance duplicated as "${newName}"`);
+      toast.success(translate("store.instanceDuplicated", { name: newName }));
       return instance;
     } catch (e) {
       console.error("Failed to duplicate instance:", e);
@@ -119,7 +120,7 @@ export const useInstanceStore = create<InstanceState>((set, get) => ({
   exportArchive: async (id, archivePath) => {
     try {
       await exportInstance(id, archivePath);
-      toast.success("Instance exported successfully");
+      toast.success(translate("store.instanceExported"));
     } catch (e) {
       console.error("Failed to export instance:", e);
       toast.error(String(e));
@@ -132,7 +133,9 @@ export const useInstanceStore = create<InstanceState>((set, get) => ({
       const instance = await importInstance(archivePath, newName);
       await setActiveInstanceCommand(instance.id);
       await refresh();
-      toast.success(`Instance "${instance.name}" imported successfully`);
+      toast.success(
+        translate("store.instanceImported", { name: instance.name }),
+      );
       return instance;
     } catch (e) {
       console.error("Failed to import instance:", e);
@@ -147,7 +150,10 @@ export const useInstanceStore = create<InstanceState>((set, get) => ({
       const result = await repairInstances();
       await refresh();
       toast.success(
-        `Repair completed: restored ${result.restoredInstances}, removed ${result.removedStaleEntries}`,
+        translate("store.repairCompleted", {
+          restored: result.restoredInstances,
+          removed: result.removedStaleEntries,
+        }),
       );
     } catch (e) {
       console.error("Failed to repair instances:", e);
