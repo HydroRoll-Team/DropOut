@@ -131,9 +131,9 @@ impl Default for LauncherConfig {
 
 impl LauncherConfig {
     pub fn sanitize(&mut self) {
-        self.download_threads =
-            self.download_threads
-                .clamp(MIN_DOWNLOAD_THREADS, MAX_DOWNLOAD_THREADS);
+        self.download_threads = self
+            .download_threads
+            .clamp(MIN_DOWNLOAD_THREADS, MAX_DOWNLOAD_THREADS);
     }
 }
 
