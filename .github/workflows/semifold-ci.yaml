@@ -74,6 +74,9 @@ jobs:
           cache: "pnpm"
           cache-dependency-path: "pnpm-lock.yaml"
 
+      - name: Install Root Node.js Dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Install UI Dependencies
         run: pnpm -C packages/ui --lockfile-dir "${{ github.workspace }}" install --frozen-lockfile
 
