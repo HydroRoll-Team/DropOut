@@ -41,3 +41,5 @@ release/
 
 # Vscode
 .vscode/
+
+.pnpm-store/
