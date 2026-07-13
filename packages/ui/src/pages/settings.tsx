@@ -31,6 +31,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MAX_DOWNLOAD_THREADS, MIN_DOWNLOAD_THREADS } from "@/lib/config";
 import { useJavaStore } from "@/models/java";
 import { useSettingsStore } from "@/models/settings";
 
@@ -168,8 +169,8 @@ export function SettingsPage() {
                       onBlur={() => {
                         settings.save();
                       }}
-                      min={1}
-                      max={64}
+                      min={MIN_DOWNLOAD_THREADS}
+                      max={MAX_DOWNLOAD_THREADS}
                     />
                   </Field>
                 </FieldSet>

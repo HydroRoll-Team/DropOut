@@ -5,6 +5,9 @@ use std::sync::Mutex;
 use tauri::{AppHandle, Manager};
 use ts_rs::TS;
 
+pub const MIN_DOWNLOAD_THREADS: u32 = 1;
+pub const MAX_DOWNLOAD_THREADS: u32 = 64;
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "config.ts")]
@@ -85,7 +88,8 @@ pub struct LauncherConfig {
     pub java_path: String,
     pub width: u32,
     pub height: u32,
-    pub download_threads: u32, // concurrent download threads (1-128)
+    /// Concurrent download threads. Clamped via MIN_DOWNLOAD_THREADS/MAX_DOWNLOAD_THREADS.
+    pub download_threads: u32,
     pub custom_background_path: Option<String>,
     pub enable_gpu_acceleration: bool,
     pub enable_visual_effects: bool,
@@ -109,7 +113,7 @@ impl Default for LauncherConfig {
             java_path: "java".to_string(),
             width: 854,
             height: 480,
-            download_threads: 32,
+            download_threads: 8,
             custom_background_path: None,
             enable_gpu_acceleration: false,
             enable_visual_effects: true,
@@ -125,6 +129,14 @@ impl Default for LauncherConfig {
     }
 }
 
+impl LauncherConfig {
+    pub fn sanitize(&mut self) {
+        self.download_threads =
+            self.download_threads
+                .clamp(MIN_DOWNLOAD_THREADS, MAX_DOWNLOAD_THREADS);
+    }
+}
+
 pub struct ConfigState {
     pub config: Mutex<LauncherConfig>,
     pub file_path: PathBuf,
@@ -137,7 +149,9 @@ impl ConfigState {
 
         let config = if config_path.exists() {
             let content = fs::read_to_string(&config_path).unwrap_or_default();
-            serde_json::from_str(&content).unwrap_or_default()
+            let mut config: LauncherConfig = serde_json::from_str(&content).unwrap_or_default();
+            config.sanitize();
+            config
         } else {
             LauncherConfig::default()
         };
@@ -150,7 +164,8 @@ impl ConfigState {
 
     pub fn save(&self) -> Result<(), String> {
         let config = self.config.lock().unwrap();
-        let content = serde_json::to_string_pretty(&*config).map_err(|e| e.to_string())?;
+        let content = serde_json::to_string_pretty(&*config)
+            .map_err(|e| format!("Failed to serialize config: {}", e))?;
         fs::create_dir_all(self.file_path.parent().unwrap()).map_err(|e| e.to_string())?;
         fs::write(&self.file_path, content).map_err(|e| e.to_string())?;
         Ok(())
