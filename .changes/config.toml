@@ -37,12 +37,12 @@ url = "https://crates.io/api/v1/crates/{{ package.name }}/{{ package.version }}"
 User-Agent = "Semifold 0.2.10"
 
 [[resolver.rust.publish]]
-command = "pnpm"
-args = ["tsx", "../scripts/release-aur.ts"]
+command = "bash"
+args = ["-lc", "root=$(git rev-parse --show-toplevel) && pnpm --dir \"$root\" exec tsx scripts/release-aur.ts"]
 
 [[resolver.rust.post-version]]
-command = "pnpm"
-args = ["bump-tauri"]
+command = "bash"
+args = ["-lc", "root=$(git rev-parse --show-toplevel) && pnpm --dir \"$root\" bump-tauri"]
 
 [resolver.nodejs.pre-check]
 url = "https://registry.npmjs.org/{{ package.name }}/{{ package.version }}"
