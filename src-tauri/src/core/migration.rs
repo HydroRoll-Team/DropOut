@@ -72,11 +72,7 @@ pub fn scan_instances(instances_dir: &Path) -> Result<Vec<ImportableInstance>, S
                         serde_json::from_str(&content).unwrap_or_default();
                     parse_mmc_components(&json)
                 }
-                Err(_) => (
-                    cfg_value(&cfg, "IntendedVersion"),
-                    None,
-                    None,
-                ),
+                Err(_) => (cfg_value(&cfg, "IntendedVersion"), None, None),
             };
 
         result.push(ImportableInstance {

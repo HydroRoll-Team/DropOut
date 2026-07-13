@@ -169,10 +169,22 @@ fn try_forge_meta(archive: &mut zip::ZipArchive<fs::File>) -> Option<ModMeta> {
     let mods = table.get("mods")?.as_array()?;
     let first = mods.first()?;
     Some(ModMeta {
-        name: first.get("displayName").and_then(|v| v.as_str()).map(String::from),
-        id: first.get("modId").and_then(|v| v.as_str()).map(String::from),
-        version: first.get("version").and_then(|v| v.as_str()).map(String::from),
-        description: first.get("description").and_then(|v| v.as_str()).map(String::from),
+        name: first
+            .get("displayName")
+            .and_then(|v| v.as_str())
+            .map(String::from),
+        id: first
+            .get("modId")
+            .and_then(|v| v.as_str())
+            .map(String::from),
+        version: first
+            .get("version")
+            .and_then(|v| v.as_str())
+            .map(String::from),
+        description: first
+            .get("description")
+            .and_then(|v| v.as_str())
+            .map(String::from),
         loader: Some("forge".to_string()),
     })
 }
@@ -182,10 +194,16 @@ fn try_quilt_meta(archive: &mut zip::ZipArchive<fs::File>) -> Option<ModMeta> {
     let json: serde_json::Value = serde_json::from_str(&content).ok()?;
     let loader = json.get("quilt_loader")?;
     Some(ModMeta {
-        name: loader.get("metadata").and_then(|m| m["name"].as_str()).map(String::from),
+        name: loader
+            .get("metadata")
+            .and_then(|m| m["name"].as_str())
+            .map(String::from),
         id: loader["id"].as_str().map(String::from),
         version: loader["version"].as_str().map(String::from),
-        description: loader.get("metadata").and_then(|m| m["description"].as_str()).map(String::from),
+        description: loader
+            .get("metadata")
+            .and_then(|m| m["description"].as_str())
+            .map(String::from),
         loader: Some("quilt".to_string()),
     })
 }

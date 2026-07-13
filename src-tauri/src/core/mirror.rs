@@ -41,33 +41,17 @@ pub fn remap_url(url: &str, source: MirrorSource) -> String {
 fn remap_bmclapi(url: &str) -> String {
     // Version manifest & version JSONs
     if url.starts_with("https://piston-meta.mojang.com/") {
-        return url.replacen(
-            "https://piston-meta.mojang.com",
-            BMCLAPI_BASE,
-            1,
-        );
+        return url.replacen("https://piston-meta.mojang.com", BMCLAPI_BASE, 1);
     }
     if url.starts_with("https://piston-data.mojang.com/") {
-        return url.replacen(
-            "https://piston-data.mojang.com",
-            BMCLAPI_BASE,
-            1,
-        );
+        return url.replacen("https://piston-data.mojang.com", BMCLAPI_BASE, 1);
     }
     // Launcher meta (used in some version JSONs)
     if url.starts_with("https://launchermeta.mojang.com/") {
-        return url.replacen(
-            "https://launchermeta.mojang.com",
-            BMCLAPI_BASE,
-            1,
-        );
+        return url.replacen("https://launchermeta.mojang.com", BMCLAPI_BASE, 1);
     }
     if url.starts_with("https://launcher.mojang.com/") {
-        return url.replacen(
-            "https://launcher.mojang.com",
-            BMCLAPI_BASE,
-            1,
-        );
+        return url.replacen("https://launcher.mojang.com", BMCLAPI_BASE, 1);
     }
     // Asset resources
     if url.starts_with("https://resources.download.minecraft.net/") {
@@ -130,9 +114,7 @@ pub fn version_manifest_url(source: MirrorSource) -> &'static str {
                 "/mc/game/version_manifest_v2.json"
             )
         }
-        MirrorSource::Official => {
-            "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
-        }
+        MirrorSource::Official => "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json",
     }
 }
 

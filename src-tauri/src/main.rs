@@ -1487,9 +1487,12 @@ async fn install_version(
                     }
                 } else {
                     // Library without explicit downloads (mod loader libraries)
-                    if let Some(url) =
-                        core::maven::resolve_library_url_with_mirror(&lib.name, None, lib.url.as_deref(), mirror)
-                    {
+                    if let Some(url) = core::maven::resolve_library_url_with_mirror(
+                        &lib.name,
+                        None,
+                        lib.url.as_deref(),
+                        mirror,
+                    ) {
                         if let Some(lib_path) =
                             core::maven::get_library_path(&lib.name, &libraries_dir)
                         {
@@ -1563,10 +1566,7 @@ async fn install_version(
             let hash = object.hash;
             let prefix = &hash[0..2];
             let path = objects_dir.join(prefix).join(&hash);
-            let url = format!(
-                "{}/{}/{}",
-                install_assets_base, prefix, hash
-            );
+            let url = format!("{}/{}/{}", install_assets_base, prefix, hash);
 
             download_tasks.push(core::downloader::DownloadTask {
                 url,
@@ -1695,7 +1695,11 @@ pub struct AccountSummary {
 #[tauri::command]
 #[dropout_macros::api]
 async fn get_all_accounts(window: Window) -> Result<Vec<AccountSummary>, String> {
-    let app_dir = window.app_handle().path().app_data_dir().map_err(|e| e.to_string())?;
+    let app_dir = window
+        .app_handle()
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?;
     let storage = core::account_storage::AccountStorage::new(app_dir);
     let store = storage.load();
     let active_id = store.active_account_id.as_deref();
@@ -1731,7 +1735,10 @@ async fn switch_account(
     ms_state: State<'_, MsRefreshTokenState>,
 ) -> Result<core::auth::Account, String> {
     let app_handle = window.app_handle();
-    let app_dir = app_handle.path().app_data_dir().map_err(|e| e.to_string())?;
+    let app_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?;
     let storage = core::account_storage::AccountStorage::new(app_dir);
 
     storage.set_active_account(&uuid)?;
@@ -1757,7 +1764,11 @@ async fn remove_account(
     uuid: String,
     auth_state: State<'_, core::auth::AccountState>,
 ) -> Result<(), String> {
-    let app_dir = window.app_handle().path().app_data_dir().map_err(|e| e.to_string())?;
+    let app_dir = window
+        .app_handle()
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?;
     let storage = core::account_storage::AccountStorage::new(app_dir);
 
     // If removing the active account, clear runtime state
@@ -2507,7 +2518,10 @@ async fn install_forge(
             }
         };
 
-        emit_log!(window, "Installing Forge (auto-detecting era)...".to_string());
+        emit_log!(
+            window,
+            "Installing Forge (auto-detecting era)...".to_string()
+        );
 
         // Unified install: handles legacy/transitional/modern automatically
         let result = core::forge::install_forge(
@@ -2554,8 +2568,8 @@ async fn convert_mod_loader(
     config_state: State<'_, core::config::ConfigState>,
     instance_state: State<'_, core::instance::InstanceState>,
     instance_id: String,
-    target_loader: String,      // "fabric", "forge", or "vanilla"
-    loader_version: String,     // loader version string
+    target_loader: String,  // "fabric", "forge", or "vanilla"
+    loader_version: String, // loader version string
 ) -> Result<String, String> {
     let instance = instance_state
         .get_instance(&instance_id)
@@ -2567,7 +2581,13 @@ async fn convert_mod_loader(
         // Extract base MC version from modded version IDs
         if vid.starts_with("fabric-loader-") {
             // "fabric-loader-0.15.6-1.20.4" -> "1.20.4"
-            vid.rsplit('-').take(3).collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>().join(".")
+            vid.rsplit('-')
+                .take(3)
+                .collect::<Vec<_>>()
+                .into_iter()
+                .rev()
+                .collect::<Vec<_>>()
+                .join(".")
                 .split('.')
                 .filter(|s| s.parse::<u32>().is_ok())
                 .collect::<Vec<_>>()
@@ -2603,25 +2623,25 @@ async fn convert_mod_loader(
             .ok_or_else(|| format!("Instance {} not found", instance_id))?;
 
         let new_version_id = match target_loader.as_str() {
-            "vanilla" => {
-                game_version.clone()
-            }
+            "vanilla" => game_version.clone(),
             "fabric" => {
-                let result = core::fabric::install_fabric(&game_dir, &game_version, &loader_version)
-                    .await
-                    .map_err(|e| format!("Fabric installation failed: {}", e))?;
+                let result =
+                    core::fabric::install_fabric(&game_dir, &game_version, &loader_version)
+                        .await
+                        .map_err(|e| format!("Fabric installation failed: {}", e))?;
                 result.id
             }
             "forge" => {
                 let config = config_state.config.lock().unwrap().clone();
                 let app_handle = window.app_handle();
                 let java_path = {
-                    let java_path_str = if !config.java_path.is_empty() && config.java_path != "java" {
-                        config.java_path.clone()
-                    } else {
-                        let javas = core::java::detect_all_java_installations(app_handle).await;
-                        javas.first().map(|j| j.path.clone()).unwrap_or_default()
-                    };
+                    let java_path_str =
+                        if !config.java_path.is_empty() && config.java_path != "java" {
+                            config.java_path.clone()
+                        } else {
+                            let javas = core::java::detect_all_java_installations(app_handle).await;
+                            javas.first().map(|j| j.path.clone()).unwrap_or_default()
+                        };
                     if java_path_str.is_empty() {
                         None
                     } else {

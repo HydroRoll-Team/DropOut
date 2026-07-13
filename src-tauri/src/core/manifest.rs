@@ -108,10 +108,7 @@ pub async fn fetch_vanilla_version_with_mirror(
         .ok_or_else(|| format!("Version {} not found in manifest", version_id))?;
 
     let url = crate::core::mirror::remap_url(&version_entry.url, mirror);
-    let resp = reqwest::get(&url)
-        .await?
-        .json::<GameVersion>()
-        .await?;
+    let resp = reqwest::get(&url).await?.json::<GameVersion>().await?;
 
     Ok(resp)
 }

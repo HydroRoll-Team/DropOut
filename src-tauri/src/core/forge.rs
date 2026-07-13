@@ -275,7 +275,8 @@ async fn install_forge_legacy(
     let forge_full = format!("{}-{}", game_version, forge_version);
 
     // Download the universal jar to libraries
-    let universal_bytes = try_download_forge_artifact(game_version, forge_version, "universal").await?;
+    let universal_bytes =
+        try_download_forge_artifact(game_version, forge_version, "universal").await?;
 
     // Store in libraries directory following Maven layout
     let lib_path = game_dir
@@ -451,7 +452,10 @@ async fn install_forge_modern(
                 );
             }
             Err(e) => {
-                println!("[Forge] Installer failed to run: {}, falling back to manual extraction", e);
+                println!(
+                    "[Forge] Installer failed to run: {}, falling back to manual extraction",
+                    e
+                );
             }
         }
     }
@@ -594,17 +598,15 @@ async fn try_download_forge_artifact_with_mirror(
     for url in &url_patterns {
         println!("[Forge] Trying URL: {}", url);
         match reqwest::get(url).await {
-            Ok(response) if response.status().is_success() => {
-                match response.bytes().await {
-                    Ok(bytes) => {
-                        println!("[Forge] Downloaded from: {}", url);
-                        return Ok(bytes);
-                    }
-                    Err(e) => {
-                        last_error = Some(format!("Body read failed: {}", e));
-                    }
+            Ok(response) if response.status().is_success() => match response.bytes().await {
+                Ok(bytes) => {
+                    println!("[Forge] Downloaded from: {}", url);
+                    return Ok(bytes);
                 }
-            }
+                Err(e) => {
+                    last_error = Some(format!("Body read failed: {}", e));
+                }
+            },
             Ok(response) => {
                 last_error = Some(format!("HTTP {}: {}", response.status(), url));
             }

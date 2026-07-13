@@ -177,14 +177,22 @@ pub async fn fetch_loader_versions_with_mirror(
 pub async fn fetch_loaders_for_game_version(
     game_version: &str,
 ) -> Result<Vec<FabricLoaderEntry>, Box<dyn Error + Send + Sync>> {
-    fetch_loaders_for_game_version_with_mirror(game_version, crate::core::mirror::MirrorSource::Official).await
+    fetch_loaders_for_game_version_with_mirror(
+        game_version,
+        crate::core::mirror::MirrorSource::Official,
+    )
+    .await
 }
 
 pub async fn fetch_loaders_for_game_version_with_mirror(
     game_version: &str,
     mirror: crate::core::mirror::MirrorSource,
 ) -> Result<Vec<FabricLoaderEntry>, Box<dyn Error + Send + Sync>> {
-    let url = format!("{}/versions/loader/{}", fabric_meta_base(mirror), game_version);
+    let url = format!(
+        "{}/versions/loader/{}",
+        fabric_meta_base(mirror),
+        game_version
+    );
     let resp = reqwest::get(&url)
         .await?
         .json::<Vec<FabricLoaderEntry>>()
@@ -204,7 +212,12 @@ pub async fn fetch_version_profile(
     game_version: &str,
     loader_version: &str,
 ) -> Result<serde_json::Value, Box<dyn Error + Send + Sync>> {
-    fetch_version_profile_with_mirror(game_version, loader_version, crate::core::mirror::MirrorSource::Official).await
+    fetch_version_profile_with_mirror(
+        game_version,
+        loader_version,
+        crate::core::mirror::MirrorSource::Official,
+    )
+    .await
 }
 
 pub async fn fetch_version_profile_with_mirror(
@@ -214,7 +227,9 @@ pub async fn fetch_version_profile_with_mirror(
 ) -> Result<serde_json::Value, Box<dyn Error + Send + Sync>> {
     let url = format!(
         "{}/versions/loader/{}/{}/profile/json",
-        fabric_meta_base(mirror), game_version, loader_version
+        fabric_meta_base(mirror),
+        game_version,
+        loader_version
     );
     let resp = reqwest::get(&url)
         .await?
@@ -252,7 +267,13 @@ pub async fn install_fabric(
     game_version: &str,
     loader_version: &str,
 ) -> Result<InstalledFabricVersion, Box<dyn Error + Send + Sync>> {
-    install_fabric_with_mirror(game_dir, game_version, loader_version, crate::core::mirror::MirrorSource::Official).await
+    install_fabric_with_mirror(
+        game_dir,
+        game_version,
+        loader_version,
+        crate::core::mirror::MirrorSource::Official,
+    )
+    .await
 }
 
 pub async fn install_fabric_with_mirror(

@@ -278,8 +278,8 @@ pub async fn get_modrinth_versions(
     let mut params: Vec<(&str, String)> = Vec::new();
 
     if !game_versions.is_empty() {
-        let gv_json = serde_json::to_string(game_versions)
-            .map_err(|e| format!("Serialize error: {}", e))?;
+        let gv_json =
+            serde_json::to_string(game_versions).map_err(|e| format!("Serialize error: {}", e))?;
         params.push(("game_versions", gv_json));
     }
 
