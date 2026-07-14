@@ -348,12 +348,12 @@ fn game_dir_from_version_dir(path: &Path) -> Option<PathBuf> {
 
 fn launcher_type_for_instance(path: &Path) -> String {
     path.ancestors()
-        .find_map(|ancestor| {
+        .filter_map(|ancestor| {
             ancestor
                 .file_name()
                 .map(|name| name.to_string_lossy().to_lowercase())
         })
-        .and_then(|name| {
+        .find_map(|name| {
             if name.contains("prism") {
                 Some("prism".to_string())
             } else if name.contains("multimc") {
@@ -516,6 +516,7 @@ mod tests {
 
         assert_eq!(scanned.len(), 1);
         assert_eq!(scanned[0].name, "Demo Pack");
+        assert_eq!(scanned[0].launcher_type, "multimc");
         assert_eq!(scanned[0].minecraft_version.as_deref(), Some("1.20.1"));
         assert_eq!(scanned[0].mod_loader.as_deref(), Some("fabric"));
         assert_eq!(scanned[0].mod_loader_version.as_deref(), Some("0.16.9"));
