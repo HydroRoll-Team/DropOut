@@ -58,6 +58,7 @@ pub fn detect_launchers() -> Vec<DetectedLauncher> {
 pub fn scan_instances(instances_dir: &Path) -> Result<Vec<ImportableInstance>, String> {
     let mut result = Vec::new();
     let mut seen = HashSet::new();
+    let mut scanned_version_roots = HashSet::new();
 
     push_if_importable(instances_dir, &mut seen, &mut result);
 
@@ -72,12 +73,17 @@ pub fn scan_instances(instances_dir: &Path) -> Result<Vec<ImportableInstance>, S
         push_if_importable(&path, &mut seen, &mut result);
 
         if path.join("versions").is_dir() {
-            scan_minecraft_versions(&path, &mut seen, &mut result);
+            scan_minecraft_versions_once(&path, &mut scanned_version_roots, &mut seen, &mut result);
         }
     }
 
     if instances_dir.join("versions").is_dir() {
-        scan_minecraft_versions(instances_dir, &mut seen, &mut result);
+        scan_minecraft_versions_once(
+            instances_dir,
+            &mut scanned_version_roots,
+            &mut seen,
+            &mut result,
+        );
     }
 
     result.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
@@ -219,6 +225,19 @@ fn scan_minecraft_versions(
             continue;
         }
         push_if_importable(&path, seen, result);
+    }
+}
+
+fn scan_minecraft_versions_once(
+    game_dir: &Path,
+    scanned_version_roots: &mut HashSet<PathBuf>,
+    seen: &mut HashSet<PathBuf>,
+    result: &mut Vec<ImportableInstance>,
+) {
+    let versions_dir = game_dir.join("versions");
+    let key = fs::canonicalize(&versions_dir).unwrap_or(versions_dir);
+    if scanned_version_roots.insert(key) {
+        scan_minecraft_versions(game_dir, seen, result);
     }
 }
 
