@@ -3252,7 +3252,7 @@ async fn import_from_launcher(
     core::migration::copy_instance_files(source, &instance.game_dir)?;
 
     let mut updated = instance.clone();
-    updated.version_id = metadata.minecraft_version;
+    updated.version_id = metadata.version_id.or(metadata.minecraft_version);
     updated.mod_loader = metadata.mod_loader;
     updated.mod_loader_version = metadata.mod_loader_version;
     instance_state.update_instance(updated)?;

@@ -161,7 +161,12 @@ export function ImportWizard({
     setImporting(true);
     setImportProgress(0);
     setFailures([]);
-    const paths = [...selected];
+    const total = selectedInstances.length;
+    if (total === 0) {
+      setImporting(false);
+      setStep("select");
+      return;
+    }
     let done = 0;
     const nextFailures: string[] = [];
 
@@ -173,7 +178,7 @@ export function ImportWizard({
         nextFailures.push(`${instance.name}: ${e}`);
       } finally {
         setImportProgress(
-          Math.round(((done + nextFailures.length) / paths.length) * 100),
+          Math.round(((done + nextFailures.length) / total) * 100),
         );
       }
     }
@@ -393,17 +398,13 @@ export function ImportWizard({
               </Button>
               <Button
                 onClick={doImport}
-                disabled={selected.size === 0 || importing}
+                disabled={selectedInstances.length === 0 || importing}
               >
-                Import {selected.size > 0 && `(${selected.size})`}
+                Import{" "}
+                {selectedInstances.length > 0 &&
+                  `(${selectedInstances.length})`}
               </Button>
             </>
-          )}
-          {step === "detect" && (
-            <Button variant="outline" onClick={selectManualDirectory}>
-              <FolderOpenIcon className="size-4" />
-              Choose directory
-            </Button>
           )}
         </DialogFooter>
       </DialogContent>

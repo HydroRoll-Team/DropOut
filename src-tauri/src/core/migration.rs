@@ -21,6 +21,7 @@ pub struct ImportableInstance {
     pub game_dir: PathBuf,
     pub launcher_type: String,
     pub source_kind: String,
+    pub version_id: Option<String>,
     pub name: String,
     pub minecraft_version: Option<String>,
     pub mod_loader: Option<String>,
@@ -34,7 +35,7 @@ pub fn detect_launchers() -> Vec<DetectedLauncher> {
     candidates
         .into_iter()
         .filter_map(|(launcher_type, path)| {
-            if !seen.insert(path.clone()) {
+            if !seen.insert((launcher_type.clone(), path.clone())) {
                 return None;
             }
             if !path.is_dir() {
@@ -94,6 +95,7 @@ pub fn import_metadata(source_path: &Path) -> ImportableInstance {
             game_dir: source_path.to_path_buf(),
             launcher_type: "custom".into(),
             source_kind: "directory".into(),
+            version_id: None,
             name,
             minecraft_version: None,
             mod_loader: None,
@@ -125,7 +127,8 @@ fn parse_importable(path: &Path) -> Option<ImportableInstance> {
 /// Copy a launcher instance's game files into a DropOut game directory.
 pub fn copy_instance_files(source_path: &Path, dest_game_dir: &Path) -> Result<(), String> {
     if let Some(version_game_dir) = game_dir_from_version_dir(source_path) {
-        return copy_minecraft_game_files(&version_game_dir, dest_game_dir);
+        copy_minecraft_game_files(&version_game_dir, dest_game_dir)?;
+        return copy_selected_version_dir(source_path, dest_game_dir);
     }
 
     // MultiMC/Prism keep game files in .minecraft/ or minecraft/
@@ -165,6 +168,7 @@ fn parse_multimc_instance(path: &Path) -> ImportableInstance {
         game_dir: multimc_game_dir(path),
         launcher_type: launcher_type_for_instance(path),
         source_kind: "instance".into(),
+        version_id: mc_version.clone(),
         name,
         minecraft_version: mc_version,
         mod_loader,
@@ -184,12 +188,14 @@ fn parse_minecraft_version_dir(path: &Path) -> Option<ImportableInstance> {
     let json: serde_json::Value = serde_json::from_str(&content).unwrap_or_default();
     let (minecraft_version, mod_loader, mod_loader_version) =
         parse_version_json_metadata(&version_id, &json);
+    let launcher_type = launcher_type_for_game_dir(&game_dir);
 
     Some(ImportableInstance {
         source_path: path.to_path_buf(),
         game_dir,
-        launcher_type: launcher_type_for_game_dir(path),
+        launcher_type,
         source_kind: "version".into(),
+        version_id: Some(version_id.clone()),
         name: version_id,
         minecraft_version,
         mod_loader,
@@ -436,6 +442,15 @@ fn copy_minecraft_game_files(src: &Path, dst: &Path) -> Result<(), String> {
     Ok(())
 }
 
+fn copy_selected_version_dir(version_dir: &Path, dest_game_dir: &Path) -> Result<(), String> {
+    let Some(version_id) = version_dir.file_name() else {
+        return Ok(());
+    };
+
+    let dest_version_dir = dest_game_dir.join("versions").join(version_id);
+    copy_dir_recursive(version_dir, &dest_version_dir)
+}
+
 pub fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
     fs::create_dir_all(dst).map_err(|e| e.to_string())?;
     for entry in fs::read_dir(src).map_err(|e| e.to_string())?.flatten() {
@@ -504,6 +519,11 @@ mod tests {
 
         assert_eq!(scanned.len(), 1);
         assert_eq!(scanned[0].source_kind, "version");
+        assert_eq!(scanned[0].launcher_type, "pcl-hmcl");
+        assert_eq!(
+            scanned[0].version_id.as_deref(),
+            Some("1.20.1-forge-47.4.0")
+        );
         assert_eq!(scanned[0].minecraft_version.as_deref(), Some("1.20.1"));
         assert_eq!(scanned[0].mod_loader.as_deref(), Some("forge"));
         assert_eq!(
@@ -513,7 +533,25 @@ mod tests {
     }
 
     #[test]
-    fn copies_only_user_game_files_from_minecraft_directories() {
+    fn classifies_version_imports_from_game_dir_not_version_id() {
+        let root = test_dir("generic-minecraft");
+        let version = root.join("versions/hmcl-labelled-version");
+        fs::create_dir_all(&version).unwrap();
+        fs::write(
+            version.join("hmcl-labelled-version.json"),
+            r#"{"id":"hmcl-labelled-version"}"#,
+        )
+        .unwrap();
+
+        let scanned = scan_instances(&root).unwrap();
+        fs::remove_dir_all(&root).unwrap();
+
+        assert_eq!(scanned.len(), 1);
+        assert_eq!(scanned[0].launcher_type, "pcl-hmcl");
+    }
+
+    #[test]
+    fn copies_user_game_files_and_selected_version_from_minecraft_directories() {
         let root = test_dir("copy-source");
         let version = root.join("versions/1.21.1");
         let dest = test_dir("copy-dest");
@@ -530,6 +568,7 @@ mod tests {
 
         assert!(dest.join("mods/demo.jar").exists());
         assert!(dest.join("options.txt").exists());
+        assert!(dest.join("versions/1.21.1/1.21.1.json").exists());
         assert!(!dest.join("libraries/skip.jar").exists());
         fs::remove_dir_all(&dest).unwrap();
     }

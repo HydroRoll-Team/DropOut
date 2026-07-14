@@ -11,6 +11,7 @@ export type ImportableInstance = {
   gameDir: string;
   launcherType: string;
   sourceKind: string;
+  versionId: string | null;
   name: string;
   minecraftVersion: string | null;
   modLoader: string | null;

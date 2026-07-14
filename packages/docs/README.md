@@ -39,7 +39,8 @@ Run commands from the repository root unless you are already inside `packages/do
 
 ```bash
 pnpm install
-pnpm --filter @dropout/docs dev
+pnpm -C packages/docs --lockfile-dir "$PWD" install
+pnpm -C packages/docs dev
 ```
 
 The development server starts with React Router and hot reload. Use the local URL printed by the command.
@@ -67,17 +68,11 @@ packages/docs/
 |   `-- routes/            # React Router routes
 |-- content/
 |   |-- en/                # English MDX docs
-|   |   |-- features/
-|   |   |-- architecture.mdx
-|   |   |-- development.mdx
-|   |   |-- getting-started.mdx
-|   |   `-- troubleshooting.mdx
+|   |   |-- development/
+|   |   `-- manual/
 |   `-- zh/                # Simplified Chinese MDX docs
-|       |-- features/
-|       |-- architecture.mdx
-|       |-- development.mdx
-|       |-- getting-started.mdx
-|       `-- troubleshooting.mdx
+|       |-- development/
+|       `-- manual/
 |-- public/                # Static assets
 |-- source.config.ts       # Fumadocs MDX collection config
 `-- react-router.config.ts # React Router config
@@ -120,8 +115,8 @@ Keep commands copyable and exact. If a command must be run from the repo root or
 2. Add `title` and `description` frontmatter.
 3. Keep the page slug and section placement aligned across locales.
 4. Update the nearest `meta.json` so navigation includes the page.
-5. Run `pnpm --filter @dropout/docs types:check`.
-6. Preview with `pnpm --filter @dropout/docs dev`.
+5. Run `pnpm -C packages/docs types:check`.
+6. Preview with `pnpm -C packages/docs dev`.
 
 ---
 
@@ -140,8 +135,8 @@ Keep commands copyable and exact. If a command must be run from the repo root or
 The docs package builds to `build/`:
 
 ```bash
-pnpm --filter @dropout/docs build
-pnpm --filter @dropout/docs start
+pnpm -C packages/docs build
+pnpm -C packages/docs start
 ```
 
 Repository CI should run the same build and type/content checks before publishing the site.
@@ -159,4 +154,4 @@ Repository CI should run the same build and type/content checks before publishin
 
 ## License
 
-MIT. See the root [LICENSE](../../LICENSE).
+GNU Affero General Public License v3.0 or later. See the root [LICENSE](../../LICENSE).

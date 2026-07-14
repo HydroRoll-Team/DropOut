@@ -16,7 +16,7 @@
     "mod",
     "modpack"
   ],
-  "license": "MIT",
+  "license": "AGPL-3.0-or-later",
   "packageManager": "pnpm@10.30.2",
   "dependencies": {
     "consola": "^3.4.2",

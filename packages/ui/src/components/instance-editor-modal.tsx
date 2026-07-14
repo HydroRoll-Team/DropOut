@@ -54,7 +54,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [deletingPath, setDeletingPath] = useState<string | null>(null);
 
-  // Version tab state (placeholder - the Svelte implementation used a ModLoaderSelector component)
+  // Version tab state.
   // React versions-view/instance-creation handle mod loader installs; here we show basic current info.
 
   // Settings tab fields

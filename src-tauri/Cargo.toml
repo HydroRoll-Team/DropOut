@@ -5,7 +5,7 @@ edition = "2024"
 authors = ["HsiangNianian"]
 description = "The DropOut Minecraft Game Launcher"
 repository = "https://github.com/HydroRoll-Team/DropOut"
-license = "MIT"
+license = "AGPL-3.0-or-later"
 
 [package.metadata.deb]
 depends = "libgtk-3-0"
