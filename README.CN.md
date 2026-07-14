@@ -183,7 +183,7 @@ UI 的长期状态位于 `packages/ui/src/models/`，页面位于 `packages/ui/s
 - [ ] 内置模组管理器
 - [ ] 自定义游戏目录选择
 - [ ] 启动器自动更新
-- [ ] 从 PCL、HMCL、MultiMC、Prism Launcher 和其他配置导入
+- [x] 从 PCL、HMCL、MultiMC、Prism Launcher 和其他配置导入
 
 公开路线图见 <https://roadmap.sh/r/minecraft-launcher-dev>。
 

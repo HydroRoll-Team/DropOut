@@ -3242,20 +3242,26 @@ async fn import_from_launcher(
 ) -> Result<core::instance::Instance, String> {
     let app_handle = window.app_handle();
     let source = std::path::Path::new(&source_path);
-    let metadata = core::migration::import_metadata(source);
+    let metadata = core::migration::import_metadata(source)?;
     let name = new_name.unwrap_or_else(|| metadata.name.clone());
 
     // Create new instance
     let instance = instance_state.create_instance(name, app_handle)?;
 
     // Copy game files
-    core::migration::copy_instance_files(source, &instance.game_dir)?;
+    if let Err(error) = core::migration::copy_instance_files(source, &instance.game_dir) {
+        let _ = instance_state.delete_instance(&instance.id);
+        return Err(error);
+    }
 
     let mut updated = instance.clone();
     updated.version_id = metadata.version_id.or(metadata.minecraft_version);
     updated.mod_loader = metadata.mod_loader;
     updated.mod_loader_version = metadata.mod_loader_version;
-    instance_state.update_instance(updated)?;
+    if let Err(error) = instance_state.update_instance(updated) {
+        let _ = instance_state.delete_instance(&instance.id);
+        return Err(error);
+    }
 
     instance_state
         .get_instance(&instance.id)

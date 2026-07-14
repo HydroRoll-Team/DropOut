@@ -1,8 +1,32 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};
 use ts_rs::TS;
+
+const MINECRAFT_GAME_DIRS: &[&str] = &[
+    "config",
+    "journeymap",
+    "mods",
+    "replay_recordings",
+    "resourcepacks",
+    "saves",
+    "screenshots",
+    "server-resource-packs",
+    "shaderpacks",
+    "schematics",
+    "texturepacks",
+];
+
+const MINECRAFT_GAME_FILES: &[&str] = &[
+    "options.txt",
+    "optionsof.txt",
+    "optionsshaders.txt",
+    "servers.dat",
+    "servers.dat_old",
+    "icon.png",
+];
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -90,23 +114,32 @@ pub fn scan_instances(instances_dir: &Path) -> Result<Vec<ImportableInstance>, S
     Ok(result)
 }
 
-pub fn import_metadata(source_path: &Path) -> ImportableInstance {
-    parse_importable(source_path).unwrap_or_else(|| {
-        let name = source_path
-            .file_name()
-            .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_else(|| "Imported".to_string());
-        ImportableInstance {
-            source_path: source_path.to_path_buf(),
-            game_dir: source_path.to_path_buf(),
-            launcher_type: "custom".into(),
-            source_kind: "directory".into(),
-            version_id: None,
-            name,
-            minecraft_version: None,
-            mod_loader: None,
-            mod_loader_version: None,
-        }
+pub fn import_metadata(source_path: &Path) -> Result<ImportableInstance, String> {
+    if let Some(instance) = parse_importable(source_path) {
+        return Ok(instance);
+    }
+
+    if minecraft_version_json(source_path).is_some() {
+        return Err(format!(
+            "Failed to parse Minecraft version metadata from {}",
+            source_path.display()
+        ));
+    }
+
+    let name = source_path
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "Imported".to_string());
+    Ok(ImportableInstance {
+        source_path: source_path.to_path_buf(),
+        game_dir: source_path.to_path_buf(),
+        launcher_type: "custom".into(),
+        source_kind: "directory".into(),
+        version_id: None,
+        name,
+        minecraft_version: None,
+        mod_loader: None,
+        mod_loader_version: None,
     })
 }
 
@@ -134,6 +167,7 @@ fn parse_importable(path: &Path) -> Option<ImportableInstance> {
 pub fn copy_instance_files(source_path: &Path, dest_game_dir: &Path) -> Result<(), String> {
     if let Some(version_game_dir) = game_dir_from_version_dir(source_path) {
         copy_minecraft_game_files(&version_game_dir, dest_game_dir)?;
+        copy_minecraft_game_files(source_path, dest_game_dir)?;
         return copy_selected_version_dir(source_path, dest_game_dir);
     }
 
@@ -184,14 +218,11 @@ fn parse_multimc_instance(path: &Path) -> ImportableInstance {
 
 fn parse_minecraft_version_dir(path: &Path) -> Option<ImportableInstance> {
     let version_id = path.file_name()?.to_string_lossy().to_string();
-    let version_json = path.join(format!("{version_id}.json"));
-    if !version_json.exists() {
-        return None;
-    }
+    let version_json = minecraft_version_json(path)?;
 
     let game_dir = game_dir_from_version_dir(path)?;
-    let content = fs::read_to_string(&version_json).unwrap_or_default();
-    let json: serde_json::Value = serde_json::from_str(&content).unwrap_or_default();
+    let content = fs::read_to_string(&version_json).ok()?;
+    let json: serde_json::Value = serde_json::from_str(&content).ok()?;
     let (minecraft_version, mod_loader, mod_loader_version) =
         parse_version_json_metadata(&version_id, &json);
     let launcher_type = launcher_type_for_game_dir(&game_dir);
@@ -346,6 +377,12 @@ fn game_dir_from_version_dir(path: &Path) -> Option<PathBuf> {
     versions.parent().map(Path::to_path_buf)
 }
 
+fn minecraft_version_json(path: &Path) -> Option<PathBuf> {
+    let version_id = path.file_name()?.to_string_lossy();
+    let version_json = path.join(format!("{version_id}.json"));
+    version_json.exists().then_some(version_json)
+}
+
 fn launcher_type_for_instance(path: &Path) -> String {
     path.ancestors()
         .filter_map(|ancestor| {
@@ -422,36 +459,15 @@ fn launcher_candidates() -> Vec<(String, PathBuf)> {
 
 fn copy_minecraft_game_files(src: &Path, dst: &Path) -> Result<(), String> {
     fs::create_dir_all(dst).map_err(|e| e.to_string())?;
-    const DIRS: &[&str] = &[
-        "config",
-        "journeymap",
-        "mods",
-        "replay_recordings",
-        "resourcepacks",
-        "saves",
-        "screenshots",
-        "server-resource-packs",
-        "shaderpacks",
-        "schematics",
-        "texturepacks",
-    ];
-    const FILES: &[&str] = &[
-        "options.txt",
-        "optionsof.txt",
-        "optionsshaders.txt",
-        "servers.dat",
-        "servers.dat_old",
-        "icon.png",
-    ];
 
-    for dir in DIRS {
+    for dir in MINECRAFT_GAME_DIRS {
         let src_path = src.join(dir);
         if src_path.is_dir() {
             copy_dir_recursive(&src_path, &dst.join(dir))?;
         }
     }
 
-    for file in FILES {
+    for file in MINECRAFT_GAME_FILES {
         let src_path = src.join(file);
         if src_path.is_file() {
             fs::copy(&src_path, dst.join(file)).map_err(|e| e.to_string())?;
@@ -467,7 +483,34 @@ fn copy_selected_version_dir(version_dir: &Path, dest_game_dir: &Path) -> Result
     };
 
     let dest_version_dir = dest_game_dir.join("versions").join(version_id);
-    copy_dir_recursive(version_dir, &dest_version_dir)
+    fs::create_dir_all(&dest_version_dir).map_err(|e| e.to_string())?;
+
+    for entry in fs::read_dir(version_dir)
+        .map_err(|e| e.to_string())?
+        .flatten()
+    {
+        let src_path = entry.path();
+        let file_name = entry.file_name();
+        if is_minecraft_game_data_entry(&file_name) {
+            continue;
+        }
+
+        let dst_path = dest_version_dir.join(&file_name);
+        if src_path.is_dir() {
+            copy_dir_recursive(&src_path, &dst_path)?;
+        } else {
+            fs::copy(&src_path, &dst_path).map_err(|e| e.to_string())?;
+        }
+    }
+
+    Ok(())
+}
+
+fn is_minecraft_game_data_entry(file_name: &OsStr) -> bool {
+    MINECRAFT_GAME_DIRS
+        .iter()
+        .chain(MINECRAFT_GAME_FILES.iter())
+        .any(|name| file_name == OsStr::new(name))
 }
 
 pub fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
@@ -591,5 +634,66 @@ mod tests {
         assert!(dest.join("versions/1.21.1/1.21.1.json").exists());
         assert!(!dest.join("libraries/skip.jar").exists());
         fs::remove_dir_all(&dest).unwrap();
+    }
+
+    #[test]
+    fn copies_isolated_version_user_data_to_instance_root() {
+        let root = test_dir("isolated-source");
+        let version = root.join("versions/1.21.1-isolated");
+        let dest = test_dir("isolated-dest");
+        fs::create_dir_all(version.join("mods")).unwrap();
+        fs::create_dir_all(version.join("saves/World")).unwrap();
+        fs::create_dir_all(version.join("config")).unwrap();
+        fs::create_dir_all(version.join("natives")).unwrap();
+        fs::write(version.join("1.21.1-isolated.json"), r#"{"id":"1.21.1"}"#).unwrap();
+        fs::write(version.join("1.21.1-isolated.jar"), "jar").unwrap();
+        fs::write(version.join("mods/isolated.jar"), "mod").unwrap();
+        fs::write(version.join("saves/World/level.dat"), "level").unwrap();
+        fs::write(version.join("config/mod.toml"), "config").unwrap();
+        fs::write(version.join("natives/native.dll"), "native").unwrap();
+        fs::write(version.join("options.txt"), "options").unwrap();
+
+        copy_instance_files(&version, &dest).unwrap();
+        fs::remove_dir_all(&root).unwrap();
+
+        assert!(dest.join("mods/isolated.jar").exists());
+        assert!(dest.join("saves/World/level.dat").exists());
+        assert!(dest.join("config/mod.toml").exists());
+        assert!(dest.join("options.txt").exists());
+        assert!(
+            dest.join("versions/1.21.1-isolated/1.21.1-isolated.json")
+                .exists()
+        );
+        assert!(
+            dest.join("versions/1.21.1-isolated/1.21.1-isolated.jar")
+                .exists()
+        );
+        assert!(
+            dest.join("versions/1.21.1-isolated/natives/native.dll")
+                .exists()
+        );
+        assert!(
+            !dest
+                .join("versions/1.21.1-isolated/mods/isolated.jar")
+                .exists()
+        );
+        assert!(!dest.join("versions/1.21.1-isolated/saves").exists());
+        assert!(!dest.join("versions/1.21.1-isolated/options.txt").exists());
+        fs::remove_dir_all(&dest).unwrap();
+    }
+
+    #[test]
+    fn rejects_malformed_version_metadata_instead_of_guessing() {
+        let root = test_dir("malformed-version");
+        let version = root.join("versions/broken");
+        fs::create_dir_all(&version).unwrap();
+        fs::write(version.join("broken.json"), "{not json").unwrap();
+
+        let scanned = scan_instances(&root).unwrap();
+        let metadata = import_metadata(&version);
+        fs::remove_dir_all(&root).unwrap();
+
+        assert!(scanned.is_empty());
+        assert!(metadata.is_err());
     }
 }
