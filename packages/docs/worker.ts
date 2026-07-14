@@ -13,20 +13,23 @@ const requestHandler = createRequestHandler(
   "production",
 );
 
-function isAssetRequest(pathname: string): boolean {
-  return (
-    pathname.startsWith("/assets/") ||
-    pathname === "/favicon.ico" ||
-    pathname === "/robots.txt"
-  );
+async function fetchStaticAsset(
+  request: Request,
+  env: Env,
+): Promise<Response | null> {
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    return null;
+  }
+
+  const response = await env.ASSETS.fetch(request);
+  return response.status === 404 ? null : response;
 }
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const url = new URL(request.url);
-
-    if (isAssetRequest(url.pathname)) {
-      return env.ASSETS.fetch(request);
+    const assetResponse = await fetchStaticAsset(request, env);
+    if (assetResponse) {
+      return assetResponse;
     }
 
     return requestHandler(request, {

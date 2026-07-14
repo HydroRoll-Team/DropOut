@@ -5,7 +5,7 @@
   "compatibility_date": "2026-07-14",
   "compatibility_flags": ["nodejs_compat"],
   "build": {
-    "command": "pnpm -C packages/docs --lockfile-dir . install --frozen-lockfile && pnpm -C packages/docs build"
+    "command": "CI=true pnpm -C packages/docs --lockfile-dir . install --frozen-lockfile && pnpm -C packages/docs build"
   },
   "assets": {
     "directory": "./packages/docs/build/client",
