@@ -216,12 +216,20 @@ macro_rules! emit_log {
 -   **`game-stdout` / `game-stderr`**: 捕获游戏子进程的标准输出与错误，通过独立线程实时回传前端。
 
 ```typescript
-// 前端监听示例 (Svelte 5)
+// 前端监听示例 (React)
 import { listen } from "@tauri-apps/api/event";
+import { useEffect } from "react";
 
-const unlisten = await listen("launcher-log", (event) => {
-    logStore.addLine(event.payload);
-});
+useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listen<string>("launcher-log", (event) => {
+        setLogs((current) => [...current, event.payload]);
+    }).then((dispose) => {
+        unlisten = dispose;
+    });
+
+    return () => unlisten?.();
+}, []);
 ```
 
 -   **`version-installed`**: 异步任务完成后通知 UI 更新版本列表状态。
@@ -293,50 +301,38 @@ try {
 }
 ```
 
-#### 前端状态管理 (Svelte 5 Runes)
-前端全线采用 Svelte 5 的 `Runes` 系统 (`$state`, `$effect`) 替代旧版的 `writable` stores。
+#### 前端状态管理 (React + Zustand)
+前端使用 React hooks 管理局部组件状态，并使用 Zustand store 管理跨视图共享状态。
 
 ```typescript
-// ui/src/stores/auth.svelte.ts
-export class AuthState {
-  // 使用 $state 定义响应式数据
-  currentAccount = $state<Account | null>(null);
-  isLoginModalOpen = $state(false);
+// ui/src/models/auth.ts
+import { create } from "zustand";
 
-  constructor() {
-    // 初始化逻辑
-  }
+interface AuthState {
+  account: Account | null;
+  setAccount: (account: Account | null) => void;
 }
 
-// 导出单例用于全局访问
-export const authState = new AuthState();
+export const useAuthStore = create<AuthState>((set) => ({
+  account: null,
+  setAccount: (account) => set({ account }),
+}));
 ```
 
-#### 前端视图路由 (Manual Routing)
-DropOut 不使用常规的 URL 路由，而是通过全局状态管理当前激活的视图组件。
+#### 前端视图路由 (React Router)
+DropOut 使用 `packages/ui/src/pages` 下的 React Router 路由模块，并通过 React hooks 和 model stores 管理共享 UI 状态。
 
 ```typescript
-// ui/src/stores/ui.svelte.ts
-export class UIState {
-    activeView = $state("home"); // "home" | "versions" | "settings"
-    
-    setView(view: string) {
-        this.activeView = view;
-    }
-}
-```
+// ui/src/pages/routes.ts
+import { createHashRouter } from "react-router";
 
-```svelte
-<!-- App.svelte -->
-<script>
-    import { uiState } from "./stores/ui.svelte";
-</script>
-
-{#if uiState.activeView === "home"}
-    <HomeView />
-{:else if uiState.activeView === "settings"}
-    <SettingsView />
-{/if}
+const router = createHashRouter([
+  {
+    path: "/",
+    Component: IndexPage,
+    children: [{ index: true, Component: HomePage }],
+  },
+]);
 ```
 
 ### 6.2 开发最佳实践

@@ -141,15 +141,17 @@ DropOut/
 │   │   └── utils/          # 工具类
 │   └── Cargo.toml
 ├── packages/
-│   ├── ui/                 # Svelte 5 前端
+│   ├── ui/                 # React 前端
 │   │   ├── src/
-│   │   │   ├── App.svelte
+│   │   │   ├── main.tsx
 │   │   │   ├── components/
-│   │   │   ├── stores/     # 状态管理
+│   │   │   ├── pages/      # React Router 路由
+│   │   │   ├── models/     # Zustand stores 和模型
 │   │   │   └── lib/
 │   │   └── package.json
 │   └── docs/               # 文档站点
-│       ├── content/docs/
+│       ├── content/en/
+│       ├── content/zh/
 │       └── package.json
 ├── .github/
 │   └── workflows/          # CI/CD 流水线
@@ -170,7 +172,7 @@ pnpm dev
 **类型检查：**
 
 ```bash
-pnpm check
+pnpm build
 ```
 
 **代码检查：**
@@ -182,7 +184,7 @@ pnpm lint
 **格式化代码：**
 
 ```bash
-pnpm format
+pnpm exec biome format --write .
 ```
 
 ### 后端开发
@@ -260,11 +262,12 @@ async fn start_microsoft_login(
 }
 ```
 
-### TypeScript/Svelte
+### TypeScript/React
 
 遵循项目约定：
 
-- 使用 Svelte 5 runes (`$state`, `$effect`)
+- 优先使用 React 函数组件和 hooks
+- 使用 Zustand stores 管理共享应用状态
 - 优先使用 TypeScript 而非 JavaScript
 - 使用 Biome 进行格式化和检查
 - 遵循组件结构
@@ -272,16 +275,14 @@ async fn start_microsoft_login(
 **示例：**
 
 ```typescript
-// stores/auth.svelte.ts
-export class AuthState {
-  currentAccount = $state<Account | null>(null);
-  isLoginModalOpen = $state(false);
-
-  async login(username: string) {
+// models/auth.ts
+export const useAuthStore = create<AuthState>((set) => ({
+  account: null,
+  loginOffline: async (username) => {
     const account = await invoke("offline_login", { username });
-    this.currentAccount = account;
-  }
-}
+    set({ account });
+  },
+}));
 ```
 
 ## 测试
@@ -335,7 +336,7 @@ GitHub Actions 在以下平台运行测试：
 
 1. 在 Tauri 窗口中打开开发工具：`Ctrl+Shift+I`（Windows/Linux）或 `Cmd+Option+I`（macOS）
 2. 检查控制台错误
-3. 使用 React DevTools 或 Svelte DevTools
+3. 使用 React DevTools
 4. 监控网络标签页查看 API 调用
 
 ### 后端调试
@@ -488,25 +489,29 @@ refactor(download): simplify progress tracking
 
 1. **创建组件文件：**
 
-   ```svelte
-   <!-- packages/ui/src/components/MyComponent.svelte -->
-   <script lang="ts">
-     let count = $state(0);
-   </script>
+   ```tsx
+   // packages/ui/src/components/my-component.tsx
+   import { useState } from "react";
 
-   <button onclick={() => count++}>
-     Count: {count}
-   </button>
+   export function MyComponent() {
+     const [count, setCount] = useState(0);
+
+     return (
+       <button type="button" onClick={() => setCount((value) => value + 1)}>
+         Count: {count}
+       </button>
+     );
+   }
    ```
 
 2. **导入并使用：**
 
-   ```svelte
-   <script>
-     import MyComponent from './components/MyComponent.svelte';
-   </script>
+   ```tsx
+   import { MyComponent } from "@/components/my-component";
 
-   <MyComponent />
+   export function HomePage() {
+     return <MyComponent />;
+   }
    ```
 
 ### 添加 Store
@@ -514,28 +519,32 @@ refactor(download): simplify progress tracking
 1. **创建 store 文件：**
 
    ```typescript
-   // packages/ui/src/stores/mystore.svelte.ts
-   export class MyState {
-     value = $state(0);
+   // packages/ui/src/models/counter.ts
+   import { create } from "zustand";
 
-     increment() {
-       this.value++;
-     }
-   }
-
-   export const myState = new MyState();
+   export const useCounterStore = create<{
+     value: number;
+     increment: () => void;
+   }>((set) => ({
+     value: 0,
+     increment: () => set((state) => ({ value: state.value + 1 })),
+   }));
    ```
 
 2. **在组件中使用：**
 
-   ```svelte
-   <script>
-     import { myState } from '../stores/mystore.svelte';
-   </script>
+   ```tsx
+   import { useCounterStore } from "@/models/counter";
 
-   <button onclick={() => myState.increment()}>
-     {myState.value}
-   </button>
+   export function CounterButton() {
+     const { value, increment } = useCounterStore();
+
+     return (
+       <button type="button" onClick={increment}>
+         {value}
+       </button>
+     );
+   }
    ```
 
 ## 开发问题故障排除
@@ -585,7 +594,7 @@ rustup update
 ## 资源
 
 - [Tauri 文档](https://v2.tauri.app/)
-- [Svelte 5 文档](https://svelte.dev/docs)
+- [React 文档](https://react.dev/)
 - [Rust 程序设计语言](https://doc.rust-lang.org/book/)
 - [DropOut 仓库](https://github.com/HydroRoll-Team/DropOut)
 

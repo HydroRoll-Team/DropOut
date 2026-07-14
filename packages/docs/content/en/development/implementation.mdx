@@ -216,12 +216,20 @@ macro_rules! emit_log {
 -   **`game-stdout` / `game-stderr`**: Capture game subprocess standard output and errors, transmitting to frontend in real-time via independent threads.
 
 ```typescript
-// Frontend listen example (Svelte 5)
+// Frontend listen example (React)
 import { listen } from "@tauri-apps/api/event";
+import { useEffect } from "react";
 
-const unlisten = await listen("launcher-log", (event) => {
-    logStore.addLine(event.payload);
-});
+useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listen<string>("launcher-log", (event) => {
+        setLogs((current) => [...current, event.payload]);
+    }).then((dispose) => {
+        unlisten = dispose;
+    });
+
+    return () => unlisten?.();
+}, []);
 ```
 
 -   **`version-installed`**: Notify UI to update version list status after asynchronous task completion.
@@ -293,50 +301,38 @@ try {
 }
 ```
 
-#### Frontend State Management (Svelte 5 Runes)
-The frontend fully adopts Svelte 5's `Runes` system (`$state`, `$effect`) replacing the old `writable` stores.
+#### Frontend State Management (React + Zustand)
+The frontend uses React hooks for local component state and Zustand stores for shared application state.
 
 ```typescript
-// ui/src/stores/auth.svelte.ts
-export class AuthState {
-  // Use $state to define reactive data
-  currentAccount = $state<Account | null>(null);
-  isLoginModalOpen = $state(false);
+// ui/src/models/auth.ts
+import { create } from "zustand";
 
-  constructor() {
-    // Initialization logic
-  }
+interface AuthState {
+  account: Account | null;
+  setAccount: (account: Account | null) => void;
 }
 
-// Export singleton for global access
-export const authState = new AuthState();
+export const useAuthStore = create<AuthState>((set) => ({
+  account: null,
+  setAccount: (account) => set({ account }),
+}));
 ```
 
-#### Frontend View Routing (Manual Routing)
-DropOut does not use conventional URL routing, but instead manages the currently active view component via global state.
+#### Frontend View Routing (React Router)
+DropOut uses React Router route modules under `packages/ui/src/pages`, with shared UI state kept in React hooks and model stores.
 
 ```typescript
-// ui/src/stores/ui.svelte.ts
-export class UIState {
-    activeView = $state("home"); // "home" | "versions" | "settings"
-    
-    setView(view: string) {
-        this.activeView = view;
-    }
-}
-```
+// ui/src/pages/routes.ts
+import { createHashRouter } from "react-router";
 
-```svelte
-<!-- App.svelte -->
-<script>
-    import { uiState } from "./stores/ui.svelte";
-</script>
-
-{#if uiState.activeView === "home"}
-    <HomeView />
-{:else if uiState.activeView === "settings"}
-    <SettingsView />
-{/if}
+const router = createHashRouter([
+  {
+    path: "/",
+    Component: IndexPage,
+    children: [{ index: true, Component: HomePage }],
+  },
+]);
 ```
 
 ### 6.2 Development Best Practices

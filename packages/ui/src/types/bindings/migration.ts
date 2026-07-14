@@ -8,6 +8,10 @@ export type DetectedLauncher = {
 
 export type ImportableInstance = {
   sourcePath: string;
+  gameDir: string;
+  launcherType: string;
+  sourceKind: string;
+  versionId: string | null;
   name: string;
   minecraftVersion: string | null;
   modLoader: string | null;

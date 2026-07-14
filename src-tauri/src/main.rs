@@ -3242,55 +3242,25 @@ async fn import_from_launcher(
 ) -> Result<core::instance::Instance, String> {
     let app_handle = window.app_handle();
     let source = std::path::Path::new(&source_path);
-
-    // Parse source instance info
-    let cfg = std::fs::read_to_string(source.join("instance.cfg")).unwrap_or_default();
-    let default_name = source
-        .file_name()
-        .map(|n| n.to_string_lossy().to_string())
-        .unwrap_or_else(|| "Imported".to_string());
-
-    let name = new_name.unwrap_or_else(|| {
-        cfg.lines()
-            .find_map(|l| l.strip_prefix("name=").map(|v| v.trim().to_string()))
-            .unwrap_or(default_name)
-    });
+    let metadata = core::migration::import_metadata(source)?;
+    let name = new_name.unwrap_or_else(|| metadata.name.clone());
 
     // Create new instance
     let instance = instance_state.create_instance(name, app_handle)?;
 
     // Copy game files
-    core::migration::copy_instance_files(source, &instance.game_dir)?;
+    if let Err(error) = core::migration::copy_instance_files(source, &instance.game_dir) {
+        let _ = instance_state.delete_instance(&instance.id);
+        return Err(error);
+    }
 
-    // Parse and set mod loader info from mmc-pack.json
-    if let Ok(content) = std::fs::read_to_string(source.join("mmc-pack.json")) {
-        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-            let mut mc_version = None;
-            let mut mod_loader = None;
-            let mut mod_loader_version = None;
-
-            for comp in json["components"].as_array().into_iter().flatten() {
-                let ver = comp["version"].as_str().map(String::from);
-                match comp["uid"].as_str().unwrap_or("") {
-                    "net.minecraft" => mc_version = ver,
-                    "net.minecraftforge" => {
-                        mod_loader = Some("forge".into());
-                        mod_loader_version = ver;
-                    }
-                    "net.fabricmc.fabric-loader" => {
-                        mod_loader = Some("fabric".into());
-                        mod_loader_version = ver;
-                    }
-                    _ => {}
-                }
-            }
-
-            let mut updated = instance.clone();
-            updated.version_id = mc_version;
-            updated.mod_loader = mod_loader;
-            updated.mod_loader_version = mod_loader_version;
-            instance_state.update_instance(updated)?;
-        }
+    let mut updated = instance.clone();
+    updated.version_id = metadata.version_id.or(metadata.minecraft_version);
+    updated.mod_loader = metadata.mod_loader;
+    updated.mod_loader_version = metadata.mod_loader_version;
+    if let Err(error) = instance_state.update_instance(updated) {
+        let _ = instance_state.delete_instance(&instance.id);
+        return Err(error);
     }
 
     instance_state
