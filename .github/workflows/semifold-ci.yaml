@@ -26,7 +26,7 @@ jobs:
             name: "Linux x86_64 (GNU)"
             target: "x86_64-unknown-linux-gnu"
             args: "--target x86_64-unknown-linux-gnu"
-          - platform: "ubuntu-24.04-arm"
+          - platform: "ubuntu-22.04-arm"
             name: "Linux arm64 (GNU)"
             target: "aarch64-unknown-linux-gnu"
             args: "--target aarch64-unknown-linux-gnu"
@@ -55,6 +55,7 @@ jobs:
 
       - name: Install Dependencies (Linux)
         if: runner.os == 'Linux'
+        timeout-minutes: 15
         run: |
           sudo tee /etc/apt/apt.conf.d/99github-actions-retries >/dev/null <<'EOF'
           Acquire::Retries "5";
