@@ -9,6 +9,8 @@ on:
       - ".github/workflows/production-smoke.yml"
       - "package.json"
       - "pnpm-lock.yaml"
+  pull_request:
+    branches: ["main"]
   schedule:
     - cron: "17 2 * * *"
   workflow_dispatch:
@@ -16,7 +18,7 @@ on:
       base_url:
         description: Smoke target base URL
         required: false
-        default: https://dropout.opensource-d6b.workers.dev
+        default: https://dropout.hydroroll.team
 
 permissions:
   checks: read
@@ -29,7 +31,7 @@ jobs:
     timeout-minutes: 15
 
     env:
-      BASE_URL: ${{ github.event.inputs.base_url || 'https://dropout.opensource-d6b.workers.dev' }}
+      BASE_URL: ${{ github.event.inputs.base_url || 'https://dropout.hydroroll.team' }}
 
     steps:
       - name: Wait for Cloudflare Workers build

@@ -172,7 +172,7 @@ export function ImportWizard({
 
     for (const instance of selectedInstances) {
       try {
-        await importFromLauncher(instance.sourcePath);
+        await importFromLauncher(instance.sourcePath, null);
         done++;
       } catch (e) {
         nextFailures.push(`${instance.name}: ${e}`);

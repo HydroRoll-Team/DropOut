@@ -91,5 +91,5 @@ pub fn export_api_bindings(import_from: &str, export_to: &str) {
 
 #[ctor::dtor]
 fn __dropout_export_api_bindings() {
-    export_api_bindings("@/types", "../packages/ui-new/src/client.ts");
+    export_api_bindings("@/types", "../packages/ui/src/client.ts");
 }
