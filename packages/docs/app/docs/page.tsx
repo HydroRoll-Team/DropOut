@@ -5,7 +5,7 @@ import { DocsLayout } from "fumadocs-ui/layouts/docs";
 import defaultMdxComponents from "fumadocs-ui/mdx";
 import { DocsBody, DocsPage } from "fumadocs-ui/page";
 import { Mermaid } from "@/components/mermaid";
-import { i18n } from "@/lib/i18n";
+import { resolveLocale } from "@/lib/i18n";
 import { baseOptions } from "@/lib/layout.shared";
 import { source } from "@/lib/source";
 import type { Route } from "./+types/page";
@@ -14,11 +14,11 @@ export async function loader({ params }: Route.LoaderArgs) {
   // 从路由参数获取语言，如果没有则使用默认语言
   // URL 格式: /docs/manual/getting-started (默认语言 zh)
   // URL 格式: /en/docs/manual/getting-started (英语)
-  const lang: "zh" | "en" =
-    params.lang &&
-    i18n.languages.includes(params.lang as (typeof i18n)["languages"][number])
-      ? (params.lang as "zh" | "en")
-      : (i18n.defaultLanguage as "zh" | "en");
+  const lang = resolveLocale(params.lang);
+
+  if (lang === null) {
+    throw new Response("Not found", { status: 404 });
+  }
 
   // 获取文档路径 slugs
   const slugs = params["*"]?.split("/").filter((v) => v.length > 0) || [];

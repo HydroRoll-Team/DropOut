@@ -132,14 +132,20 @@ Keep commands copyable and exact. If a command must be run from the repo root or
 
 ## Deployment
 
-The docs package builds to `build/`:
+The docs site is deployed as a Cloudflare Worker with static assets. The root
+`wrangler.jsonc` is the source of truth for the Worker name, build command,
+asset binding, compatibility date, and observability settings.
 
 ```bash
+pnpm -C packages/docs --lockfile-dir "$PWD" install
 pnpm -C packages/docs build
-pnpm -C packages/docs start
+pnpm exec wrangler deploy --dry-run
+pnpm exec wrangler deploy
 ```
 
-Repository CI should run the same build and type/content checks before publishing the site.
+Use `pnpm -C packages/docs start` only for checking the Node server build
+locally. Production traffic should go through Cloudflare Workers, not Vercel or
+GitHub Pages.
 
 ---
 
