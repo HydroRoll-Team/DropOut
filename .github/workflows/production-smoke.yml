@@ -18,7 +18,7 @@ on:
       base_url:
         description: Smoke target base URL
         required: false
-        default: https://dropout.hydroroll.team
+        default: https://dropout.opensource-d6b.workers.dev
 
 permissions:
   checks: read
@@ -31,7 +31,7 @@ jobs:
     timeout-minutes: 15
 
     env:
-      BASE_URL: ${{ github.event.inputs.base_url || 'https://dropout.hydroroll.team' }}
+      BASE_URL: ${{ github.event.inputs.base_url || 'https://dropout.opensource-d6b.workers.dev' }}
 
     steps:
       - name: Wait for Cloudflare Workers build
