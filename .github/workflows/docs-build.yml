@@ -10,11 +10,6 @@ on:
       - "package.json"
   pull_request:
     branches: ["main"]
-    paths:
-      - "packages/docs/**"
-      - ".github/workflows/docs-build.yml"
-      - "pnpm-lock.yaml"
-      - "package.json"
   workflow_dispatch:
 
 permissions:

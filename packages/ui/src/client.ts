@@ -52,6 +52,18 @@ export function cancelJavaDownload(): Promise<void> {
   return invoke<void>("cancel_java_download");
 }
 
+export function changeInstanceDirectory(
+  instanceId: string,
+  newDir: string,
+  migrateFiles: boolean,
+): Promise<Instance> {
+  return invoke<Instance>("change_instance_directory", {
+    instanceId,
+    newDir,
+    migrateFiles,
+  });
+}
+
 export function checkVersionInstalled(
   instanceId: string,
   versionId: string,
@@ -65,6 +77,18 @@ export function checkVersionInstalled(
 export function completeMicrosoftLogin(deviceCode: string): Promise<Account> {
   return invoke<Account>("complete_microsoft_login", {
     deviceCode,
+  });
+}
+
+export function convertModLoader(
+  instanceId: string,
+  targetLoader: string,
+  loaderVersion: string,
+): Promise<string> {
+  return invoke<string>("convert_mod_loader", {
+    instanceId,
+    targetLoader,
+    loaderVersion,
   });
 }
 
@@ -86,6 +110,13 @@ export function deleteInstanceFile(path: string): Promise<void> {
   });
 }
 
+export function deleteMod(instanceId: string, fileName: string): Promise<void> {
+  return invoke<void>("delete_mod", {
+    instanceId,
+    fileName,
+  });
+}
+
 export function deleteVersion(
   instanceId: string,
   versionId: string,
@@ -104,6 +135,10 @@ export function detectJava(): Promise<JavaInstallation[]> {
   return invoke<JavaInstallation[]>("detect_java");
 }
 
+export function detectLaunchers(): Promise<DetectedLauncher[]> {
+  return invoke<DetectedLauncher[]>("detect_launchers");
+}
+
 export function downloadAdoptiumJava(
   majorVersion: number,
   imageType: string,
@@ -113,6 +148,20 @@ export function downloadAdoptiumJava(
     majorVersion,
     imageType,
     customPath,
+  });
+}
+
+export function downloadContentFile(
+  instanceId: string,
+  url: string,
+  fileName: string,
+  subfolder: string,
+): Promise<string> {
+  return invoke<string>("download_content_file", {
+    instanceId,
+    url,
+    fileName,
+    subfolder,
   });
 }
 
@@ -162,8 +211,24 @@ export function getActiveInstance(): Promise<Instance | null> {
   return invoke<Instance | null>("get_active_instance");
 }
 
+export function getAllAccounts(): Promise<AccountSummary[]> {
+  return invoke<AccountSummary[]>("get_all_accounts");
+}
+
 export function getConfigPath(): Promise<string> {
   return invoke<string>("get_config_path");
+}
+
+export function getContentVersions(
+  projectId: string,
+  gameVersions: string[],
+  loaders: string[],
+): Promise<ContentVersion[]> {
+  return invoke<ContentVersion[]>("get_content_versions", {
+    projectId,
+    gameVersions,
+    loaders,
+  });
 }
 
 export function getFabricGameVersions(): Promise<FabricGameVersion[]> {
@@ -250,6 +315,26 @@ export function getVersionsOfInstance(instanceId: string): Promise<Version[]> {
   });
 }
 
+export function importFromLauncher(
+  sourcePath: string,
+  newName: string | null,
+): Promise<Instance> {
+  return invoke<Instance>("import_from_launcher", {
+    sourcePath,
+    newName,
+  });
+}
+
+export function importInstance(
+  archivePath: string,
+  newName: string | null,
+): Promise<Instance> {
+  return invoke<Instance>("import_instance", {
+    archivePath,
+    newName,
+  });
+}
+
 export function installFabric(
   instanceId: string,
   gameVersion: string,
@@ -274,18 +359,6 @@ export function installForge(
   });
 }
 
-export function convertModLoader(
-  instanceId: string,
-  targetLoader: string,
-  loaderVersion: string,
-): Promise<string> {
-  return invoke<string>("convert_mod_loader", {
-    instanceId,
-    targetLoader,
-    loaderVersion,
-  });
-}
-
 export function installVersion(
   instanceId: string,
   versionId: string,
@@ -293,16 +366,6 @@ export function installVersion(
   return invoke<void>("install_version", {
     instanceId,
     versionId,
-  });
-}
-
-export function importInstance(
-  archivePath: string,
-  newName?: string,
-): Promise<Instance> {
-  return invoke<Instance>("import_instance", {
-    archivePath,
-    newName,
   });
 }
 
@@ -390,6 +453,12 @@ export function refreshJavaCatalog(): Promise<JavaCatalog> {
   return invoke<JavaCatalog>("refresh_java_catalog");
 }
 
+export function removeAccount(uuid: string): Promise<void> {
+  return invoke<void>("remove_account", {
+    uuid,
+  });
+}
+
 export function repairInstances(): Promise<InstanceRepairResult> {
   return invoke<InstanceRepairResult>("repair_instances");
 }
@@ -410,77 +479,10 @@ export function saveSettings(config: LauncherConfig): Promise<void> {
   });
 }
 
-export function setActiveInstance(instanceId: string): Promise<void> {
-  return invoke<void>("set_active_instance", {
-    instanceId,
-  });
-}
-
-export function startGame(
-  instanceId: string,
-  versionId: string,
-): Promise<string> {
-  return invoke<string>("start_game", {
-    instanceId,
-    versionId,
-  });
-}
-
-export function stopGame(): Promise<string> {
-  return invoke<string>("stop_game");
-}
-
-export function startMicrosoftLogin(): Promise<DeviceCodeResponse> {
-  return invoke<DeviceCodeResponse>("start_microsoft_login");
-}
-
-export function updateInstance(instance: Instance): Promise<void> {
-  return invoke<void>("update_instance", {
-    instance,
-  });
-}
-
-export function uploadToPastebin(content: string): Promise<PastebinResponse> {
-  return invoke<PastebinResponse>("upload_to_pastebin", {
-    content,
-  });
-}
-
-// --- Multi-account ---
-
-export function getAllAccounts(): Promise<AccountSummary[]> {
-  return invoke<AccountSummary[]>("get_all_accounts");
-}
-
-export function switchAccount(uuid: string): Promise<Account> {
-  return invoke<Account>("switch_account", { uuid });
-}
-
-export function removeAccount(uuid: string): Promise<void> {
-  return invoke<void>("remove_account", { uuid });
-}
-
-// --- Mods management ---
-
 export function scanInstanceMods(instanceId: string): Promise<ModInfo[]> {
-  return invoke<ModInfo[]>("scan_instance_mods", { instanceId });
-}
-
-export function toggleMod(
-  instanceId: string,
-  fileName: string,
-): Promise<ModInfo> {
-  return invoke<ModInfo>("toggle_mod", { instanceId, fileName });
-}
-
-export function deleteMod(instanceId: string, fileName: string): Promise<void> {
-  return invoke<void>("delete_mod", { instanceId, fileName });
-}
-
-// --- Migration ---
-
-export function detectLaunchers(): Promise<DetectedLauncher[]> {
-  return invoke<DetectedLauncher[]>("detect_launchers");
+  return invoke<ModInfo[]>("scan_instance_mods", {
+    instanceId,
+  });
 }
 
 export function scanLauncherInstances(
@@ -490,29 +492,6 @@ export function scanLauncherInstances(
     instancesDir,
   });
 }
-
-export function importFromLauncher(
-  sourcePath: string,
-  newName?: string,
-): Promise<Instance> {
-  return invoke<Instance>("import_from_launcher", { sourcePath, newName });
-}
-
-// --- Custom directory ---
-
-export function changeInstanceDirectory(
-  instanceId: string,
-  newDir: string,
-  migrateFiles: boolean,
-): Promise<Instance> {
-  return invoke<Instance>("change_instance_directory", {
-    instanceId,
-    newDir,
-    migrateFiles,
-  });
-}
-
-// --- Content Browser ---
 
 export function searchContent(
   query: string,
@@ -534,28 +513,54 @@ export function searchContent(
   });
 }
 
-export function getContentVersions(
-  projectId: string,
-  gameVersions: string[],
-  loaders: string[],
-): Promise<ContentVersion[]> {
-  return invoke<ContentVersion[]>("get_content_versions", {
-    projectId,
-    gameVersions,
-    loaders,
+export function setActiveInstance(instanceId: string): Promise<void> {
+  return invoke<void>("set_active_instance", {
+    instanceId,
   });
 }
 
-export function downloadContentFile(
+export function startGame(
   instanceId: string,
-  url: string,
-  fileName: string,
-  subfolder: string,
+  versionId: string,
 ): Promise<string> {
-  return invoke<string>("download_content_file", {
+  return invoke<string>("start_game", {
     instanceId,
-    url,
+    versionId,
+  });
+}
+
+export function startMicrosoftLogin(): Promise<DeviceCodeResponse> {
+  return invoke<DeviceCodeResponse>("start_microsoft_login");
+}
+
+export function stopGame(): Promise<string> {
+  return invoke<string>("stop_game");
+}
+
+export function switchAccount(uuid: string): Promise<Account> {
+  return invoke<Account>("switch_account", {
+    uuid,
+  });
+}
+
+export function toggleMod(
+  instanceId: string,
+  fileName: string,
+): Promise<ModInfo> {
+  return invoke<ModInfo>("toggle_mod", {
+    instanceId,
     fileName,
-    subfolder,
+  });
+}
+
+export function updateInstance(instance: Instance): Promise<void> {
+  return invoke<void>("update_instance", {
+    instance,
+  });
+}
+
+export function uploadToPastebin(content: string): Promise<PastebinResponse> {
+  return invoke<PastebinResponse>("upload_to_pastebin", {
+    content,
   });
 }

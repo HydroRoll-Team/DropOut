@@ -132,9 +132,11 @@ The UI can run in a browser for layout work, but Tauri-backed flows require the 
 | Run docs site | `pnpm -C packages/docs dev` |
 | Build docs site | `pnpm -C packages/docs build` |
 | Check docs types/content | `pnpm -C packages/docs types:check` |
-| Validate Cloudflare docs deploy | `pnpm exec wrangler deploy --dry-run` |
-| Deploy docs to Cloudflare Workers | `pnpm exec wrangler deploy` |
+| Validate Cloudflare docs deploy | `pnpm deploy:docs:dry-run` |
+| Deploy docs to Cloudflare Workers | `pnpm deploy:docs` |
 | Test Rust workspace | `cargo test --workspace` |
+
+Deployment maintenance is documented in [docs/cloudflare-deployment.md](docs/cloudflare-deployment.md).
 
 ---
 

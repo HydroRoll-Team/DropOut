@@ -4,14 +4,24 @@
   "main": "./packages/docs/worker.ts",
   "compatibility_date": "2026-07-14",
   "compatibility_flags": ["nodejs_compat"],
+  "routes": [
+    {
+      "pattern": "dropout.hydroroll.team",
+      "custom_domain": true
+    }
+  ],
   "build": {
     "command": "CI=true pnpm -C packages/docs --lockfile-dir . install --frozen-lockfile && pnpm -C packages/docs build"
   },
   "assets": {
     "directory": "./packages/docs/build/client",
-    "binding": "ASSETS"
+    "binding": "ASSETS",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "none",
+    "run_worker_first": false
   },
   "observability": {
-    "enabled": true
+    "enabled": true,
+    "head_sampling_rate": 1
   }
 }

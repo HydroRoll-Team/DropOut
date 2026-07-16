@@ -130,7 +130,7 @@ export const useInstanceStore = create<InstanceState>((set, get) => ({
   importArchive: async (archivePath, newName) => {
     const { refresh } = get();
     try {
-      const instance = await importInstance(archivePath, newName);
+      const instance = await importInstance(archivePath, newName ?? null);
       await setActiveInstanceCommand(instance.id);
       await refresh();
       toast.success(

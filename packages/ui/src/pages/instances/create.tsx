@@ -13,6 +13,7 @@ import React, {
 import {
   Controller,
   FormProvider,
+  type Resolver,
   useForm,
   useFormContext,
   Watch,
@@ -20,7 +21,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
-import z from "zod";
+import z from "zod/v4";
 import {
   getFabricLoadersForVersion,
   getForgeVersionsForGame,
@@ -77,6 +78,8 @@ import type { FabricLoaderEntry, ForgeVersion, Version } from "@/types";
 const versionSchema = z.object({
   versionId: z.string("Version is required"),
 });
+
+type VersionFormData = z.infer<typeof versionSchema>;
 
 function VersionComponent() {
   const { t } = useTranslation();
@@ -235,6 +238,9 @@ const instanceSchema = z.object({
   modLoader: z.enum(["fabric", "forge"]).optional(),
   modLoaderVersion: z.string().optional(),
 });
+
+type InstanceFormData = z.infer<typeof instanceSchema>;
+type CreateInstanceFormData = VersionFormData | InstanceFormData;
 
 function InstanceComponent() {
   const { t } = useTranslation();
@@ -525,8 +531,8 @@ export function CreateInstancePage() {
   const { t } = useTranslation();
   const stepper = useStepper();
   const schema = stepper.state.current.data.schema;
-  const form = useForm<z.infer<typeof schema>>({
-    resolver: zodResolver(schema),
+  const form = useForm<CreateInstanceFormData>({
+    resolver: zodResolver(schema as never) as Resolver<CreateInstanceFormData>,
   });
   const navigate = useNavigate();
 
@@ -552,7 +558,7 @@ export function CreateInstancePage() {
 
   const [isCreating, setIsCreating] = useState(false);
   const handleSubmit = useCallback(
-    async (data: z.infer<typeof schema>) => {
+    async (data: CreateInstanceFormData) => {
       switch (stepper.state.current.data.id) {
         case "version":
           setVersionId((data as z.infer<typeof versionSchema>).versionId);

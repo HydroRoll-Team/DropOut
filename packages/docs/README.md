@@ -139,13 +139,13 @@ asset binding, compatibility date, and observability settings.
 ```bash
 pnpm -C packages/docs --lockfile-dir "$PWD" install
 pnpm -C packages/docs build
-pnpm exec wrangler deploy --dry-run
-pnpm exec wrangler deploy
+pnpm deploy:docs:dry-run
+pnpm deploy:docs
 ```
 
 Use `pnpm -C packages/docs start` only for checking the Node server build
-locally. Production traffic should go through Cloudflare Workers, not Vercel or
-GitHub Pages.
+locally. Production traffic goes through the Cloudflare Worker configured in the
+root `wrangler.jsonc`.
 
 ---
 

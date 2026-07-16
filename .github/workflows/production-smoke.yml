@@ -9,6 +9,8 @@ on:
       - ".github/workflows/production-smoke.yml"
       - "package.json"
       - "pnpm-lock.yaml"
+  pull_request:
+    branches: ["main"]
   schedule:
     - cron: "17 2 * * *"
   workflow_dispatch:
