@@ -4,6 +4,7 @@
   "main": "./packages/docs/worker.ts",
   "compatibility_date": "2026-07-14",
   "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
   "routes": [
     {
       "pattern": "dropout.hydroroll.team",

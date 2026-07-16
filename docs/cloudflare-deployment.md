@@ -12,7 +12,7 @@ asset binding, custom domain, compatibility date, and observability settings.
 | Worker entry | `packages/docs/worker.ts` |
 | Static assets | `packages/docs/build/client` through the `ASSETS` binding |
 | Production domain | `dropout.hydroroll.team` in `wrangler.jsonc` `routes` |
-| CI smoke target | `dropout.opensource-d6b.workers.dev` in `.github/workflows/production-smoke.yml` |
+| CI smoke target | `dropout.opensource-d6b.workers.dev` through `wrangler.jsonc` `workers_dev` |
 | Required merge checks | Repository ruleset `verify-push` |
 
 ## Local Validation
@@ -51,7 +51,8 @@ The required smoke workflow checks the same route families against
 `https://dropout.opensource-d6b.workers.dev`. The custom domain can apply
 Cloudflare bot challenges to GitHub-hosted runners, so use the workflow dispatch
 `base_url` input for `https://dropout.hydroroll.team` only when that challenge
-policy allows CI access.
+policy allows CI access. Keep `workers_dev` enabled in `wrangler.jsonc`; without
+it the Worker subdomain returns Cloudflare `1042` responses instead of the app.
 
 ## Merge Gates
 
