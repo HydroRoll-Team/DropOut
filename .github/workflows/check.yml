@@ -10,9 +10,6 @@ on:
   pull_request:
     branches:
       - main
-    paths:
-      - "packages/**"
-      - ".github/workflows/check.yml"
   workflow_dispatch:
 
 jobs:

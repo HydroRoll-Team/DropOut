@@ -75,3 +75,6 @@ created on pull requests:
 
 Do not require workflow names such as `Unit Test` or `Semifold CI`; GitHub
 rulesets require the concrete job or external status context.
+Because `check` is a required context, the `UI Checker` pull request trigger must
+not use path filters; otherwise docs-only or workflow-only PRs can be blocked
+with no `check` run to satisfy the ruleset.
