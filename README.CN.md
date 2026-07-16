@@ -132,6 +132,8 @@ UI 可以在浏览器中用于布局开发，但依赖 Tauri 的功能需要在�
 | 运行文档站 | `pnpm -C packages/docs dev` |
 | 构建文档站 | `pnpm -C packages/docs build` |
 | 检查文档类型/内容 | `pnpm -C packages/docs types:check` |
+| 验证 Cloudflare 文档站部署 | `pnpm exec wrangler deploy --dry-run` |
+| 部署文档站到 Cloudflare Workers | `pnpm exec wrangler deploy` |
 | 测试 Rust workspace | `cargo test --workspace` |
 
 ---

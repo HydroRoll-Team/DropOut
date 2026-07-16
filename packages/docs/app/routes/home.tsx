@@ -1,5 +1,5 @@
 import { HomeLayout } from "fumadocs-ui/layouts/home";
-import { i18n } from "@/lib/i18n";
+import { i18n, resolveLocale } from "@/lib/i18n";
 import { baseOptions } from "@/lib/layout.shared";
 import type { Route } from "./+types/home";
 
@@ -121,8 +121,16 @@ export function meta() {
   ];
 }
 
+export function loader({ params }: Route.LoaderArgs) {
+  if (resolveLocale(params.lang) === null) {
+    throw new Response("Not found", { status: 404 });
+  }
+
+  return null;
+}
+
 export default function Home({ params }: Route.ComponentProps) {
-  const lang = (params.lang as "en" | "zh") || i18n.defaultLanguage;
+  const lang = resolveLocale(params.lang) ?? i18n.defaultLanguage;
   const t = texts[lang];
 
   // 默认语言（zh）不显示前缀，其他语言显示前缀
