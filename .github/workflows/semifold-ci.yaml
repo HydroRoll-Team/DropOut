@@ -104,7 +104,7 @@ jobs:
       - name: Rust Cache
         uses: swatinem/rust-cache@v2
         with:
-          shared-key: ${{ matrix.target }}
+          shared-key: ${{ matrix.platform }}-${{ matrix.target }}
 
       - name: Setup appimagetool (Linux)
         if: startsWith(matrix.platform, 'ubuntu') && !startsWith(matrix.platform, 'macos') && !startsWith(matrix.platform, 'windows')
