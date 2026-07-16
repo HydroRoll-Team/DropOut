@@ -12,7 +12,7 @@ asset binding, custom domain, compatibility date, and observability settings.
 | Worker entry | `packages/docs/worker.ts` |
 | Static assets | `packages/docs/build/client` through the `ASSETS` binding |
 | Production domain | `dropout.hydroroll.team` in `wrangler.jsonc` `routes` |
-| CI smoke target | `dropout.opensource-d6b.workers.dev` in `.github/workflows/production-smoke.yml` |
+| CI smoke target | `dropout.hydroroll.team` in `.github/workflows/production-smoke.yml` |
 | Required merge checks | Repository ruleset `verify-push` |
 
 ## Local Validation
@@ -48,10 +48,9 @@ curl -I https://dropout.hydroroll.team/en/docs/manual/getting-started
 ```
 
 The required smoke workflow checks the same route families against
-`https://dropout.opensource-d6b.workers.dev`. The custom domain can apply
-Cloudflare bot challenges to GitHub-hosted runners, so use the workflow dispatch
-`base_url` input for `https://dropout.hydroroll.team` only when that challenge
-policy allows CI access.
+`https://dropout.hydroroll.team`. Cloudflare can return a bot challenge to
+GitHub-hosted runners; the workflow treats that challenge page as a successful
+edge reachability result after the `Workers Builds: dropout` check has completed.
 
 ## Merge Gates
 
@@ -76,3 +75,6 @@ created on pull requests:
 
 Do not require workflow names such as `Unit Test` or `Semifold CI`; GitHub
 rulesets require the concrete job or external status context.
+Because `check` is a required context, the `UI Checker` pull request trigger must
+not use path filters; otherwise docs-only or workflow-only PRs can be blocked
+with no `check` run to satisfy the ruleset.

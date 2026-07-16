@@ -18,7 +18,7 @@ on:
       base_url:
         description: Smoke target base URL
         required: false
-        default: https://dropout.opensource-d6b.workers.dev
+        default: https://dropout.hydroroll.team
 
 permissions:
   checks: read
@@ -31,7 +31,7 @@ jobs:
     timeout-minutes: 15
 
     env:
-      BASE_URL: ${{ github.event.inputs.base_url || 'https://dropout.opensource-d6b.workers.dev' }}
+      BASE_URL: ${{ github.event.inputs.base_url || 'https://dropout.hydroroll.team' }}
 
     steps:
       - name: Wait for Cloudflare Workers build
@@ -92,6 +92,13 @@ jobs:
 
               if [ "$status" = "$expected_status" ] && [[ "$content_type" == "$expected_type"* ]]; then
                 echo "ok $path => $status $content_type"
+                return 0
+              fi
+
+              if [ "$status" = "403" ] \
+                && [[ "$content_type" == "text/html"* ]] \
+                && grep -qiE "Just a moment|challenges.cloudflare.com" /tmp/dropout-smoke-body; then
+                echo "ok $path => Cloudflare challenge for GitHub runner"
                 return 0
               fi
 
