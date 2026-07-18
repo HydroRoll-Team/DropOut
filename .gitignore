@@ -41,3 +41,9 @@ release/
 
 # Vscode
 .vscode/
+
+# pnpm
+.pnpm-store/
+
+# macOS
+.DS_Store
