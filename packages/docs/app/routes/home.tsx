@@ -1,5 +1,5 @@
 import { HomeLayout } from "fumadocs-ui/layouts/home";
-import { i18n } from "@/lib/i18n";
+import { i18n, resolveLocale } from "@/lib/i18n";
 import { baseOptions } from "@/lib/layout.shared";
 import type { Route } from "./+types/home";
 
@@ -21,7 +21,7 @@ const texts = {
         },
         {
           title: "Modern UI",
-          desc: "Clean, distraction-free interface with Svelte 5 and Tailwind CSS 4",
+          desc: "Clean, distraction-free interface with React 19, shadcn/ui, and Tailwind CSS 4",
         },
         {
           title: "Secure Auth",
@@ -80,7 +80,7 @@ const texts = {
         },
         {
           title: "现代化界面",
-          desc: "简洁、无干扰的界面，使用 Svelte 5 和 Tailwind CSS 4",
+          desc: "简洁、无干扰的界面，使用 React 19、shadcn/ui 和 Tailwind CSS 4",
         },
         { title: "安全认证", desc: "支持微软 OAuth 2.0 设备代码流和离线模式" },
         { title: "模组支持", desc: "内置 Fabric 和 Forge 支持，自动管理版本" },
@@ -121,8 +121,16 @@ export function meta() {
   ];
 }
 
+export function loader({ params }: Route.LoaderArgs) {
+  if (resolveLocale(params.lang) === null) {
+    throw new Response("Not found", { status: 404 });
+  }
+
+  return null;
+}
+
 export default function Home({ params }: Route.ComponentProps) {
-  const lang = (params.lang as "en" | "zh") || i18n.defaultLanguage;
+  const lang = resolveLocale(params.lang) ?? i18n.defaultLanguage;
   const t = texts[lang];
 
   // 默认语言（zh）不显示前缀，其他语言显示前缀

@@ -10,9 +10,6 @@ on:
   pull_request:
     branches:
       - main
-    paths:
-      - "packages/**"
-      - ".github/workflows/check.yml"
   workflow_dispatch:
 
 jobs:
@@ -34,7 +31,7 @@ jobs:
           cache: "pnpm"
           cache-dependency-path: "pnpm-lock.yaml"
 
-      - run: pnpm install
+      - run: pnpm -C packages/ui --lockfile-dir "${{ github.workspace }}" install --frozen-lockfile
 
       - run: pnpm biome ci
         working-directory: packages/ui

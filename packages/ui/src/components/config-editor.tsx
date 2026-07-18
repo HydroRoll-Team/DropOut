@@ -1,6 +1,8 @@
 import type React from "react";
 import { useEffect, useState } from "react";
 import { type ZodType, z } from "zod";
+import { MAX_DOWNLOAD_THREADS, MIN_DOWNLOAD_THREADS } from "@/lib/config";
+import { useI18n } from "@/lib/i18n";
 import { useSettingsStore } from "@/models/settings";
 import type { LauncherConfig } from "@/types";
 import { Button } from "./ui/button";
@@ -22,7 +24,10 @@ const launcherConfigSchema: ZodType<LauncherConfig> = z.object({
   javaPath: z.string(),
   width: z.number(),
   height: z.number(),
-  downloadThreads: z.number(),
+  downloadThreads: z
+    .number()
+    .min(MIN_DOWNLOAD_THREADS)
+    .max(MAX_DOWNLOAD_THREADS),
   customBackgroundPath: z.string().nullable(),
   enableGpuAcceleration: z.boolean(),
   enableVisualEffects: z.boolean(),
@@ -30,10 +35,34 @@ const launcherConfigSchema: ZodType<LauncherConfig> = z.object({
   theme: z.string(),
   logUploadService: z.string(),
   pastebinApiKey: z.string().nullable(),
-  assistant: z.any(), // TODO: AssistantConfig schema
+  assistant: z.object({
+    enabled: z.boolean(),
+    llmProvider: z.string(),
+    ollamaEndpoint: z.string(),
+    ollamaModel: z.string(),
+    openaiApiKey: z.string().nullable(),
+    openaiEndpoint: z.string(),
+    openaiModel: z.string(),
+    systemPrompt: z.string(),
+    responseLanguage: z.string(),
+    ttsEnabled: z.boolean(),
+    ttsProvider: z.string(),
+  }),
   useSharedCaches: z.boolean(),
   keepLegacyPerInstanceStorage: z.boolean(),
-  featureFlags: z.any(), // TODO: FeatureFlags schema
+  featureFlags: z.object({
+    demoUser: z.boolean(),
+    quickPlayEnabled: z.boolean(),
+    quickPlayPath: z.string().nullable(),
+    quickPlaySingleplayer: z.boolean(),
+    quickPlayMultiplayerServer: z.string().nullable(),
+  }),
+  mirrorSource: z.string(),
+  language: z.string(),
+  enableSystemTray: z.boolean(),
+  firstLaunchCompleted: z.boolean(),
+  jvmPreset: z.string(),
+  githubProxy: z.string(),
 });
 
 export interface ConfigEditorProps
@@ -43,6 +72,7 @@ export interface ConfigEditorProps
 }
 
 export function ConfigEditor({ onOpenChange, ...props }: ConfigEditorProps) {
+  const { t } = useI18n();
   const settings = useSettingsStore();
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -76,10 +106,8 @@ export function ConfigEditor({ onOpenChange, ...props }: ConfigEditorProps) {
     <Dialog onOpenChange={onOpenChange} {...props}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
         <DialogHeader>
-          <DialogTitle>Edit Configuration</DialogTitle>
-          <DialogDescription>
-            Edit the raw JSON configuration file.
-          </DialogDescription>
+          <DialogTitle>{t("config.title")}</DialogTitle>
+          <DialogDescription>{t("config.desc")}</DialogDescription>
         </DialogHeader>
 
         <Textarea
@@ -98,11 +126,11 @@ export function ConfigEditor({ onOpenChange, ...props }: ConfigEditorProps) {
             onClick={() => onOpenChange?.(false)}
             disabled={isSaving}
           >
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button onClick={handleSave} disabled={isSaving}>
             {isSaving && <Spinner />}
-            Save Changes
+            {t("common.saveChanges")}
           </Button>
         </DialogFooter>
       </DialogContent>

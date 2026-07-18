@@ -1,12 +1,16 @@
 import { redirect } from "react-router";
-import { i18n } from "@/lib/i18n";
+import { i18n, resolveLocale } from "@/lib/i18n";
 import type { Route } from "./+types/docs";
 
 export function loader({ params }: Route.LoaderArgs) {
-  const lang = params.lang as string | undefined;
+  const lang = resolveLocale(params.lang);
+
+  if (lang === null) {
+    throw new Response("Not found", { status: 404 });
+  }
 
   // 如果没有语言参数或是默认语言，重定向到 /docs/manual/getting-started
-  if (!lang || lang === i18n.defaultLanguage) {
+  if (lang === i18n.defaultLanguage) {
     return redirect("/docs/manual/getting-started");
   }
 

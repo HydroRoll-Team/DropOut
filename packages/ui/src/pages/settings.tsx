@@ -1,6 +1,7 @@
 import { toNumber } from "es-toolkit/compat";
 import { FileJsonIcon } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { migrateSharedCaches } from "@/client";
 import { ConfigEditor } from "@/components/config-editor";
@@ -31,6 +32,9 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useUpdater } from "@/components/updater";
+import { setLanguage } from "@/i18n";
+import { MAX_DOWNLOAD_THREADS, MIN_DOWNLOAD_THREADS } from "@/lib/config";
 import { useJavaStore } from "@/models/java";
 import { useSettingsStore } from "@/models/settings";
 
@@ -39,6 +43,8 @@ export type SettingsTab = "general" | "appearance" | "advanced";
 export function SettingsPage() {
   const { config, ...settings } = useSettingsStore();
   const javaStore = useJavaStore();
+  const updater = useUpdater();
+  const { t } = useTranslation();
   const [showConfigEditor, setShowConfigEditor] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
 
@@ -79,20 +85,24 @@ export function SettingsPage() {
         <TabsContent value="general" className="size-full">
           <Card className="size-full">
             <CardHeader>
-              <CardTitle className="font-bold text-xl">General</CardTitle>
+              <CardTitle className="font-bold text-xl">
+                {t("settings.general.title")}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <FieldGroup>
                 <FieldSet>
-                  <FieldLegend>Window Options</FieldLegend>
+                  <FieldLegend>
+                    {t("settings.general.windowOptions")}
+                  </FieldLegend>
                   <FieldDescription>
-                    May not work on some platforms like Linux Niri.
+                    {t("settings.general.windowOptionsHint")}
                   </FieldDescription>
                   <FieldGroup>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <Field>
                         <FieldLabel htmlFor="width">
-                          Window Default Width
+                          {t("settings.general.width")}
                         </FieldLabel>
                         <Input
                           type="number"
@@ -112,7 +122,7 @@ export function SettingsPage() {
                       </Field>
                       <Field>
                         <FieldLabel htmlFor="height">
-                          Window Default Height
+                          {t("settings.general.height")}
                         </FieldLabel>
                         <Input
                           type="number"
@@ -134,10 +144,10 @@ export function SettingsPage() {
                     <Field className="flex flex-row items-center justify-between">
                       <FieldContent>
                         <FieldLabel htmlFor="gpu-acceleration">
-                          GPU Acceleration
+                          {t("settings.general.gpuAcceleration")}
                         </FieldLabel>
                         <FieldDescription>
-                          Enable GPU acceleration for the interface.
+                          {t("settings.general.gpuAccelerationHint")}
                         </FieldDescription>
                       </FieldContent>
                       <Switch
@@ -153,9 +163,11 @@ export function SettingsPage() {
                   </FieldGroup>
                 </FieldSet>
                 <FieldSet>
-                  <FieldLegend>Network Options</FieldLegend>
+                  <FieldLegend>{t("settings.network.title")}</FieldLegend>
                   <Field>
-                    <Label htmlFor="download-threads">Download Threads</Label>
+                    <Label htmlFor="download-threads">
+                      {t("settings.network.downloadThreads")}
+                    </Label>
                     <Input
                       type="number"
                       name="download-threads"
@@ -168,8 +180,153 @@ export function SettingsPage() {
                       onBlur={() => {
                         settings.save();
                       }}
-                      min={1}
-                      max={64}
+                      min={MIN_DOWNLOAD_THREADS}
+                      max={MAX_DOWNLOAD_THREADS}
+                    />
+                  </Field>
+                  <Field className="flex flex-row">
+                    <FieldContent>
+                      <FieldLabel htmlFor="mirror-source">
+                        {t("settings.network.mirror")}
+                      </FieldLabel>
+                      <FieldDescription>
+                        {t("settings.network.mirrorHint")}
+                      </FieldDescription>
+                    </FieldContent>
+                    <Select
+                      items={[
+                        { label: "Official", value: "official" },
+                        { label: "BMCLAPI", value: "bmclapi" },
+                      ]}
+                      value={config.mirrorSource}
+                      onValueChange={async (value) => {
+                        if (value) {
+                          settings.merge({ mirrorSource: value });
+                          await settings.save();
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="w-full max-w-48">
+                        <SelectValue
+                          placeholder={t("settings.network.mirror")}
+                        />
+                      </SelectTrigger>
+                      <SelectContent alignItemWithTrigger={false}>
+                        <SelectGroup>
+                          <SelectItem value="official">
+                            {t("settings.network.official")}
+                          </SelectItem>
+                          <SelectItem value="bmclapi">
+                            {t("settings.network.bmclapi")}
+                          </SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="github-proxy">
+                      {t("settings.network.githubProxy")}
+                    </FieldLabel>
+                    <FieldDescription>
+                      {t("settings.network.githubProxyHint")}
+                    </FieldDescription>
+                    <Input
+                      id="github-proxy"
+                      type="text"
+                      placeholder="https://ghproxy.hydroroll.team"
+                      value={config?.githubProxy ?? ""}
+                      onChange={(e) => {
+                        settings.merge({ githubProxy: e.target.value });
+                      }}
+                      onBlur={() => settings.save()}
+                    />
+                  </Field>
+                </FieldSet>
+                <FieldSet>
+                  <FieldLegend>{t("settings.jvm.title")}</FieldLegend>
+                  <Field className="flex flex-row">
+                    <FieldContent>
+                      <FieldLabel htmlFor="jvm-preset">
+                        {t("settings.jvm.gcPreset")}
+                      </FieldLabel>
+                      <FieldDescription>
+                        {t("settings.jvm.gcPresetHint")}
+                      </FieldDescription>
+                    </FieldContent>
+                    <Select
+                      items={[
+                        { label: "Default", value: "default" },
+                        { label: "G1GC (Recommended)", value: "g1gc" },
+                        { label: "ZGC (Java 21+)", value: "zgc" },
+                        { label: "Shenandoah", value: "shenandoah" },
+                      ]}
+                      value={config.jvmPreset}
+                      onValueChange={async (value) => {
+                        if (value) {
+                          settings.merge({ jvmPreset: value });
+                          await settings.save();
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="w-full max-w-48">
+                        <SelectValue placeholder={t("settings.jvm.gcPreset")} />
+                      </SelectTrigger>
+                      <SelectContent alignItemWithTrigger={false}>
+                        <SelectGroup>
+                          <SelectItem value="default">
+                            {t("settings.jvm.default")}
+                          </SelectItem>
+                          <SelectItem value="g1gc">
+                            {t("settings.jvm.g1gc")}
+                          </SelectItem>
+                          <SelectItem value="zgc">
+                            {t("settings.jvm.zgc")}
+                          </SelectItem>
+                          <SelectItem value="shenandoah">
+                            {t("settings.jvm.shenandoah")}
+                          </SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="min-memory">
+                      {t("settings.jvm.minMemory")}
+                    </FieldLabel>
+                    <Input
+                      type="number"
+                      name="min-memory"
+                      value={config?.minMemory}
+                      onChange={(e) => {
+                        settings.merge({
+                          minMemory: toNumber(e.target.value),
+                        });
+                      }}
+                      onBlur={() => {
+                        settings.save();
+                      }}
+                      min={256}
+                      max={config?.maxMemory ?? 16384}
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="max-memory">
+                      {t("settings.jvm.maxMemory")}
+                    </FieldLabel>
+                    <Input
+                      type="number"
+                      name="max-memory"
+                      value={config?.maxMemory}
+                      onChange={(e) => {
+                        settings.merge({
+                          maxMemory: toNumber(e.target.value),
+                        });
+                      }}
+                      onBlur={() => {
+                        settings.save();
+                      }}
+                      min={config?.minMemory ?? 256}
+                      max={32768}
                     />
                   </Field>
                 </FieldSet>
@@ -181,12 +338,14 @@ export function SettingsPage() {
           <Card className="size-full">
             <CardHeader>
               <CardTitle className="font-bold text-xl">
-                Java Installations
+                {t("settings.java.title")}
               </CardTitle>
               <CardContent>
                 <FieldGroup>
                   <Field>
-                    <FieldLabel htmlFor="java-path">Java Path</FieldLabel>
+                    <FieldLabel htmlFor="java-path">
+                      {t("settings.java.javaPath")}
+                    </FieldLabel>
                     <Input
                       type="text"
                       name="java-path"
@@ -202,7 +361,7 @@ export function SettingsPage() {
                     />
                   </Field>
                   <FieldSet>
-                    <FieldLegend>Java Installations</FieldLegend>
+                    <FieldLegend>{t("settings.java.title")}</FieldLegend>
                     {javaStore.installations ? (
                       <RadioGroup
                         value={config.javaPath}
@@ -249,15 +408,19 @@ export function SettingsPage() {
         <TabsContent value="appearance" className="size-full">
           <Card className="size-full">
             <CardHeader>
-              <CardTitle className="font-bold text-xl">Appearance</CardTitle>
+              <CardTitle className="font-bold text-xl">
+                {t("settings.appearance.title")}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <FieldGroup>
                 <Field className="flex flex-row">
                   <FieldContent>
-                    <FieldLabel htmlFor="theme">Theme</FieldLabel>
+                    <FieldLabel htmlFor="theme">
+                      {t("settings.appearance.theme")}
+                    </FieldLabel>
                     <FieldDescription>
-                      Select your prefered theme.
+                      {t("settings.appearance.themeHint")}
                     </FieldDescription>
                   </FieldContent>
                   <Select
@@ -280,13 +443,61 @@ export function SettingsPage() {
                     }}
                   >
                     <SelectTrigger className="w-full max-w-48">
-                      <SelectValue placeholder="Please select a prefered theme" />
+                      <SelectValue
+                        placeholder={t("settings.appearance.theme")}
+                      />
                     </SelectTrigger>
                     <SelectContent alignItemWithTrigger={false}>
                       <SelectGroup>
-                        <SelectItem value="system">System</SelectItem>
-                        <SelectItem value="light">Light</SelectItem>
-                        <SelectItem value="dark">Dark</SelectItem>
+                        <SelectItem value="system">
+                          {t("settings.appearance.system")}
+                        </SelectItem>
+                        <SelectItem value="light">
+                          {t("settings.appearance.light")}
+                        </SelectItem>
+                        <SelectItem value="dark">
+                          {t("settings.appearance.dark")}
+                        </SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field className="flex flex-row">
+                  <FieldContent>
+                    <FieldLabel htmlFor="language">
+                      {t("settings.appearance.language")}
+                    </FieldLabel>
+                    <FieldDescription>
+                      {t("settings.appearance.languageHint")}
+                    </FieldDescription>
+                  </FieldContent>
+                  <Select
+                    items={[
+                      { label: "Auto", value: "auto" },
+                      { label: "English", value: "en" },
+                      { label: "简体中文", value: "zh-CN" },
+                    ]}
+                    value={config.language}
+                    onValueChange={async (value) => {
+                      if (value) {
+                        settings.merge({ language: value });
+                        await settings.save();
+                        setLanguage(value);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full max-w-48">
+                      <SelectValue
+                        placeholder={t("settings.appearance.language")}
+                      />
+                    </SelectTrigger>
+                    <SelectContent alignItemWithTrigger={false}>
+                      <SelectGroup>
+                        <SelectItem value="auto">
+                          {t("settings.appearance.auto")}
+                        </SelectItem>
+                        <SelectItem value="en">English</SelectItem>
+                        <SelectItem value="zh-CN">简体中文</SelectItem>
                       </SelectGroup>
                     </SelectContent>
                   </Select>
@@ -298,20 +509,24 @@ export function SettingsPage() {
         <TabsContent value="advanced" className="size-full">
           <Card className="size-full">
             <CardHeader>
-              <CardTitle className="font-bold text-xl">Advanced</CardTitle>
+              <CardTitle className="font-bold text-xl">
+                {t("settings.advanced.title")}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <FieldGroup>
                 <FieldSet>
-                  <FieldLegend>Advanced Options</FieldLegend>
+                  <FieldLegend>
+                    {t("settings.advanced.advancedOptions")}
+                  </FieldLegend>
                   <FieldGroup>
                     <Field className="flex flex-row items-center justify-between">
                       <FieldContent>
                         <FieldLabel htmlFor="use-shared-caches">
-                          Use Shared Caches
+                          {t("settings.advanced.sharedCaches")}
                         </FieldLabel>
                         <FieldDescription>
-                          Share downloaded assets between instances.
+                          {t("settings.advanced.sharedCachesHint")}
                         </FieldDescription>
                       </FieldContent>
                       <Switch
@@ -328,10 +543,10 @@ export function SettingsPage() {
                     <Field className="flex flex-row items-center justify-between">
                       <FieldContent>
                         <FieldLabel htmlFor="keep-per-instance-storage">
-                          Keep Legacy Per-Instance Storage
+                          {t("settings.advanced.legacyStorage")}
                         </FieldLabel>
                         <FieldDescription>
-                          Maintain separate cache folders for compatibility.
+                          {t("settings.advanced.legacyStorageHint")}
                         </FieldDescription>
                       </FieldContent>
                       <Switch
@@ -343,6 +558,77 @@ export function SettingsPage() {
                           settings.save();
                         }}
                       />
+                    </Field>
+                  </FieldGroup>
+                </FieldSet>
+                <FieldSet>
+                  <FieldLegend>{t("settings.advanced.systemTray")}</FieldLegend>
+                  <FieldGroup>
+                    <Field className="flex flex-row items-center justify-between">
+                      <FieldContent>
+                        <FieldLabel htmlFor="enable-system-tray">
+                          {t("settings.advanced.enableSystemTray")}
+                        </FieldLabel>
+                        <FieldDescription>
+                          {t("settings.advanced.enableSystemTrayHint")}
+                        </FieldDescription>
+                      </FieldContent>
+                      <Switch
+                        checked={config?.enableSystemTray}
+                        onCheckedChange={(checked) => {
+                          settings.merge({
+                            enableSystemTray: checked,
+                          });
+                          settings.save();
+                        }}
+                      />
+                    </Field>
+                  </FieldGroup>
+                </FieldSet>
+                <FieldSet>
+                  <FieldLegend>{t("settings.advanced.guidedTour")}</FieldLegend>
+                  <FieldGroup>
+                    <Field className="flex flex-row items-center justify-between">
+                      <FieldContent>
+                        <FieldLabel htmlFor="first-launch-completed">
+                          {t("settings.advanced.firstLaunchCompleted")}
+                        </FieldLabel>
+                        <FieldDescription>
+                          {t("settings.advanced.firstLaunchCompletedHint")}
+                        </FieldDescription>
+                      </FieldContent>
+                      <Switch
+                        checked={config?.firstLaunchCompleted}
+                        onCheckedChange={(checked) => {
+                          settings.merge({
+                            firstLaunchCompleted: checked,
+                          });
+                          settings.save();
+                        }}
+                      />
+                    </Field>
+                  </FieldGroup>
+                </FieldSet>
+                <FieldSet>
+                  <FieldLegend>{t("settings.advanced.updates")}</FieldLegend>
+                  <FieldGroup>
+                    <Field className="flex flex-row items-center justify-between">
+                      <FieldContent>
+                        <FieldLabel>
+                          {t("settings.advanced.currentVersion")}
+                        </FieldLabel>
+                        <FieldDescription>v0.2.0-alpha.6</FieldDescription>
+                      </FieldContent>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => updater.checkForUpdate(false)}
+                        disabled={updater.checking}
+                      >
+                        {updater.checking
+                          ? t("settings.advanced.checking")
+                          : t("settings.advanced.checkUpdates")}
+                      </Button>
                     </Field>
                   </FieldGroup>
                 </FieldSet>
@@ -367,7 +653,7 @@ export function SettingsPage() {
           onClick={() => setShowConfigEditor(true)}
         >
           <FileJsonIcon />
-          <span className="hidden sm:inline">Open JSON</span>
+          <span className="hidden sm:inline">{t("settings.openJson")}</span>
         </Button>
       </div>
 
@@ -377,10 +663,16 @@ export function SettingsPage() {
         className="size-full flex flex-col gap-6"
       >
         <TabsList>
-          <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="java">Java</TabsTrigger>
-          <TabsTrigger value="appearance">Appearance</TabsTrigger>
-          <TabsTrigger value="advanced">Advanced</TabsTrigger>
+          <TabsTrigger value="general">
+            {t("settings.tabs.general")}
+          </TabsTrigger>
+          <TabsTrigger value="java">{t("settings.tabs.java")}</TabsTrigger>
+          <TabsTrigger value="appearance">
+            {t("settings.tabs.appearance")}
+          </TabsTrigger>
+          <TabsTrigger value="advanced">
+            {t("settings.tabs.advanced")}
+          </TabsTrigger>
         </TabsList>
         {renderScrollArea()}
       </Tabs>

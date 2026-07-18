@@ -1,7 +1,9 @@
 import { useEffect } from "react";
 import { Outlet, useLocation } from "react-router";
+import { GuidedTour } from "@/components/guided-tour";
 import { ParticleBackground } from "@/components/particle-background";
 import { Sidebar } from "@/components/sidebar";
+import { UpdateDialog, useUpdater } from "@/components/updater";
 import { useAuthStore } from "@/models/auth";
 import { useInstanceStore } from "@/models/instance";
 import { useSettingsStore } from "@/models/settings";
@@ -10,6 +12,7 @@ export function IndexPage() {
   const authStore = useAuthStore();
   const settingsStore = useSettingsStore();
   const instanceStore = useInstanceStore();
+  const updater = useUpdater();
 
   const location = useLocation();
 
@@ -17,7 +20,13 @@ export function IndexPage() {
     authStore.init();
     settingsStore.refresh();
     instanceStore.refresh();
-  }, [authStore.init, settingsStore.refresh, instanceStore.refresh]);
+    updater.checkForUpdate(true);
+  }, [
+    authStore.init,
+    settingsStore.refresh,
+    instanceStore.refresh,
+    updater.checkForUpdate,
+  ]);
 
   return (
     <div className="relative h-screen w-full overflow-hidden bg-background font-sans">
@@ -78,6 +87,16 @@ export function IndexPage() {
           )}
         </main>
       </div>
+
+      <UpdateDialog
+        update={updater.update}
+        open={updater.showDialog}
+        onOpenChange={updater.setShowDialog}
+        downloading={updater.downloading}
+        onConfirm={updater.downloadAndInstall}
+      />
+
+      <GuidedTour />
     </div>
   );
 }

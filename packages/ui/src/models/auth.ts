@@ -7,11 +7,14 @@ import { create } from "zustand";
 import {
   completeMicrosoftLogin,
   getActiveAccount,
+  getAllAccounts,
   loginOffline,
   logout,
+  removeAccount as removeAccountApi,
   startMicrosoftLogin,
+  switchAccount as switchAccountApi,
 } from "@/client";
-import type { Account, DeviceCodeResponse } from "@/types";
+import type { Account, AccountSummary, DeviceCodeResponse } from "@/types";
 
 function getAuthErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -19,6 +22,7 @@ function getAuthErrorMessage(error: unknown): string {
 
 export interface AuthState {
   account: Account | null;
+  accounts: AccountSummary[];
   loginMode: Account["type"] | null;
   deviceCode: DeviceCodeResponse | null;
   _pollingInterval: number | null;
@@ -36,10 +40,14 @@ export interface AuthState {
   cancelLoginOnline: () => Promise<void>;
   loginOffline: (username: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshAccounts: () => Promise<void>;
+  switchAccount: (uuid: string) => Promise<void>;
+  removeAccount: (uuid: string) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   account: null,
+  accounts: [],
   loginMode: null,
   deviceCode: null,
   _pollingInterval: null,
@@ -49,8 +57,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   init: async () => {
     try {
-      const account = await getActiveAccount();
-      set({ account });
+      const [account, accounts] = await Promise.all([
+        getActiveAccount(),
+        getAllAccounts(),
+      ]);
+      set({ account, accounts });
     } catch (error) {
       console.error("Failed to initialize auth store:", error);
     }
@@ -121,6 +132,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         _progressUnlisten: null,
         statusMessage: "Login successful",
       });
+      get().refreshAccounts();
     } catch (error: unknown) {
       const message = getAuthErrorMessage(error);
 
@@ -175,6 +187,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const account = await loginOffline(trimmedUsername);
       set({ account, loginMode: "offline" });
+      get().refreshAccounts();
     } catch (error) {
       console.error("Failed to login offline:", error);
       toast.error("Failed to login offline");
@@ -184,9 +197,43 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       await logout();
       set({ account: null });
+      get().refreshAccounts();
     } catch (error) {
       console.error("Failed to logout:", error);
       toast.error("Failed to logout");
+    }
+  },
+  refreshAccounts: async () => {
+    try {
+      const accounts = await getAllAccounts();
+      set({ accounts });
+    } catch (error) {
+      console.error("Failed to refresh accounts:", error);
+    }
+  },
+  switchAccount: async (uuid: string) => {
+    try {
+      const account = await switchAccountApi(uuid);
+      set({ account });
+      get().refreshAccounts();
+      toast.success(`Switched to ${account.username}`);
+    } catch (error) {
+      console.error("Failed to switch account:", error);
+      toast.error("Failed to switch account");
+    }
+  },
+  removeAccount: async (uuid: string) => {
+    try {
+      const { account } = get();
+      await removeAccountApi(uuid);
+      if (account && account.uuid === uuid) {
+        set({ account: null });
+      }
+      get().refreshAccounts();
+      toast.success("Account removed");
+    } catch (error) {
+      console.error("Failed to remove account:", error);
+      toast.error("Failed to remove account");
     }
   },
 }));

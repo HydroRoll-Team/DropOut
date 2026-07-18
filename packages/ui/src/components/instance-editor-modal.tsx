@@ -1,6 +1,8 @@
+import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
 import { toNumber } from "es-toolkit/compat";
 import { Folder, Loader2, Save, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
   deleteInstanceFile,
@@ -30,6 +32,7 @@ type Props = {
 };
 
 export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
+  const { t } = useTranslation();
   const instancesStore = useInstanceStore();
   const { config } = useSettingsStore();
 
@@ -51,13 +54,15 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [deletingPath, setDeletingPath] = useState<string | null>(null);
 
-  // Version tab state (placeholder - the Svelte implementation used a ModLoaderSelector component)
+  // Version tab state.
   // React versions-view/instance-creation handle mod loader installs; here we show basic current info.
 
   // Settings tab fields
   const [editMemoryMin, setEditMemoryMin] = useState<number>(0);
   const [editMemoryMax, setEditMemoryMax] = useState<number>(0);
   const [editJavaArgs, setEditJavaArgs] = useState<string>("");
+  const [editServerAddress, setEditServerAddress] = useState<string>("");
+  const [editSkinPath, setEditSkinPath] = useState<string>("");
 
   // initialize when open & instance changes
   useEffect(() => {
@@ -78,6 +83,8 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
           2048,
       );
       setEditJavaArgs(instance.jvmArgsOverride ?? "");
+      setEditServerAddress(instance.serverAddress ?? "");
+      setEditSkinPath(instance.skinPath ?? "");
       setFileList([]);
       setSelectedFileFolder("mods");
     }
@@ -175,6 +182,10 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
           max: editMemoryMax,
         },
         jvmArgsOverride: editJavaArgs.trim() ? editJavaArgs.trim() : null,
+        serverAddress: editServerAddress.trim()
+          ? editServerAddress.trim()
+          : null,
+        skinPath: editSkinPath.trim() ? editSkinPath.trim() : null,
       };
 
       await instancesStore.update(updatedInstance as Instance);
@@ -217,7 +228,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
         <DialogHeader>
           <div className="flex items-center justify-between gap-4">
             <div>
-              <DialogTitle>Edit Instance</DialogTitle>
+              <DialogTitle>{t("editor.title")}</DialogTitle>
               <DialogDescription>{instance?.name ?? ""}</DialogDescription>
             </div>
             <div className="flex items-center gap-2">
@@ -237,10 +248,10 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
         {/* Tab Navigation */}
         <div className="flex gap-1 px-6 pt-2 border-b border-zinc-700">
           {[
-            { id: "info", label: "Info" },
-            { id: "version", label: "Version" },
-            { id: "files", label: "Files" },
-            { id: "settings", label: "Settings" },
+            { id: "info", label: t("editor.tabs.info") },
+            { id: "version", label: t("editor.tabs.version") },
+            { id: "files", label: t("editor.tabs.files") },
+            { id: "settings", label: t("editor.tabs.settings") },
           ].map((tab) => (
             <button
               type="button"
@@ -270,7 +281,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                   htmlFor="instance-name-edit"
                   className="block text-sm font-medium mb-2"
                 >
-                  Instance Name
+                  {t("editor.instanceName")}
                 </label>
                 <Input
                   id="instance-name-edit"
@@ -285,7 +296,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                   htmlFor="instance-notes-edit"
                   className="block text-sm font-medium mb-2"
                 >
-                  Notes
+                  {t("editor.notes")}
                 </label>
                 <Textarea
                   id="instance-notes-edit"
@@ -298,21 +309,21 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
 
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div className="p-3 bg-zinc-800 rounded-lg">
-                  <p className="text-zinc-400">Created</p>
+                  <p className="text-zinc-400">{t("editor.created")}</p>
                   <p className="text-white font-medium">
                     {instance?.createdAt ? formatDate(instance.createdAt) : "-"}
                   </p>
                 </div>
                 <div className="p-3 bg-zinc-800 rounded-lg">
-                  <p className="text-zinc-400">Last Played</p>
+                  <p className="text-zinc-400">{t("editor.lastPlayed")}</p>
                   <p className="text-white font-medium">
                     {instance?.lastPlayed
                       ? formatDate(instance.lastPlayed)
-                      : "Never"}
+                      : t("editor.never")}
                   </p>
                 </div>
                 <div className="p-3 bg-zinc-800 rounded-lg">
-                  <p className="text-zinc-400">Game Directory</p>
+                  <p className="text-zinc-400">{t("editor.gameDirectory")}</p>
                   <p
                     className="text-white font-medium text-xs truncate"
                     title={instance?.gameDir ?? ""}
@@ -323,9 +334,9 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                   </p>
                 </div>
                 <div className="p-3 bg-zinc-800 rounded-lg">
-                  <p className="text-zinc-400">Current Version</p>
+                  <p className="text-zinc-400">{t("editor.currentVersion")}</p>
                   <p className="text-white font-medium">
-                    {instance?.versionId ?? "None"}
+                    {instance?.versionId ?? t("common.none")}
                   </p>
                 </div>
               </div>
@@ -457,10 +468,67 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
             <div className="space-y-4">
               <div>
                 <label
+                  htmlFor="server-address-edit"
+                  className="block text-sm font-medium mb-2"
+                >
+                  {t("editor.serverAddress")}
+                </label>
+                <Input
+                  id="server-address-edit"
+                  value={editServerAddress}
+                  onChange={(e) => setEditServerAddress(e.target.value)}
+                  placeholder={t("editor.serverAddressPlaceholder")}
+                  disabled={saving}
+                />
+                <p className="text-xs text-zinc-400 mt-1">
+                  {t("editor.serverAddressHint")}
+                </p>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="skin-path-edit"
+                  className="block text-sm font-medium mb-2"
+                >
+                  {t("editor.skinPath")}
+                </label>
+                <div className="flex gap-2">
+                  <Input
+                    id="skin-path-edit"
+                    value={editSkinPath}
+                    onChange={(e) => setEditSkinPath(e.target.value)}
+                    placeholder={t("editor.skinPathPlaceholder")}
+                    disabled={saving}
+                    className="flex-1"
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    disabled={saving}
+                    onClick={async () => {
+                      const selected = await openFileDialog({
+                        multiple: false,
+                        filters: [{ name: "PNG Image", extensions: ["png"] }],
+                      });
+                      if (typeof selected === "string") {
+                        setEditSkinPath(selected);
+                      }
+                    }}
+                  >
+                    <Folder />
+                  </Button>
+                </div>
+                <p className="text-xs text-zinc-400 mt-1">
+                  {t("editor.skinPathHint")}
+                </p>
+              </div>
+
+              <div>
+                <label
                   htmlFor="min-memory-edit"
                   className="block text-sm font-medium mb-2"
                 >
-                  Minimum Memory (MB)
+                  {t("editor.minMemory")}
                 </label>
                 <Input
                   id="min-memory-edit"
@@ -479,7 +547,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                   htmlFor="max-memory-edit"
                   className="block text-sm font-medium mb-2"
                 >
-                  Maximum Memory (MB)
+                  {t("editor.maxMemory")}
                 </label>
                 <Input
                   id="max-memory-edit"
@@ -498,7 +566,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                   htmlFor="jvm-args-edit"
                   className="block text-sm font-medium mb-2"
                 >
-                  JVM Arguments (Advanced)
+                  {t("editor.jvmArgs")}
                 </label>
                 <Textarea
                   id="jvm-args-edit"
@@ -526,7 +594,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                   onOpenChange(false);
                 }}
               >
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button onClick={saveChanges} disabled={saving}>
                 {saving ? (
@@ -534,7 +602,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                 ) : (
                   <Save className="mr-2" />
                 )}
-                Save
+                {t("common.save")}
               </Button>
             </div>
           </div>

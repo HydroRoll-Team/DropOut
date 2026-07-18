@@ -4,15 +4,19 @@ import {
   EditIcon,
   EllipsisIcon,
   FolderOpenIcon,
+  GlobeIcon,
+  PackageIcon,
   Plus,
   RocketIcon,
   Trash2Icon,
   XIcon,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { openFileExplorer } from "@/client";
+import { ImportWizard } from "@/components/import-wizard";
 import InstanceEditorModal from "@/components/instance-editor-modal";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +35,7 @@ import { useInstanceStore } from "@/models/instance";
 import type { Instance } from "@/types";
 
 export function InstancesPage() {
+  const { t } = useTranslation();
   const instancesStore = useInstanceStore();
   const navigate = useNavigate();
 
@@ -50,6 +55,7 @@ export function InstancesPage() {
   const [isImporting, setIsImporting] = useState(false);
   const [repairing, setRepairing] = useState(false);
   const [exportingId, setExportingId] = useState<string | null>(null);
+  const [showImportWizard, setShowImportWizard] = useState(false);
 
   // Selected / editing instance state
   const [selectedInstance, setSelectedInstance] = useState<Instance | null>(
@@ -151,7 +157,7 @@ export function InstancesPage() {
     <div className="h-full flex flex-col gap-4 p-6 overflow-y-auto">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Instances
+          {t("instances.title")}
         </h1>
         <div className="flex flex-row space-x-2">
           <Button
@@ -160,7 +166,14 @@ export function InstancesPage() {
             onClick={handleImport}
             disabled={isImporting}
           >
-            {isImporting ? "Importing..." : "Import"}
+            {isImporting ? t("instances.importing") : t("instances.importZip")}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setShowImportWizard(true)}
+          >
+            {t("instances.fromLauncher")}
           </Button>
           <Button
             type="button"
@@ -168,7 +181,7 @@ export function InstancesPage() {
             onClick={handleRepair}
             disabled={repairing}
           >
-            {repairing ? "Repairing..." : "Repair Index"}
+            {repairing ? t("instances.repairing") : t("instances.repairIndex")}
           </Button>
           <Button
             type="button"
@@ -176,7 +189,7 @@ export function InstancesPage() {
             className="px-4 py-2 transition-colors"
           >
             <Plus size={18} />
-            Create Instance
+            {t("instances.create")}
           </Button>
         </div>
       </div>
@@ -184,8 +197,8 @@ export function InstancesPage() {
       {instancesStore.instances.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center text-gray-500 dark:text-gray-400">
-            <p className="text-lg mb-2">No instances yet</p>
-            <p className="text-sm">Create your first instance to get started</p>
+            <p className="text-lg mb-2">{t("instances.noInstances")}</p>
+            <p className="text-sm">{t("instances.noInstancesHint")}</p>
           </div>
         </div>
       ) : (
@@ -245,7 +258,7 @@ export function InstancesPage() {
                         </p>
                       ) : (
                         <p className="text-sm text-muted-foreground">
-                          No version selected
+                          {t("instances.noVersion")}
                         </p>
                       )}
                     </div>
@@ -276,12 +289,12 @@ export function InstancesPage() {
                           }
 
                           if (!instance.versionId) {
-                            toast.error("No version selected or installed");
+                            toast.error(t("instances.noVersionError"));
                             return;
                           }
 
                           if (!account) {
-                            toast.info("Please login first");
+                            toast.info(t("instances.loginFirst"));
                             return;
                           }
 
@@ -345,6 +358,28 @@ export function InstancesPage() {
                         size="icon"
                         onClick={(e) => {
                           e.stopPropagation();
+                          navigate(`/instances/${instance.id}/mods`);
+                        }}
+                        title={t("instances.manageMods")}
+                      >
+                        <PackageIcon />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/instances/${instance.id}/browse`);
+                        }}
+                        title={t("instances.browseContent")}
+                      >
+                        <GlobeIcon />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
                           openEdit(instance);
                         }}
                       >
@@ -387,10 +422,9 @@ export function InstancesPage() {
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Instance</DialogTitle>
+            <DialogTitle>{t("instances.deleteTitle")}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete "{selectedInstance?.name}"? This
-              action cannot be undone.
+              {t("instances.deleteConfirm", { name: selectedInstance?.name })}
             </DialogDescription>
           </DialogHeader>
 
@@ -403,14 +437,14 @@ export function InstancesPage() {
                 setSelectedInstance(null);
               }}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               type="button"
               onClick={confirmDelete}
               className="bg-red-600 text-white hover:bg-red-500"
             >
-              Delete
+              {t("common.delete")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -420,9 +454,9 @@ export function InstancesPage() {
       <Dialog open={showDuplicateModal} onOpenChange={setShowDuplicateModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Duplicate Instance</DialogTitle>
+            <DialogTitle>{t("instances.duplicateTitle")}</DialogTitle>
             <DialogDescription>
-              Provide a name for the duplicated instance.
+              {t("instances.duplicateHint")}
             </DialogDescription>
           </DialogHeader>
 
@@ -430,7 +464,7 @@ export function InstancesPage() {
             <Input
               value={duplicateName}
               onChange={(e) => setDuplicateName(e.target.value)}
-              placeholder="New instance name"
+              placeholder={t("instances.duplicatePlaceholder")}
               onKeyDown={(e) => e.key === "Enter" && confirmDuplicate()}
             />
           </div>
@@ -445,18 +479,24 @@ export function InstancesPage() {
                 setDuplicateName("");
               }}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               type="button"
               onClick={confirmDuplicate}
               disabled={!duplicateName.trim()}
             >
-              Duplicate
+              {t("common.duplicate")}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ImportWizard
+        open={showImportWizard}
+        onOpenChange={setShowImportWizard}
+        onComplete={() => instancesStore.refresh()}
+      />
     </div>
   );
 }

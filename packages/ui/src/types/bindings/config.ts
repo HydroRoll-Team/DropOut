@@ -46,6 +46,9 @@ export type LauncherConfig = {
   javaPath: string;
   width: number;
   height: number;
+  /**
+   * Concurrent download threads. Clamped via MIN_DOWNLOAD_THREADS/MAX_DOWNLOAD_THREADS.
+   */
   downloadThreads: number;
   customBackgroundPath: string | null;
   enableGpuAcceleration: boolean;
@@ -58,4 +61,29 @@ export type LauncherConfig = {
   useSharedCaches: boolean;
   keepLegacyPerInstanceStorage: boolean;
   featureFlags: FeatureFlags;
+  /**
+   * Download mirror source: "official", "bmclapi", "mcbbs"
+   */
+  mirrorSource: string;
+  /**
+   * Language / locale code: "auto", "zh-CN", "en"
+   */
+  language: string;
+  /**
+   * Enable system tray (minimize to tray)
+   */
+  enableSystemTray: boolean;
+  /**
+   * Whether the guided tour has been completed
+   */
+  firstLaunchCompleted: boolean;
+  /**
+   * JVM optimization preset: "default", "g1gc", "zgc", "shenandoah"
+   */
+  jvmPreset: string;
+  /**
+   * GitHub download proxy URL, e.g. "https://ghproxy.hydroroll.team"
+   * When non-empty, GitHub release download URLs will be proxied through this.
+   */
+  githubProxy: string;
 };

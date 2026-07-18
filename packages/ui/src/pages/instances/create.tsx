@@ -13,13 +13,15 @@ import React, {
 import {
   Controller,
   FormProvider,
+  type Resolver,
   useForm,
   useFormContext,
   Watch,
 } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
-import z from "zod";
+import z from "zod/v4";
 import {
   getFabricLoadersForVersion,
   getForgeVersionsForGame,
@@ -77,7 +79,10 @@ const versionSchema = z.object({
   versionId: z.string("Version is required"),
 });
 
+type VersionFormData = z.infer<typeof versionSchema>;
+
 function VersionComponent() {
+  const { t } = useTranslation();
   const {
     control,
     formState: { errors },
@@ -127,47 +132,53 @@ function VersionComponent() {
     <div className="flex flex-col min-h-0 h-full overflow-hidden">
       <div className="flex flex-row items-center mb-4 space-x-2">
         <div className="flex flex-row space-x-2 w-full">
-          <FieldLabel className="text-nowrap">Versions</FieldLabel>
+          <FieldLabel className="text-nowrap">
+            {t("create.versions")}
+          </FieldLabel>
           <Input
-            placeholder="Search versions..."
+            placeholder={t("create.searchVersions")}
             value={versionSearch}
             onChange={(e) => setVersionSearch(e.target.value)}
           />
         </div>
         <div className="flex flex-row space-x-2">
-          <FieldLabel className="text-nowrap">Type</FieldLabel>
+          <FieldLabel className="text-nowrap">{t("create.type")}</FieldLabel>
           <Select
             value={versionFilter}
             onValueChange={(value) => setVersionFilter(value)}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Filter by type" />
+              <SelectValue placeholder={t("create.filterByType")} />
             </SelectTrigger>
             <SelectContent alignItemWithTrigger={false}>
-              <SelectItem value="all">All Versions</SelectItem>
-              <SelectItem value="release">Release Versions</SelectItem>
-              <SelectItem value="snapshot">Snapshot Versions</SelectItem>
-              <SelectItem value="old_alpha">Old Alpha Versions</SelectItem>
-              <SelectItem value="old_beta">Old Beta Versions</SelectItem>
+              <SelectItem value="all">{t("create.allVersions")}</SelectItem>
+              <SelectItem value="release">
+                {t("create.releaseVersions")}
+              </SelectItem>
+              <SelectItem value="snapshot">
+                {t("create.snapshotVersions")}
+              </SelectItem>
+              <SelectItem value="old_alpha">{t("create.oldAlpha")}</SelectItem>
+              <SelectItem value="old_beta">{t("create.oldBeta")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <Button onClick={loadVersions} disabled={isLoading}>
-          Refresh
+          {t("common.refresh")}
         </Button>
       </div>
       {errorMessage && (
         <div className="size-full flex flex-col items-center justify-center space-y-2">
           <p className="text-red-500">{errorMessage}</p>
           <Button variant="outline" onClick={loadVersions}>
-            Retry
+            {t("common.retry")}
           </Button>
         </div>
       )}
       {isLoading && !errorMessage ? (
         <div className="size-full flex flex-col items-center justify-center">
           <Spinner />
-          <p>Loading versions...</p>
+          <p>{t("create.loadingVersions")}</p>
         </div>
       ) : (
         <div className="flex-1 overflow-hidden">
@@ -228,7 +239,11 @@ const instanceSchema = z.object({
   modLoaderVersion: z.string().optional(),
 });
 
+type InstanceFormData = z.infer<typeof instanceSchema>;
+type CreateInstanceFormData = VersionFormData | InstanceFormData;
+
 function InstanceComponent() {
+  const { t } = useTranslation();
   const {
     control,
     register,
@@ -285,14 +300,14 @@ function InstanceComponent() {
           <FieldSet className="w-full">
             <Field orientation="horizontal">
               <FieldLabel htmlFor="name" className="text-nowrap" required>
-                Instance Name
+                {t("create.instanceName")}
               </FieldLabel>
               <Input {...register("name")} aria-invalid={!!errors.name} />
               {errors.name && <FieldError errors={[errors.name]} />}
             </Field>
             <Field>
               <FieldLabel htmlFor="notes" className="text-nowrap">
-                Instance Notes
+                {t("create.instanceNotes")}
               </FieldLabel>
               <Textarea
                 className="resize-none min-h-0"
@@ -360,7 +375,7 @@ function InstanceComponent() {
               {isLoadingForge ? (
                 <div className="h-full flex flex-col items-center justify-center">
                   <Spinner />
-                  <p>Loading Forge versions...</p>
+                  <p>{t("create.loadingForge")}</p>
                 </div>
               ) : (
                 <div className="h-full flex flex-col">
@@ -452,7 +467,7 @@ function InstanceComponent() {
               {isLoadingFabric ? (
                 <div className="h-full flex flex-col items-center justify-center">
                   <Spinner />
-                  <p>Loading Fabric versions...</p>
+                  <p>{t("create.loadingFabric")}</p>
                 </div>
               ) : (
                 <div className="h-full flex flex-col">
@@ -513,10 +528,11 @@ const { useStepper, Stepper } = defineStepper(
 );
 
 export function CreateInstancePage() {
+  const { t } = useTranslation();
   const stepper = useStepper();
   const schema = stepper.state.current.data.schema;
-  const form = useForm<z.infer<typeof schema>>({
-    resolver: zodResolver(schema),
+  const form = useForm<CreateInstanceFormData>({
+    resolver: zodResolver(schema as never) as Resolver<CreateInstanceFormData>,
   });
   const navigate = useNavigate();
 
@@ -542,7 +558,7 @@ export function CreateInstancePage() {
 
   const [isCreating, setIsCreating] = useState(false);
   const handleSubmit = useCallback(
-    async (data: z.infer<typeof schema>) => {
+    async (data: CreateInstanceFormData) => {
       switch (stepper.state.current.data.id) {
         case "version":
           setVersionId((data as z.infer<typeof versionSchema>).versionId);
@@ -551,7 +567,7 @@ export function CreateInstancePage() {
           setInstanceMeta(data as z.infer<typeof instanceSchema>);
       }
 
-      if (!versionId) return toast.error("Please select a version first");
+      if (!versionId) return toast.error(t("create.selectVersionFirst"));
 
       setIsCreating(true);
 
@@ -567,7 +583,7 @@ export function CreateInstancePage() {
         switch (instanceMeta.modLoader) {
           case "fabric":
             if (!instanceMeta.modLoaderVersion) {
-              toast.error("Please select a Fabric loader version");
+              toast.error(t("create.selectFabricVersion"));
               return;
             }
             await installFabric(
@@ -578,7 +594,7 @@ export function CreateInstancePage() {
             break;
           case "forge":
             if (!instanceMeta.modLoaderVersion) {
-              toast.error("Please select a Forge loader version");
+              toast.error(t("create.selectForgeVersion"));
               return;
             }
             await installForge(
@@ -595,12 +611,12 @@ export function CreateInstancePage() {
         navigate("/instances");
       } catch (error) {
         console.error(error);
-        toast.error("Failed to create instance");
+        toast.error(t("create.failedCreate"));
       } finally {
         setIsCreating(false);
       }
     },
-    [stepper, instanceStore.create, versionId, navigate],
+    [stepper, instanceStore.create, versionId, navigate, t],
   );
 
   return (
@@ -663,7 +679,7 @@ export function CreateInstancePage() {
                 disabled={isCreating}
                 {...domProps}
               >
-                Previous
+                {t("common.previous")}
               </Button>
             )}
           />
@@ -672,14 +688,14 @@ export function CreateInstancePage() {
               {isCreating ? (
                 <>
                   <Spinner />
-                  Creating
+                  {t("create.creating")}
                 </>
               ) : (
-                "Create"
+                t("common.create")
               )}
             </Button>
           ) : (
-            <Button type="submit">Next</Button>
+            <Button type="submit">{t("common.next")}</Button>
           )}
         </div>
       </form>
@@ -688,6 +704,7 @@ export function CreateInstancePage() {
 }
 
 function PageWrapper() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [showCancelDialog, setShowCancelDialog] = useState(false);
 
@@ -710,10 +727,10 @@ function PageWrapper() {
               >
                 <ArrowLeftIcon />
               </Button>
-              <h1 className="text-2xl font-bold">Create Instance</h1>
+              <h1 className="text-2xl font-bold">{t("create.title")}</h1>
             </div>
             <p className="text-sm text-muted-foreground">
-              Create a new Minecraft instance.
+              {t("create.subtitle")}
             </p>
             <CreateInstancePage />
           </>
@@ -723,18 +740,18 @@ function PageWrapper() {
       <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogTitle>{t("create.cancelTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              All your progress will be lost.
+              {t("create.cancelDesc")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
               onClick={() => navigate(-1)}
             >
-              Continue
+              {t("common.continue")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

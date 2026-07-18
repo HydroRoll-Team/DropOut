@@ -12,6 +12,10 @@ use ts_rs::TS;
 
 const FABRIC_META_URL: &str = "https://meta.fabricmc.net/v2";
 
+fn fabric_meta_base(mirror: crate::core::mirror::MirrorSource) -> &'static str {
+    crate::core::mirror::fabric_meta_url(mirror)
+}
+
 /// Represents a Fabric loader version from the Meta API.
 #[derive(Debug, Deserialize, Serialize, Clone, TS)]
 #[serde(rename_all = "camelCase")]
@@ -129,7 +133,13 @@ pub struct InstalledFabricVersion {
 /// A list of game versions that have Fabric intermediary mappings available.
 pub async fn fetch_supported_game_versions()
 -> Result<Vec<FabricGameVersion>, Box<dyn Error + Send + Sync>> {
-    let url = format!("{}/versions/game", FABRIC_META_URL);
+    fetch_supported_game_versions_with_mirror(crate::core::mirror::MirrorSource::Official).await
+}
+
+pub async fn fetch_supported_game_versions_with_mirror(
+    mirror: crate::core::mirror::MirrorSource,
+) -> Result<Vec<FabricGameVersion>, Box<dyn Error + Send + Sync>> {
+    let url = format!("{}/versions/game", fabric_meta_base(mirror));
     let resp = reqwest::get(&url)
         .await?
         .json::<Vec<FabricGameVersion>>()
@@ -143,7 +153,13 @@ pub async fn fetch_supported_game_versions()
 /// A list of all Fabric loader versions, ordered by build number (newest first).
 pub async fn fetch_loader_versions()
 -> Result<Vec<FabricLoaderVersion>, Box<dyn Error + Send + Sync>> {
-    let url = format!("{}/versions/loader", FABRIC_META_URL);
+    fetch_loader_versions_with_mirror(crate::core::mirror::MirrorSource::Official).await
+}
+
+pub async fn fetch_loader_versions_with_mirror(
+    mirror: crate::core::mirror::MirrorSource,
+) -> Result<Vec<FabricLoaderVersion>, Box<dyn Error + Send + Sync>> {
+    let url = format!("{}/versions/loader", fabric_meta_base(mirror));
     let resp = reqwest::get(&url)
         .await?
         .json::<Vec<FabricLoaderVersion>>()
@@ -161,7 +177,22 @@ pub async fn fetch_loader_versions()
 pub async fn fetch_loaders_for_game_version(
     game_version: &str,
 ) -> Result<Vec<FabricLoaderEntry>, Box<dyn Error + Send + Sync>> {
-    let url = format!("{}/versions/loader/{}", FABRIC_META_URL, game_version);
+    fetch_loaders_for_game_version_with_mirror(
+        game_version,
+        crate::core::mirror::MirrorSource::Official,
+    )
+    .await
+}
+
+pub async fn fetch_loaders_for_game_version_with_mirror(
+    game_version: &str,
+    mirror: crate::core::mirror::MirrorSource,
+) -> Result<Vec<FabricLoaderEntry>, Box<dyn Error + Send + Sync>> {
+    let url = format!(
+        "{}/versions/loader/{}",
+        fabric_meta_base(mirror),
+        game_version
+    );
     let resp = reqwest::get(&url)
         .await?
         .json::<Vec<FabricLoaderEntry>>()
@@ -181,9 +212,24 @@ pub async fn fetch_version_profile(
     game_version: &str,
     loader_version: &str,
 ) -> Result<serde_json::Value, Box<dyn Error + Send + Sync>> {
+    fetch_version_profile_with_mirror(
+        game_version,
+        loader_version,
+        crate::core::mirror::MirrorSource::Official,
+    )
+    .await
+}
+
+pub async fn fetch_version_profile_with_mirror(
+    game_version: &str,
+    loader_version: &str,
+    mirror: crate::core::mirror::MirrorSource,
+) -> Result<serde_json::Value, Box<dyn Error + Send + Sync>> {
     let url = format!(
         "{}/versions/loader/{}/{}/profile/json",
-        FABRIC_META_URL, game_version, loader_version
+        fabric_meta_base(mirror),
+        game_version,
+        loader_version
     );
     let resp = reqwest::get(&url)
         .await?
@@ -221,8 +267,23 @@ pub async fn install_fabric(
     game_version: &str,
     loader_version: &str,
 ) -> Result<InstalledFabricVersion, Box<dyn Error + Send + Sync>> {
+    install_fabric_with_mirror(
+        game_dir,
+        game_version,
+        loader_version,
+        crate::core::mirror::MirrorSource::Official,
+    )
+    .await
+}
+
+pub async fn install_fabric_with_mirror(
+    game_dir: &std::path::Path,
+    game_version: &str,
+    loader_version: &str,
+    mirror: crate::core::mirror::MirrorSource,
+) -> Result<InstalledFabricVersion, Box<dyn Error + Send + Sync>> {
     // Fetch the version profile from Fabric Meta
-    let profile = fetch_version_profile(game_version, loader_version).await?;
+    let profile = fetch_version_profile_with_mirror(game_version, loader_version, mirror).await?;
 
     // Get the version ID from the profile or generate it
     let version_id = profile

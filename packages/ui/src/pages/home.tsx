@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { BottomBar } from "@/components/bottom-bar";
 import { useSaturnEffect } from "@/components/particle-background";
 
@@ -6,6 +7,7 @@ export function HomePage() {
   const [mouseX, setMouseX] = useState(0);
   const [mouseY, setMouseY] = useState(0);
   const saturn = useSaturnEffect();
+  const { t } = useTranslation();
 
   const handleMouseMove = (e: React.MouseEvent) => {
     const x = (e.clientX / window.innerWidth) * 2 - 1;
@@ -73,17 +75,17 @@ export function HomePage() {
           <div className="flex items-center gap-3 mb-6">
             <div className="h-px w-12 bg-white/50"></div>
             <span className="text-xs font-mono font-bold tracking-[0.2em] text-white/50 uppercase">
-              Launcher Active
+              {t("home.launcherActive")}
             </span>
           </div>
 
           <h1 className="text-8xl font-black tracking-tighter text-white mb-6 leading-none">
-            MINECRAFT
+            {t("home.title")}
           </h1>
 
           <div className="flex items-center gap-4">
             <div className="bg-white/10 backdrop-blur-md border border-white/10 px-3 py-1 rounded-sm text-xs font-bold uppercase tracking-widest text-white shadow-sm">
-              Java Edition
+              {t("home.javaEdition")}
             </div>
           </div>
         </div>
@@ -91,7 +93,7 @@ export function HomePage() {
         {/* Action Area */}
         <div className="mt-8 flex gap-4">
           <div className="text-zinc-500 text-sm font-mono">
-            &gt; Ready to launch session.
+            {t("home.readyToLaunch")}
           </div>
         </div>
 

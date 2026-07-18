@@ -1,17 +1,21 @@
 //! Forge Loader support module.
 //!
-//! This module provides functionality to:
-//! - Fetch available Forge versions from the Forge promotions API
-//! - Install Forge loader for a specific Minecraft version
-//!
-//! Note: Forge installation is more complex than Fabric, especially for versions 1.13+.
-//! This implementation fetches the installer manifest to get the correct library list.
+//! Handles Forge installation across all Minecraft versions:
+//! - **Pre-1.6**: Not supported (extremely old)
+//! - **1.6 - 1.12.2**: "Legacy" Forge — uses universal jar, no installer needed.
+//!   Download `forge-{mc}-{forge}-universal.jar`, write a version JSON with
+//!   `net.minecraft.launchwrapper.Launch` as main class.
+//! - **1.13 - 1.16.5**: "Transitional" Forge — installer JAR contains
+//!   `install_profile.json` (not `version.json`).  We run the installer headlessly
+//!   and also extract the embedded `version.json` if present.
+//! - **1.17+**: "Modern" Forge — installer JAR contains `version.json` directly.
+//!   We can extract it or run the installer.
 
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use ts_rs::TS;
 
 const FORGE_PROMOTIONS_URL: &str =
@@ -50,7 +54,9 @@ pub struct InstalledForgeVersion {
     pub path: PathBuf,
 }
 
-/// Forge installer manifest structure (from version.json inside installer JAR)
+// ─── Internal manifest structures ────────────────────────────────────────────
+
+/// Modern Forge installer manifest (version.json inside installer JAR for 1.17+)
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
 struct ForgeInstallerManifest {
@@ -91,18 +97,53 @@ struct ForgeArtifact {
     sha1: Option<String>,
 }
 
+/// Transitional Forge installer profile (install_profile.json for 1.13-1.16.x)
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+struct ForgeInstallProfile {
+    version: Option<String>,
+    #[serde(rename = "versionInfo")]
+    version_info: Option<serde_json::Value>,
+    #[serde(default)]
+    libraries: Vec<ForgeLibrary>,
+    #[serde(default)]
+    processors: Vec<serde_json::Value>,
+}
+
+// ─── Forge era detection ─────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ForgeEra {
+    /// 1.6 - 1.12.2: Universal jar, no installer needed
+    Legacy,
+    /// 1.13 - 1.16.5: Installer with install_profile.json
+    Transitional,
+    /// 1.17+: Installer with version.json
+    Modern,
+}
+
+fn detect_forge_era(game_version: &str) -> ForgeEra {
+    let parts: Vec<u32> = game_version
+        .split('.')
+        .filter_map(|p| p.parse().ok())
+        .collect();
+
+    match (parts.first(), parts.get(1)) {
+        (Some(1), Some(minor)) if *minor <= 12 => ForgeEra::Legacy,
+        (Some(1), Some(minor)) if *minor >= 13 && *minor <= 16 => ForgeEra::Transitional,
+        _ => ForgeEra::Modern,
+    }
+}
+
+// ─── Public API: version listing ─────────────────────────────────────────────
+
 /// Fetch all Minecraft versions supported by Forge.
-///
-/// # Returns
-/// A list of Minecraft version strings that have Forge available.
 pub async fn fetch_supported_game_versions() -> Result<Vec<String>, Box<dyn Error + Send + Sync>> {
     let promos = fetch_promotions().await?;
-
     let mut versions: Vec<String> = promos
         .promos
         .keys()
         .filter_map(|key| {
-            // Keys are like "1.20.4-latest", "1.20.4-recommended"
             let parts: Vec<&str> = key.split('-').collect();
             if parts.len() >= 2 {
                 Some(parts[0].to_string())
@@ -112,15 +153,12 @@ pub async fn fetch_supported_game_versions() -> Result<Vec<String>, Box<dyn Erro
         })
         .collect();
 
-    // Deduplicate and sort
     versions.sort();
     versions.dedup();
-    versions.reverse(); // Newest first
-
+    versions.reverse();
     Ok(versions)
 }
 
-/// Fetch Forge promotions data.
 async fn fetch_promotions() -> Result<ForgePromotions, Box<dyn Error + Send + Sync>> {
     let resp = reqwest::get(FORGE_PROMOTIONS_URL)
         .await?
@@ -130,19 +168,12 @@ async fn fetch_promotions() -> Result<ForgePromotions, Box<dyn Error + Send + Sy
 }
 
 /// Fetch available Forge versions for a specific Minecraft version.
-///
-/// # Arguments
-/// * `game_version` - The Minecraft version (e.g., "1.20.4")
-///
-/// # Returns
-/// A list of Forge versions available for the specified game version.
 pub async fn fetch_forge_versions(
     game_version: &str,
 ) -> Result<Vec<ForgeVersion>, Box<dyn Error + Send + Sync>> {
     let promos = fetch_promotions().await?;
     let mut versions = Vec::new();
 
-    // Look for both latest and recommended
     let latest_key = format!("{}-latest", game_version);
     let recommended_key = format!("{}-recommended", game_version);
 
@@ -156,7 +187,6 @@ pub async fn fetch_forge_versions(
     }
 
     if let Some(recommended) = promos.promos.get(&recommended_key) {
-        // Don't duplicate if recommended == latest
         if !versions.iter().any(|v| v.version == *recommended) {
             versions.push(ForgeVersion {
                 version: recommended.clone(),
@@ -164,11 +194,8 @@ pub async fn fetch_forge_versions(
                 recommended: true,
                 latest: false,
             });
-        } else {
-            // Mark the existing one as both
-            if let Some(v) = versions.iter_mut().find(|v| v.version == *recommended) {
-                v.recommended = true;
-            }
+        } else if let Some(v) = versions.iter_mut().find(|v| v.version == *recommended) {
+            v.recommended = true;
         }
     }
 
@@ -176,151 +203,120 @@ pub async fn fetch_forge_versions(
 }
 
 /// Generate the version ID for a Forge installation.
-///
-/// # Arguments
-/// * `game_version` - The Minecraft version
-/// * `forge_version` - The Forge version
-///
-/// # Returns
-/// The version ID string (e.g., "1.20.4-forge-49.0.38")
 pub fn generate_version_id(game_version: &str, forge_version: &str) -> String {
     format!("{}-forge-{}", game_version, forge_version)
 }
 
-/// Try to download the Forge installer from multiple possible URL formats.
-/// This is necessary because older Forge versions use different URL patterns.
-async fn try_download_forge_installer(
-    game_version: &str,
-    forge_version: &str,
-) -> Result<bytes::Bytes, Box<dyn Error + Send + Sync>> {
-    let forge_full = format!("{}-{}", game_version, forge_version);
-    // For older versions (like 1.7.10), the URL needs an additional -{game_version} suffix
-    let forge_full_with_suffix = format!("{}-{}", forge_full, game_version);
-
-    // Try different URL formats for different Forge versions
-    // Order matters: try most common formats first, then fallback to alternatives
-    let url_patterns = vec![
-        // Standard Maven format (for modern versions): forge/{game_version}-{forge_version}/forge-{game_version}-{forge_version}-installer.jar
-        format!(
-            "{}net/minecraftforge/forge/{}/forge-{}-installer.jar",
-            FORGE_MAVEN_URL, forge_full, forge_full
-        ),
-        // Old version format with suffix (for versions like 1.7.10): forge/{game_version}-{forge_version}-{game_version}/forge-{game_version}-{forge_version}-{game_version}-installer.jar
-        // This is the correct format for 1.7.10 and similar old versions
-        format!(
-            "{}net/minecraftforge/forge/{}/forge-{}-installer.jar",
-            FORGE_MAVEN_URL, forge_full_with_suffix, forge_full_with_suffix
-        ),
-        // Files.minecraftforge.net format with suffix (for old versions like 1.7.10)
-        format!(
-            "{}maven/net/minecraftforge/forge/{}/forge-{}-installer.jar",
-            FORGE_FILES_URL, forge_full_with_suffix, forge_full_with_suffix
-        ),
-        // Files.minecraftforge.net standard format (for older versions)
-        format!(
-            "{}maven/net/minecraftforge/forge/{}/forge-{}-installer.jar",
-            FORGE_FILES_URL, forge_full, forge_full
-        ),
-        // Alternative Maven format
-        format!(
-            "{}net/minecraftforge/forge/{}-{}/forge-{}-{}-installer.jar",
-            FORGE_MAVEN_URL, game_version, forge_version, game_version, forge_version
-        ),
-        // Alternative files format
-        format!(
-            "{}maven/net/minecraftforge/forge/{}-{}/forge-{}-{}-installer.jar",
-            FORGE_FILES_URL, game_version, forge_version, game_version, forge_version
-        ),
-    ];
-
-    let mut last_error = None;
-    for url in url_patterns {
-        println!("Trying Forge installer URL: {}", url);
-        match reqwest::get(&url).await {
-            Ok(response) => {
-                if response.status().is_success() {
-                    match response.bytes().await {
-                        Ok(bytes) => {
-                            println!("Successfully downloaded Forge installer from: {}", url);
-                            return Ok(bytes);
-                        }
-                        Err(e) => {
-                            last_error = Some(format!("Failed to read response body: {}", e));
-                            continue;
-                        }
-                    }
-                } else {
-                    last_error = Some(format!("HTTP {}: {}", response.status(), url));
-                    continue;
-                }
-            }
-            Err(e) => {
-                last_error = Some(format!("Request failed: {}", e));
-                continue;
-            }
-        }
-    }
-
-    Err(format!(
-        "Failed to download Forge installer from any URL. Last error: {}",
-        last_error.unwrap_or_else(|| "Unknown error".to_string())
-    )
-    .into())
-}
-
-/// Fetch the Forge installer manifest to get the library list
-async fn fetch_forge_installer_manifest(
-    game_version: &str,
-    forge_version: &str,
-) -> Result<ForgeInstallerManifest, Box<dyn Error + Send + Sync>> {
-    let bytes = try_download_forge_installer(game_version, forge_version).await?;
-
-    // Extract version.json from the JAR (which is a ZIP file)
-    let cursor = std::io::Cursor::new(bytes.as_ref());
-    let mut archive = zip::ZipArchive::new(cursor)?;
-
-    // Look for version.json in the archive
-    let version_json = archive.by_name("version.json")?;
-    let manifest: ForgeInstallerManifest = serde_json::from_reader(version_json)?;
-
-    Ok(manifest)
-}
+// ─── Public API: installation ────────────────────────────────────────────────
 
 /// Install Forge for a specific Minecraft version.
 ///
-/// This function downloads the Forge installer JAR and runs it in headless mode
-/// to properly install Forge with all necessary patches.
-///
-/// # Arguments
-/// * `game_dir` - The .minecraft directory path
-/// * `game_version` - The Minecraft version (e.g., "1.20.4")
-/// * `forge_version` - The Forge version (e.g., "49.0.38")
-/// * `java_path` - Path to the Java executable
-///
-/// # Returns
-/// Information about the installed version.
+/// Automatically detects the Forge era and uses the appropriate strategy:
+/// - Legacy (<=1.12.2): Download universal jar, write version JSON manually
+/// - Transitional (1.13-1.16.5): Run installer headlessly
+/// - Modern (1.17+): Extract version.json from installer, optionally run installer
 pub async fn install_forge(
-    game_dir: &std::path::Path,
+    game_dir: &Path,
+    game_version: &str,
+    forge_version: &str,
+    java_path: Option<&Path>,
+) -> Result<InstalledForgeVersion, Box<dyn Error + Send + Sync>> {
+    install_forge_with_mirror(
+        game_dir,
+        game_version,
+        forge_version,
+        java_path,
+        crate::core::mirror::MirrorSource::Official,
+    )
+    .await
+}
+
+pub async fn install_forge_with_mirror(
+    game_dir: &Path,
+    game_version: &str,
+    forge_version: &str,
+    java_path: Option<&Path>,
+    _mirror: crate::core::mirror::MirrorSource,
+) -> Result<InstalledForgeVersion, Box<dyn Error + Send + Sync>> {
+    let era = detect_forge_era(game_version);
+    let _version_id = generate_version_id(game_version, forge_version);
+
+    println!(
+        "[Forge] Installing {} for MC {} (era: {:?})",
+        forge_version, game_version, era
+    );
+
+    match era {
+        ForgeEra::Legacy => install_forge_legacy(game_dir, game_version, forge_version).await,
+        ForgeEra::Transitional => {
+            let java = java_path.ok_or("Java path required for Forge 1.13-1.16 installation")?;
+            install_forge_with_installer(game_dir, game_version, forge_version, java).await
+        }
+        ForgeEra::Modern => {
+            // Modern Forge: extract version.json from installer
+            // If java is available, also run the installer for processor tasks
+            let result =
+                install_forge_modern(game_dir, game_version, forge_version, java_path).await?;
+            Ok(result)
+        }
+    }
+}
+
+// ─── Legacy Forge (1.6 - 1.12.2) ────────────────────────────────────────────
+
+/// Legacy Forge: download the universal jar and create a version JSON manually.
+/// No installer is needed for these versions.
+async fn install_forge_legacy(
+    game_dir: &Path,
     game_version: &str,
     forge_version: &str,
 ) -> Result<InstalledForgeVersion, Box<dyn Error + Send + Sync>> {
     let version_id = generate_version_id(game_version, forge_version);
+    let forge_full = format!("{}-{}", game_version, forge_version);
 
-    // Fetch the installer manifest to get the complete version.json
-    let manifest = fetch_forge_installer_manifest(game_version, forge_version).await?;
+    // Download the universal jar to libraries
+    let universal_bytes =
+        try_download_forge_artifact(game_version, forge_version, "universal").await?;
 
-    // Create version JSON from the manifest
-    let version_json =
-        create_forge_version_json_from_manifest(game_version, forge_version, &manifest)?;
+    // Store in libraries directory following Maven layout
+    let lib_path = game_dir
+        .join("libraries")
+        .join("net")
+        .join("minecraftforge")
+        .join("forge")
+        .join(&forge_full)
+        .join(format!("forge-{}-universal.jar", forge_full));
 
-    // Create the version directory
+    if let Some(parent) = lib_path.parent() {
+        tokio::fs::create_dir_all(parent).await?;
+    }
+    tokio::fs::write(&lib_path, &universal_bytes).await?;
+
+    // Create version JSON
     let version_dir = game_dir.join("versions").join(&version_id);
     tokio::fs::create_dir_all(&version_dir).await?;
 
-    // Write the version JSON
+    let json = serde_json::json!({
+        "id": version_id,
+        "inheritsFrom": game_version,
+        "type": "release",
+        "mainClass": "net.minecraft.launchwrapper.Launch",
+        "libraries": [
+            {
+                "name": format!("net.minecraftforge:forge:{}", forge_full),
+                "url": FORGE_MAVEN_URL
+            }
+        ],
+        "arguments": {
+            "game": ["--tweakClass", "cpw.mods.fml.common.launcher.FMLTweaker"],
+            "jvm": []
+        }
+    });
+
     let json_path = version_dir.join(format!("{}.json", version_id));
-    let json_content = serde_json::to_string_pretty(&version_json)?;
-    tokio::fs::write(&json_path, json_content).await?;
+    tokio::fs::write(&json_path, serde_json::to_string_pretty(&json)?).await?;
+
+    println!("[Forge] Legacy installation complete: {}", version_id);
 
     Ok(InstalledForgeVersion {
         id: version_id,
@@ -330,31 +326,25 @@ pub async fn install_forge(
     })
 }
 
-/// Install Forge using the official installer JAR.
-/// This runs the Forge installer in headless mode to properly patch the client.
-///
-/// # Arguments
-/// * `game_dir` - The .minecraft directory path
-/// * `game_version` - The Minecraft version
-/// * `forge_version` - The Forge version
-/// * `java_path` - Path to the Java executable
-///
-/// # Returns
-/// Result indicating success or failure
-pub async fn run_forge_installer(
-    game_dir: &PathBuf,
+// ─── Transitional + Modern Forge (1.13+) with installer ──────────────────────
+
+/// Run the Forge installer JAR headlessly. Works for both transitional and modern.
+async fn install_forge_with_installer(
+    game_dir: &Path,
     game_version: &str,
     forge_version: &str,
-    java_path: &PathBuf,
-) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let installer_path = game_dir.join("forge-installer.jar");
+    java_path: &Path,
+) -> Result<InstalledForgeVersion, Box<dyn Error + Send + Sync>> {
+    let version_id = generate_version_id(game_version, forge_version);
 
-    // Download installer using the same multi-URL approach
-    let bytes = try_download_forge_installer(game_version, forge_version).await?;
-    tokio::fs::write(&installer_path, &bytes).await?;
+    // Download installer once
+    let installer_bytes =
+        try_download_forge_artifact(game_version, forge_version, "installer").await?;
+    let installer_path = game_dir.join("forge-installer-tmp.jar");
+    tokio::fs::write(&installer_path, &installer_bytes).await?;
 
-    // Run the installer in headless mode
-    // The installer accepts --installClient <path> to install to a specific directory
+    // Run installer in headless mode
+    println!("[Forge] Running installer headlessly...");
     let mut cmd = tokio::process::Command::new(java_path);
     cmd.arg("-jar")
         .arg(&installer_path)
@@ -366,197 +356,287 @@ pub async fn run_forge_installer(
 
     let output = cmd.output().await?;
 
-    // Clean up installer
+    // Clean up installer jar
     let _ = tokio::fs::remove_file(&installer_path).await;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         let stdout = String::from_utf8_lossy(&output.stdout);
-        return Err(format!(
-            "Forge installer failed:\nstdout: {}\nstderr: {}",
-            stdout, stderr
-        )
-        .into());
-    }
+        println!("[Forge] Installer stderr: {}", stderr);
 
-    Ok(())
-}
+        // Even if the installer "failed", check if it created the version JSON
+        // Some Forge versions return non-zero but still work
+        let json_path = game_dir
+            .join("versions")
+            .join(&version_id)
+            .join(format!("{}.json", version_id));
 
-/// Create a Forge version JSON from the installer manifest.
-fn create_forge_version_json_from_manifest(
-    game_version: &str,
-    forge_version: &str,
-    manifest: &ForgeInstallerManifest,
-) -> Result<serde_json::Value, Box<dyn Error + Send + Sync>> {
-    let version_id = generate_version_id(game_version, forge_version);
-
-    // Use main class from manifest or default
-    let main_class = manifest.main_class.clone().unwrap_or_else(|| {
-        if is_modern_forge(game_version) {
-            "cpw.mods.bootstraplauncher.BootstrapLauncher".to_string()
+        if json_path.exists() {
+            println!("[Forge] Installer reported failure but version JSON exists, continuing...");
         } else {
-            "net.minecraft.launchwrapper.Launch".to_string()
-        }
-    });
-
-    // Convert libraries to JSON format, preserving download info
-    let lib_entries: Vec<serde_json::Value> = manifest
-        .libraries
-        .iter()
-        .map(|lib| {
-            let mut entry = serde_json::json!({
-                "name": lib.name
-            });
-
-            // Add URL if present
-            if let Some(url) = &lib.url {
-                entry["url"] = serde_json::Value::String(url.clone());
-            } else {
-                // Default to Forge Maven for Forge libraries
-                entry["url"] = serde_json::Value::String(FORGE_MAVEN_URL.to_string());
-            }
-
-            // Add downloads if present
-            if let Some(downloads) = &lib.downloads {
-                if let Some(artifact) = &downloads.artifact {
-                    let mut artifact_json = serde_json::Map::new();
-                    if let Some(path) = &artifact.path {
-                        artifact_json
-                            .insert("path".to_string(), serde_json::Value::String(path.clone()));
-                    }
-                    if let Some(url) = &artifact.url {
-                        artifact_json
-                            .insert("url".to_string(), serde_json::Value::String(url.clone()));
-                    }
-                    if let Some(sha1) = &artifact.sha1 {
-                        artifact_json
-                            .insert("sha1".to_string(), serde_json::Value::String(sha1.clone()));
-                    }
-                    if !artifact_json.is_empty() {
-                        entry["downloads"] = serde_json::json!({
-                            "artifact": artifact_json
-                        });
-                    }
-                }
-            }
-
-            entry
-        })
-        .collect();
-
-    // Build arguments
-    let mut arguments = serde_json::json!({
-        "game": [],
-        "jvm": []
-    });
-
-    if let Some(args) = &manifest.arguments {
-        if let Some(game_args) = &args.game {
-            arguments["game"] = serde_json::Value::Array(game_args.clone());
-        }
-        if let Some(jvm_args) = &args.jvm {
-            arguments["jvm"] = serde_json::Value::Array(jvm_args.clone());
+            return Err(format!(
+                "Forge installer failed:\nstdout: {}\nstderr: {}",
+                stdout.chars().take(500).collect::<String>(),
+                stderr.chars().take(500).collect::<String>(),
+            )
+            .into());
         }
     }
 
-    let json = serde_json::json!({
-        "id": version_id,
-        "inheritsFrom": manifest.inherits_from.clone().unwrap_or_else(|| game_version.to_string()),
-        "type": "release",
-        "mainClass": main_class,
-        "libraries": lib_entries,
-        "arguments": arguments
-    });
-
-    Ok(json)
-}
-
-/// Create a Forge version JSON with the proper library list (fallback).
-#[allow(dead_code)]
-fn create_forge_version_json(
-    game_version: &str,
-    forge_version: &str,
-    libraries: &[ForgeLibrary],
-) -> Result<serde_json::Value, Box<dyn Error + Send + Sync>> {
-    let version_id = generate_version_id(game_version, forge_version);
-
-    // Determine main class based on version
-    let main_class = if is_modern_forge(game_version) {
-        "cpw.mods.bootstraplauncher.BootstrapLauncher"
-    } else {
-        "net.minecraft.launchwrapper.Launch"
-    };
-
-    // Convert libraries to JSON format
-    let lib_entries: Vec<serde_json::Value> = libraries
-        .iter()
-        .map(|lib| {
-            serde_json::json!({
-                "name": lib.name,
-                "url": FORGE_MAVEN_URL
-            })
-        })
-        .collect();
-
-    let json = serde_json::json!({
-        "id": version_id,
-        "inheritsFrom": game_version,
-        "type": "release",
-        "mainClass": main_class,
-        "libraries": lib_entries,
-        "arguments": {
-            "game": [],
-            "jvm": []
-        }
-    });
-
-    Ok(json)
-}
-
-/// Check if the Minecraft version uses modern Forge (1.13+).
-fn is_modern_forge(game_version: &str) -> bool {
-    let parts: Vec<&str> = game_version.split('.').collect();
-    if parts.len() >= 2 {
-        if let (Ok(major), Ok(minor)) = (parts[0].parse::<u32>(), parts[1].parse::<u32>()) {
-            return major > 1 || (major == 1 && minor >= 13);
-        }
-    }
-    false
-}
-
-/// Check if Forge is installed for a specific version combination.
-///
-/// # Arguments
-/// * `game_dir` - The .minecraft directory path
-/// * `game_version` - The Minecraft version
-/// * `forge_version` - The Forge version
-///
-/// # Returns
-/// `true` if the version JSON exists, `false` otherwise.
-#[allow(dead_code)]
-pub fn is_forge_installed(
-    game_dir: &std::path::Path,
-    game_version: &str,
-    forge_version: &str,
-) -> bool {
-    let version_id = generate_version_id(game_version, forge_version);
     let json_path = game_dir
         .join("versions")
         .join(&version_id)
         .join(format!("{}.json", version_id));
-    json_path.exists()
+
+    if !json_path.exists() {
+        // Fallback: extract version.json from installer JAR and write manually
+        println!("[Forge] Installer didn't create version JSON, extracting from JAR...");
+        let cursor = std::io::Cursor::new(&installer_bytes);
+        let result =
+            extract_version_json_from_installer(cursor, game_dir, game_version, forge_version)
+                .await?;
+        return Ok(result);
+    }
+
+    println!("[Forge] Installer completed successfully: {}", version_id);
+
+    Ok(InstalledForgeVersion {
+        id: version_id,
+        minecraft_version: game_version.to_string(),
+        forge_version: forge_version.to_string(),
+        path: json_path,
+    })
+}
+
+/// Modern Forge (1.17+): Extract version.json directly from installer JAR.
+/// If java_path is provided, also run the installer for processor tasks.
+async fn install_forge_modern(
+    game_dir: &Path,
+    game_version: &str,
+    forge_version: &str,
+    java_path: Option<&Path>,
+) -> Result<InstalledForgeVersion, Box<dyn Error + Send + Sync>> {
+    let version_id = generate_version_id(game_version, forge_version);
+
+    // Download installer once
+    let installer_bytes =
+        try_download_forge_artifact(game_version, forge_version, "installer").await?;
+
+    // If we have Java, run the installer first (handles processor tasks like BINPATCH etc.)
+    if let Some(java) = java_path {
+        let installer_path = game_dir.join("forge-installer-tmp.jar");
+        tokio::fs::write(&installer_path, &installer_bytes).await?;
+
+        println!("[Forge] Running modern installer for processor tasks...");
+        let mut cmd = tokio::process::Command::new(java);
+        cmd.arg("-jar")
+            .arg(&installer_path)
+            .arg("--installClient")
+            .arg(game_dir);
+
+        #[cfg(target_os = "windows")]
+        cmd.creation_flags(0x08000000);
+
+        let output = cmd.output().await;
+        let _ = tokio::fs::remove_file(&installer_path).await;
+
+        match output {
+            Ok(o) if o.status.success() => {
+                println!("[Forge] Installer completed successfully");
+            }
+            Ok(o) => {
+                let stderr = String::from_utf8_lossy(&o.stderr);
+                println!(
+                    "[Forge] Installer exit non-zero, continuing anyway: {}",
+                    stderr.chars().take(200).collect::<String>()
+                );
+            }
+            Err(e) => {
+                println!(
+                    "[Forge] Installer failed to run: {}, falling back to manual extraction",
+                    e
+                );
+            }
+        }
+    }
+
+    // Check if installer already created the version JSON
+    let json_path = game_dir
+        .join("versions")
+        .join(&version_id)
+        .join(format!("{}.json", version_id));
+
+    if json_path.exists() {
+        return Ok(InstalledForgeVersion {
+            id: version_id,
+            minecraft_version: game_version.to_string(),
+            forge_version: forge_version.to_string(),
+            path: json_path,
+        });
+    }
+
+    // Extract version.json from installer
+    let cursor = std::io::Cursor::new(&installer_bytes);
+    extract_version_json_from_installer(cursor, game_dir, game_version, forge_version).await
+}
+
+// ─── Shared helpers ──────────────────────────────────────────────────────────
+
+/// Extract version.json (or build one from install_profile.json) from an installer JAR.
+async fn extract_version_json_from_installer<R: std::io::Read + std::io::Seek>(
+    reader: R,
+    game_dir: &Path,
+    game_version: &str,
+    forge_version: &str,
+) -> Result<InstalledForgeVersion, Box<dyn Error + Send + Sync>> {
+    let version_id = generate_version_id(game_version, forge_version);
+    let mut archive = zip::ZipArchive::new(reader)?;
+
+    // Try version.json first (modern format)
+    let version_json: serde_json::Value = if let Ok(entry) = archive.by_name("version.json") {
+        serde_json::from_reader(entry)?
+    } else if let Ok(entry) = archive.by_name("install_profile.json") {
+        // Transitional format: extract versionInfo from install_profile
+        let profile: serde_json::Value = serde_json::from_reader(entry)?;
+        if let Some(vi) = profile.get("versionInfo") {
+            vi.clone()
+        } else {
+            // 1.13+ install_profile doesn't have versionInfo, build minimal JSON
+            build_fallback_version_json(game_version, forge_version)
+        }
+    } else {
+        // No manifest found, build a minimal version JSON
+        build_fallback_version_json(game_version, forge_version)
+    };
+
+    let version_dir = game_dir.join("versions").join(&version_id);
+    tokio::fs::create_dir_all(&version_dir).await?;
+
+    let json_path = version_dir.join(format!("{}.json", version_id));
+    let content = serde_json::to_string_pretty(&version_json)?;
+    tokio::fs::write(&json_path, content).await?;
+
+    Ok(InstalledForgeVersion {
+        id: version_id,
+        minecraft_version: game_version.to_string(),
+        forge_version: forge_version.to_string(),
+        path: json_path,
+    })
+}
+
+/// Build a minimal fallback version JSON when we can't extract one.
+fn build_fallback_version_json(game_version: &str, forge_version: &str) -> serde_json::Value {
+    let version_id = generate_version_id(game_version, forge_version);
+    let forge_full = format!("{}-{}", game_version, forge_version);
+    let era = detect_forge_era(game_version);
+
+    let main_class = match era {
+        ForgeEra::Legacy => "net.minecraft.launchwrapper.Launch",
+        ForgeEra::Transitional => "cpw.mods.modlauncher.Launcher",
+        ForgeEra::Modern => "cpw.mods.bootstraplauncher.BootstrapLauncher",
+    };
+
+    serde_json::json!({
+        "id": version_id,
+        "inheritsFrom": game_version,
+        "type": "release",
+        "mainClass": main_class,
+        "libraries": [
+            {
+                "name": format!("net.minecraftforge:forge:{}", forge_full),
+                "url": FORGE_MAVEN_URL
+            }
+        ],
+        "arguments": {
+            "game": [],
+            "jvm": []
+        }
+    })
+}
+
+/// Try to download a Forge artifact (installer or universal) from multiple URL patterns.
+async fn try_download_forge_artifact(
+    game_version: &str,
+    forge_version: &str,
+    artifact_type: &str, // "installer" or "universal"
+) -> Result<bytes::Bytes, Box<dyn Error + Send + Sync>> {
+    try_download_forge_artifact_with_mirror(
+        game_version,
+        forge_version,
+        artifact_type,
+        crate::core::mirror::MirrorSource::Official,
+    )
+    .await
+}
+
+/// Try to download a Forge artifact with mirror support.
+async fn try_download_forge_artifact_with_mirror(
+    game_version: &str,
+    forge_version: &str,
+    artifact_type: &str,
+    mirror: crate::core::mirror::MirrorSource,
+) -> Result<bytes::Bytes, Box<dyn Error + Send + Sync>> {
+    let forge_full = format!("{}-{}", game_version, forge_version);
+    let forge_full_with_suffix = format!("{}-{}", forge_full, game_version);
+
+    let maven_base = crate::core::mirror::forge_maven_url(mirror);
+
+    let url_patterns = vec![
+        // Standard Maven format (most common)
+        format!(
+            "{}net/minecraftforge/forge/{}/forge-{}-{}.jar",
+            maven_base, forge_full, forge_full, artifact_type
+        ),
+        // Old version format with suffix (e.g. 1.7.10)
+        format!(
+            "{}net/minecraftforge/forge/{}/forge-{}-{}.jar",
+            maven_base, forge_full_with_suffix, forge_full_with_suffix, artifact_type
+        ),
+    ];
+
+    let mut last_error = None;
+    for url in &url_patterns {
+        println!("[Forge] Trying URL: {}", url);
+        match reqwest::get(url).await {
+            Ok(response) if response.status().is_success() => match response.bytes().await {
+                Ok(bytes) => {
+                    println!("[Forge] Downloaded from: {}", url);
+                    return Ok(bytes);
+                }
+                Err(e) => {
+                    last_error = Some(format!("Body read failed: {}", e));
+                }
+            },
+            Ok(response) => {
+                last_error = Some(format!("HTTP {}: {}", response.status(), url));
+            }
+            Err(e) => {
+                last_error = Some(format!("Request failed: {}", e));
+            }
+        }
+    }
+
+    Err(format!(
+        "Failed to download Forge {} from any URL. Last error: {}",
+        artifact_type,
+        last_error.unwrap_or_else(|| "Unknown error".to_string())
+    )
+    .into())
+}
+
+/// Check if Forge is installed for a specific version combination.
+pub fn is_forge_installed(game_dir: &Path, game_version: &str, forge_version: &str) -> bool {
+    let version_id = generate_version_id(game_version, forge_version);
+    game_dir
+        .join("versions")
+        .join(&version_id)
+        .join(format!("{}.json", version_id))
+        .exists()
 }
 
 /// List all installed Forge versions in the game directory.
-///
-/// # Arguments
-/// * `game_dir` - The .minecraft directory path
-///
-/// # Returns
-/// A list of installed Forge version IDs.
-#[allow(dead_code)]
 pub async fn list_installed_forge_versions(
-    game_dir: &std::path::Path,
+    game_dir: &Path,
 ) -> Result<Vec<String>, Box<dyn Error + Send + Sync>> {
     let versions_dir = game_dir.join("versions");
     let mut installed = Vec::new();
@@ -569,7 +649,6 @@ pub async fn list_installed_forge_versions(
     while let Some(entry) = entries.next_entry().await? {
         let name = entry.file_name().to_string_lossy().to_string();
         if name.contains("-forge-") {
-            // Verify the JSON file exists
             let json_path = entry.path().join(format!("{}.json", name));
             if json_path.exists() {
                 installed.push(name);
@@ -593,10 +672,13 @@ mod tests {
     }
 
     #[test]
-    fn test_is_modern_forge() {
-        assert!(!is_modern_forge("1.12.2"));
-        assert!(is_modern_forge("1.13"));
-        assert!(is_modern_forge("1.20.4"));
-        assert!(is_modern_forge("1.21"));
+    fn test_detect_forge_era() {
+        assert_eq!(detect_forge_era("1.7.10"), ForgeEra::Legacy);
+        assert_eq!(detect_forge_era("1.12.2"), ForgeEra::Legacy);
+        assert_eq!(detect_forge_era("1.13"), ForgeEra::Transitional);
+        assert_eq!(detect_forge_era("1.16.5"), ForgeEra::Transitional);
+        assert_eq!(detect_forge_era("1.17"), ForgeEra::Modern);
+        assert_eq!(detect_forge_era("1.20.4"), ForgeEra::Modern);
+        assert_eq!(detect_forge_era("1.21"), ForgeEra::Modern);
     }
 }

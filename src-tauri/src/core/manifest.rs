@@ -42,7 +42,13 @@ pub struct Version {
 }
 
 pub async fn fetch_version_manifest() -> Result<VersionManifest, Box<dyn Error + Send + Sync>> {
-    let url = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
+    fetch_version_manifest_with_mirror(crate::core::mirror::MirrorSource::Official).await
+}
+
+pub async fn fetch_version_manifest_with_mirror(
+    mirror: crate::core::mirror::MirrorSource,
+) -> Result<VersionManifest, Box<dyn Error + Send + Sync>> {
+    let url = crate::core::mirror::version_manifest_url(mirror);
     let resp = reqwest::get(url).await?.json::<VersionManifest>().await?;
     Ok(resp)
 }
@@ -86,8 +92,14 @@ pub async fn load_local_version(
 pub async fn fetch_vanilla_version(
     version_id: &str,
 ) -> Result<GameVersion, Box<dyn Error + Send + Sync>> {
-    // First, get the manifest to find the version URL
-    let manifest = fetch_version_manifest().await?;
+    fetch_vanilla_version_with_mirror(version_id, crate::core::mirror::MirrorSource::Official).await
+}
+
+pub async fn fetch_vanilla_version_with_mirror(
+    version_id: &str,
+    mirror: crate::core::mirror::MirrorSource,
+) -> Result<GameVersion, Box<dyn Error + Send + Sync>> {
+    let manifest = fetch_version_manifest_with_mirror(mirror).await?;
 
     let version_entry = manifest
         .versions
@@ -95,11 +107,8 @@ pub async fn fetch_vanilla_version(
         .find(|v| v.id == version_id)
         .ok_or_else(|| format!("Version {} not found in manifest", version_id))?;
 
-    // Fetch the actual version JSON
-    let resp = reqwest::get(&version_entry.url)
-        .await?
-        .json::<GameVersion>()
-        .await?;
+    let url = crate::core::mirror::remap_url(&version_entry.url, mirror);
+    let resp = reqwest::get(&url).await?.json::<GameVersion>().await?;
 
     Ok(resp)
 }

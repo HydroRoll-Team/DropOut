@@ -17,6 +17,14 @@ export type Instance = {
   jvmArgsOverride: string | null;
   memoryOverride: MemoryOverride | null;
   javaPathOverride: string | null;
+  /**
+   * Auto-join server address in "host:port" or "host" format
+   */
+  serverAddress: string | null;
+  /**
+   * Custom offline skin path (PNG file)
+   */
+  skinPath: string | null;
 };
 
 /**

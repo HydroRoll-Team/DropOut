@@ -1,0 +1,119 @@
+name: Production Smoke Check
+
+on:
+  push:
+    branches: ["main", "dev"]
+    paths:
+      - "packages/docs/**"
+      - "wrangler.jsonc"
+      - ".github/workflows/production-smoke.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+  pull_request:
+    branches: ["main"]
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Smoke target base URL
+        required: false
+        default: https://dropout.hydroroll.team
+
+permissions:
+  checks: read
+  contents: read
+
+jobs:
+  smoke:
+    name: Smoke dropout.hydroroll.team
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      BASE_URL: ${{ github.event.inputs.base_url || 'https://dropout.hydroroll.team' }}
+
+    steps:
+      - name: Wait for Cloudflare Workers build
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          for attempt in {1..40}; do
+            result="$(
+              gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/check-runs" \
+                --jq '[.check_runs[] | select(.name == "Workers Builds: dropout")] | first | if . == null then empty else "\(.status) \(.conclusion // "pending")" end' \
+                2>/dev/null || true
+            )"
+
+            if [ -n "$result" ]; then
+              echo "Workers Builds: dropout => $result"
+              status="${result%% *}"
+              conclusion="${result#* }"
+
+              if [ "$status" = "completed" ]; then
+                test "$conclusion" = "success"
+                exit 0
+              fi
+            else
+              echo "Workers Builds: dropout check not found yet"
+            fi
+
+            sleep 15
+          done
+
+          echo "Timed out waiting for Cloudflare Workers build"
+          exit 1
+
+      - name: Check production routes
+        run: |
+          set -euo pipefail
+
+          check_route() {
+            path="$1"
+            expected_status="$2"
+            expected_type="$3"
+            url="${BASE_URL}${path}"
+
+            for attempt in {1..12}; do
+              result="$(
+                curl -sS -L \
+                  --connect-timeout 10 \
+                  --max-time 30 \
+                  -o /tmp/dropout-smoke-body \
+                  -w "%{http_code} %{content_type}" \
+                  "$url" || true
+              )"
+
+              status="${result%% *}"
+              content_type="${result#* }"
+
+              if [ "$status" = "$expected_status" ] && [[ "$content_type" == "$expected_type"* ]]; then
+                echo "ok $path => $status $content_type"
+                return 0
+              fi
+
+              if [ "$status" = "403" ] \
+                && [[ "$content_type" == "text/html"* ]] \
+                && grep -qiE "Just a moment|challenges.cloudflare.com" /tmp/dropout-smoke-body; then
+                echo "ok $path => Cloudflare challenge for GitHub runner"
+                return 0
+              fi
+
+              echo "attempt $attempt failed for $path: got ${status:-curl-failed} ${content_type:-unknown}, expected $expected_status $expected_type"
+              sleep 10
+            done
+
+            echo "Production smoke check failed for $url"
+            echo "--- response body preview ---"
+            head -c 2000 /tmp/dropout-smoke-body || true
+            exit 1
+          }
+
+          check_route "/" "200" "text/html"
+          check_route "/image.png" "200" "image/png"
+          check_route "/docs/manual/getting-started" "200" "text/html"
+          check_route "/en/docs/manual/getting-started" "200" "text/html"
+          check_route "/manual" "404" "text/html"

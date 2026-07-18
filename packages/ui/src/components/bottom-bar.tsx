@@ -1,5 +1,6 @@
 import { Play, User, XIcon } from "lucide-react";
 import { useCallback, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/models/auth";
@@ -19,6 +20,7 @@ import { Spinner } from "./ui/spinner";
 
 export function BottomBar() {
   const account = useAuthStore((state) => state.account);
+  const { t } = useTranslation();
 
   const { instances, activeInstance, setActiveInstance } = useInstanceStore();
   const {
@@ -56,7 +58,7 @@ export function BottomBar() {
 
   const handleStartGame = async () => {
     if (!activeInstance) {
-      toast.info("Please select an instance first!");
+      toast.info(t("bottomBar.selectFirst"));
       return;
     }
 
@@ -77,7 +79,7 @@ export function BottomBar() {
           size="lg"
           onClick={() => setShowLoginModal(true)}
         >
-          <User /> Login
+          <User /> {t("common.login")}
         </Button>
       );
     }
@@ -90,7 +92,7 @@ export function BottomBar() {
           disabled={stoppingInstanceId !== null}
         >
           {stoppingInstanceId ? <Spinner /> : <XIcon />}
-          Close
+          {t("common.close")}
         </Button>
       );
     }
@@ -106,7 +108,7 @@ export function BottomBar() {
         disabled={launchingInstanceId === activeInstance?.id}
       >
         {launchingInstanceId === activeInstance?.id ? <Spinner /> : <Play />}
-        Start
+        {t("common.start")}
       </Button>
     );
   };
@@ -114,8 +116,14 @@ export function BottomBar() {
   return (
     <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/30 via-transparent to-transparent p-4 z-10">
       <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between bg-white/5 dark:bg-black/20 backdrop-blur-xl border border-white/10 dark:border-white/5 p-3 shadow-lg">
-          <div className="flex items-center gap-4 min-w-0">
+        <div
+          className="flex items-center justify-between bg-white/5 dark:bg-black/20 backdrop-blur-xl border border-white/10 dark:border-white/5 p-3 shadow-lg"
+          data-tour="bottom-bar"
+        >
+          <div
+            className="flex items-center gap-4 min-w-0"
+            data-tour="instance-selector"
+          >
             <Select
               value={activeInstance?.id ?? null}
               items={instances.map((instance) => ({
@@ -133,8 +141,8 @@ export function BottomBar() {
                 <SelectValue
                   placeholder={
                     instances.length === 0
-                      ? "No instances available"
-                      : "Please select an instance"
+                      ? t("bottomBar.noInstances")
+                      : t("bottomBar.selectInstance")
                   }
                 />
               </SelectTrigger>
@@ -145,7 +153,7 @@ export function BottomBar() {
                       <div className="flex min-w-0 flex-col">
                         <span className="truncate">{instance.name}</span>
                         <span className="text-muted-foreground truncate text-[11px]">
-                          {instance.versionId ?? "No version selected"}
+                          {instance.versionId ?? t("bottomBar.noVersion")}
                         </span>
                       </div>
                     </SelectItem>
@@ -155,7 +163,9 @@ export function BottomBar() {
             </Select>
           </div>
 
-          <div className="flex items-center gap-3">{renderButton()}</div>
+          <div className="flex items-center gap-3" data-tour="launch-button">
+            {renderButton()}
+          </div>
         </div>
       </div>
 

@@ -10,11 +10,6 @@ on:
       - "package.json"
   pull_request:
     branches: ["main"]
-    paths:
-      - "packages/docs/**"
-      - ".github/workflows/docs-build.yml"
-      - "pnpm-lock.yaml"
-      - "package.json"
   workflow_dispatch:
 
 permissions:
@@ -40,7 +35,7 @@ jobs:
           cache-dependency-path: "pnpm-lock.yaml"
 
       - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm -C packages/docs --lockfile-dir "${{ github.workspace }}" install --frozen-lockfile
 
       - name: Build Docs
         working-directory: packages/docs

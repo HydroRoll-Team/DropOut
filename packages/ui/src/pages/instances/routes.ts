@@ -1,6 +1,8 @@
 import type { RouteObject } from "react-router";
+import BrowsePage from "./browse";
 import CreateInstancePage from "./create";
 import { InstancesPage } from "./index";
+import ModsPage from "./mods";
 
 const routes = {
   path: "/instances",
@@ -12,6 +14,14 @@ const routes = {
     {
       path: "create",
       Component: CreateInstancePage,
+    },
+    {
+      path: ":instanceId/mods",
+      Component: ModsPage,
+    },
+    {
+      path: ":instanceId/browse",
+      Component: BrowsePage,
     },
   ],
 } satisfies RouteObject;

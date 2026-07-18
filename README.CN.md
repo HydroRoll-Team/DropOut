@@ -1,145 +1,215 @@
-# Drop*O*ut
+<p align="center">
+  <img src="assets/image.png" alt="DropOut 启动器界面" width="700">
+</p>
 
-[English](README.md) | 中文
+<h1 align="center">DropOut</h1>
 
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut.svg?type=small)](https://app.fossa.com/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut?ref=badge_small)
-[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
-[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/HsiangNianian/DropOut/main.svg)](https://results.pre-commit.ci/latest/github/HsiangNianian/DropOut/main)
-[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![CodeQL Advanced](https://github.com/HydroRoll-Team/DropOut/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/HydroRoll-Team/DropOut/actions/workflows/codeql.yml)
-[![Dependabot Updates](https://github.com/HydroRoll-Team/DropOut/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/HydroRoll-Team/DropOut/actions/workflows/dependabot/dependabot-updates)
-[![Semifold CI](https://github.com/HydroRoll-Team/DropOut/actions/workflows/semifold-ci.yaml/badge.svg)](https://github.com/HydroRoll-Team/DropOut/actions/workflows/release.yml)
-[![Test & Build](https://github.com/HydroRoll-Team/DropOut/actions/workflows/test.yml/badge.svg)](https://github.com/HydroRoll-Team/DropOut/actions/workflows/test.yml)
+<p align="center">
+  <em>面向可复现、可检查 Minecraft 环境的确定性启动器。</em>
+</p>
 
-DropOut 是一个现代的、可复现的、开发者级别的 Minecraft 启动器。
-它不仅仅是为了启动 Minecraft 而设计的，而是将 Minecraft 环境作为确定性的、版本化的工作空间进行管理。
+<p align="center">
+  <a href="https://github.com/HydroRoll-Team/DropOut"><img src="https://img.shields.io/github/stars/HydroRoll-Team/DropOut?logo=github" alt="GitHub stars"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-65a30d?style=flat" alt="AGPL-3.0 license"></a>
+  <a href="https://github.com/HydroRoll-Team/DropOut/releases"><img src="https://img.shields.io/github/v/release/HydroRoll-Team/DropOut?display_name=tag&sort=semver" alt="Latest release"></a>
+  <a href="https://github.com/HydroRoll-Team/DropOut/actions/workflows/test.yml"><img src="https://github.com/HydroRoll-Team/DropOut/actions/workflows/test.yml/badge.svg" alt="Test and build"></a>
+  <a href="https://github.com/HydroRoll-Team/DropOut/actions/workflows/codeql.yml"><img src="https://github.com/HydroRoll-Team/DropOut/actions/workflows/codeql.yml/badge.svg?branch=main" alt="CodeQL"></a>
+  <a href="https://github.com/HydroRoll-Team/DropOut/actions/workflows/semifold-ci.yaml"><img src="https://github.com/HydroRoll-Team/DropOut/actions/workflows/semifold-ci.yaml/badge.svg" alt="Semifold CI"></a>
+  <br>
+  <img src="https://img.shields.io/badge/Tauri_2-000?style=flat&logo=tauri" alt="Tauri 2">
+  <img src="https://img.shields.io/badge/Rust-000?style=flat&logo=rust" alt="Rust">
+  <img src="https://img.shields.io/badge/React_19-000?style=flat&logo=react" alt="React 19">
+  <img src="https://img.shields.io/badge/Tailwind_CSS_4-000?style=flat&logo=tailwindcss" alt="Tailwind CSS 4">
+  <img src="https://img.shields.io/badge/TypeScript-000?style=flat&logo=typescript" alt="TypeScript">
+  <img src="https://img.shields.io/badge/pnpm_10-000?style=flat&logo=pnpm" alt="pnpm 10">
+</p>
 
-DropOut 使用 Tauri v2 构建，DropOut 提供原生性能和最小资源使用，并配有现代响应式 Web UI（基于 React 19、shadcn/ui 和 Tailwind CSS 4 构建）。
+<p align="center">
+  <a href="README.md">English</a> | <b>中文</b>
+</p>
 
-> Minecraft 环境是一个复杂的系统。
-> DropOut 将它们视为软件项目。
+---
 
-<div align="center">
-   <img width="700" src="assets/image.png" alt="DropOut Launcher Interface" />
-</div>
+## 这是什么
 
-## 为什么选择 DropOut？
+**DropOut** 是一个现代的开发者级 Minecraft 启动器，核心目标是：让一套游戏环境像软件项目一样可追踪。
 
-大多数 Minecraft 启动器专注于让你进入游戏。
-DropOut 专注于保持你的游戏稳定、可调试和可重现。
+大多数启动器专注于把游戏拉起来。DropOut 还关注启动之前和之后的环境状态：账户、Java 运行时、游戏版本、加载器、实例目录、资源、依赖库和启动日志。
 
-- 整合包昨天还能游玩，今天却坏了？
-  → DropOut 让它可追溯。
+> Minecraft 环境是复杂系统。DropOut 把它们视为版本化工作空间。
 
-- 分享模组包意味着压缩数 GB 的文件？
-  → DropOut 分享精确的依赖清单。
+---
 
-- Java、加载器、模组、配置不同步？
-  → DropOut 将它们锁定在一起。
+## 项目形态
 
-这个启动器是为重视控制、透明度和长期稳定性的玩家构建的。
+DropOut 由三个活跃部分组成：
+
+| 部分 | 路径 | 技术栈 | 用途 |
+|---|---|---|---|
+| 桌面外壳 | `src-tauri/` | Rust, Tauri 2 | 认证、下载、Java/版本解析、实例存储、启动编排 |
+| 启动器 UI | `packages/ui/` | React 19, shadcn/ui, Vite/Rolldown, Tailwind CSS 4 | Tauri WebView 中的主应用界面 |
+| 文档站 | `packages/docs/` | Fumadocs, React 19, React Router 7 | 中英文产品文档和开发文档 |
+
+Rust 核心负责副作用。React UI 调用 Tauri 命令并渲染状态。文档包负责解释产品、架构和使用流程。
+
+---
 
 ## 功能特性
 
-- **高性能**：使用 Rust 和 Tauri 构建，实现最小资源使用和快速启动时间。
-- **现代工业 UI**：使用 **React 19**、**shadcn/ui** 和 **Tailwind CSS 4** 设计的干净、无干扰界面。
-- **Microsoft 认证**：通过官方 Xbox Live 和 Microsoft OAuth 流程（设备代码流程）提供安全登录支持。
-- **模组加载器支持**：
-  - **Fabric**：内置安装程序和版本管理。
-  - **Forge**：支持安装和启动 Forge 版本。
-- **Java 管理**：
-  - 自动检测已安装的 Java 版本。
-  - 内置 Adoptium JDK/JRE 下载器。
-- **GitHub 集成**：直接从启动器主页查看最新的项目更新和变更日志。
-- **游戏管理**：
-  - 完整的版本隔离。
-  - 高效的并发资产和库下载。
-  - 可自定义的内存分配和分辨率设置。
+- **Microsoft 认证** - 设备代码 OAuth、Minecraft Services 登录、令牌刷新和账户持久化。
+- **离线账户** - 支持本地账户，便于测试或离线使用。
+- **实例系统** - 隔离游戏目录，并支持实例备注、内存覆盖、Java 参数、版本和加载器状态。
+- **Minecraft 版本管理** - 安装、校验、列出、删除并启动本地版本。
+- **Fabric 和 Forge 支持** - 发现加载器版本，并为模组实例提供安装流程。
+- **Java 管理** - 本地 Java 检测、兼容性检查、Adoptium 目录查询、下载、恢复和取消。
+- **并发下载** - 资源和依赖库队列、进度事件和恢复路径。
+- **配置编辑器** - 查看和编辑原始 JSON/TOML 启动器配置。
+- **发布动态** - 在主页展示 GitHub Release 更新。
+- **游戏助手** - 可选的本地或 OpenAI 兼容助手，用于日志、崩溃和配置问题。
+
+---
+
+## 快速开始
+
+### 前置条件
+
+- 通过 [rustup.rs](https://rustup.rs/) 安装 Rust 工具链
+- Node.js 22+
+- pnpm 10+
+- 按照 [Tauri v2 prerequisites](https://v2.tauri.app/start/prerequisites/) 安装系统依赖
+
+### 安装依赖
+
+这个仓库不使用 `pnpm-workspace.yaml`。每个 JavaScript 包都需要基于根目录 lockfile 安装依赖：
+
+```bash
+pnpm install
+pnpm -C packages/ui --lockfile-dir "$PWD" install
+pnpm -C packages/docs --lockfile-dir "$PWD" install
+```
+
+`pnpm install` 会运行仓库的 `prepare` 脚本，安装本地 `prek` hooks。
+
+### 运行桌面应用
+
+```bash
+pnpm exec tauri dev
+```
+
+Tauri 会根据 `src-tauri/tauri.conf.json` 启动 React 开发服务器，并打开指向 `http://localhost:1420` 的桌面窗口。
+
+### 构建桌面发布包
+
+```bash
+pnpm exec tauri build
+```
+
+发布产物由 Tauri 写入 Rust target 目录和配置的 bundle 目录。
+
+### 单独运行子项目
+
+```bash
+pnpm -C packages/ui dev
+pnpm -C packages/docs dev
+```
+
+UI 可以在浏览器中用于布局开发，但依赖 Tauri 的功能需要在桌面外壳中验证。
+
+---
+
+## 常用命令
+
+| 任务 | 命令 |
+|---|---|
+| 安装根工具依赖 | `pnpm install` |
+| 安装 UI 依赖 | `pnpm -C packages/ui --lockfile-dir "$PWD" install` |
+| 安装文档站依赖 | `pnpm -C packages/docs --lockfile-dir "$PWD" install` |
+| 运行桌面应用 | `pnpm exec tauri dev` |
+| 构建桌面应用 | `pnpm exec tauri build` |
+| 运行 UI 开发服务器 | `pnpm -C packages/ui dev` |
+| 构建 UI | `pnpm -C packages/ui build` |
+| Lint UI | `pnpm -C packages/ui lint` |
+| 运行文档站 | `pnpm -C packages/docs dev` |
+| 构建文档站 | `pnpm -C packages/docs build` |
+| 检查文档类型/内容 | `pnpm -C packages/docs types:check` |
+| 验证 Cloudflare 文档站部署 | `pnpm deploy:docs:dry-run` |
+| 部署文档站到 Cloudflare Workers | `pnpm deploy:docs` |
+| 测试 Rust workspace | `cargo test --workspace` |
+
+部署维护说明见 [docs/cloudflare-deployment.md](docs/cloudflare-deployment.md)。
+
+---
+
+## 仓库结构
+
+```text
+.
+|-- assets/                 # README 和项目媒体
+|-- crates/                 # Rust 辅助 crate 和宏
+|-- packages/
+|   |-- docs/               # Fumadocs + React Router 文档站
+|   `-- ui/                 # React 启动器前端
+|-- scripts/                # 发布和维护脚本
+|-- src-tauri/              # Rust 桌面后端和 Tauri 配置
+|-- Cargo.toml              # Rust workspace
+|-- package.json            # 根工具配置
+`-- pnpm-lock.yaml          # 共享 pnpm lockfile
+```
+
+---
+
+## 架构备注
+
+Tauri 命令边界注册在 [`src-tauri/src/main.rs`](src-tauri/src/main.rs)。核心模块位于 `src-tauri/src/core/`：
+
+- `auth.rs` 和 `account_storage.rs` 处理 Microsoft 与离线账户状态。
+- `instance.rs` 管理隔离实例目录和元数据。
+- `game_version.rs`、`manifest.rs`、`migration.rs` 解析 Minecraft 版本和启动规则。
+- `fabric.rs`、`forge.rs`、`maven.rs`、`downloader.rs` 安装加载器、依赖库、资源和版本文件。
+- `java/` 检测、校验并持久化兼容 Java 运行时。
+- `modpack/`、`mods.rs`、`content_search.rs` 处理整合包解析、模组元数据和内容发现。
+- `assistant.rs` 提供可选的故障排查助手能力。
+
+UI 的长期状态位于 `packages/ui/src/models/`，页面位于 `packages/ui/src/pages/`，共享控件位于 `packages/ui/src/components/`。
+
+---
 
 ## 路线图
 
-- [x] **账户持久化** — 在会话之间保存登录状态
-- [x] **令牌刷新** — 自动刷新过期的 Microsoft 令牌
-- [x] **JVM 参数解析** — 完全支持 `arguments.jvm` 和 `arguments.game` 解析
-- [x] **Java 自动检测和下载** — 扫描系统并下载 Java 运行时
-- [x] **Fabric 加载器支持** — 使用 Fabric 安装和启动
-- [x] **Forge 加载器支持** — 使用 Forge 安装和启动
-- [x] **GitHub 发布集成** — 在应用内查看变更日志
-- [ ] **[WIP]实例/配置文件系统** — 多个隔离的游戏目录，具有不同的版本/模组
-- [ ] **多账户支持** — 在多个账户之间无缝切换
-- [ ] **自定义游戏目录** — 允许用户选择游戏文件位置
-- [ ] **启动器自动更新** — 通过 Tauri 更新插件的自更新机制
-- [ ] **模组管理器** — 直接在启动器中启用/禁用模组
-- [ ] **从其他启动器导入** — MultiMC/Prism 配置的迁移工具
+- [x] 账户持久化和令牌刷新
+- [x] Microsoft 设备代码登录和离线登录
+- [x] Java 自动检测和 Adoptium 下载流程
+- [x] Fabric 和 Forge 安装路径
+- [x] 隔离实例/配置文件系统
+- [x] GitHub Release 集成
+- [x] 可选游戏助手
+- [ ] 多账户切换
+- [ ] 内置模组管理器
+- [ ] 自定义游戏目录选择
+- [ ] 启动器自动更新
+- [x] 从 PCL、HMCL、MultiMC、Prism Launcher 和其他配置导入
 
-## 安装
+公开路线图见 <https://roadmap.sh/r/minecraft-launcher-dev>。
 
-从 [Releases](https://github.com/HsiangNianian/DropOut/releases) 页面下载适用于您平台的最新版本。
-
-| 平台 | 文件 |
-| -------------- | ------------------- |
-| Linux x86_64 | `.deb`, `.AppImage` |
-| Linux ARM64 | `.deb`, `.AppImage` |
-| macOS ARM64 | `.dmg` |
-| Windows x86_64 | `.msi`, `.exe` |
-| Windows ARM64 | `.msi`, `.exe` |
-
-## 从源码构建
-
-### 先决条件
-
-1. **Rust**：从 [rustup.rs](https://rustup.rs/) 安装。
-1. **Node.js** 和 **pnpm**：用于前端依赖。
-1. **系统依赖**：按照您的操作系统遵循 [Tauri 先决条件](https://v2.tauri.app/start/prerequisites/)。
-
-### 步骤
-
-1. **克隆仓库**
-
-   ```bash
-   git clone https://github.com/HsiangNianian/DropOut.git
-   cd DropOut
-   ```
-
-2. **安装依赖**
-
-   ```bash
-   pnpm install
-   ```
-
-1. **运行开发模式**
-
-   ```bash
-   # 这将启动前端服务器和 Tauri 应用窗口
-   cargo tauri dev
-   ```
-
-1. **构建发布版本**
-
-   ```bash
-   cargo tauri build
-   ```
-
-   可执行文件将位于 `src-tauri/target/release/`。
+---
 
 ## 贡献
 
-DropOut 以长期可维护性为目标构建。
-欢迎贡献，尤其在这些领域：
+DropOut 面向长期维护。适合贡献的方向包括：
 
-- 实例系统设计
-- 模组兼容性工具
-- UI/UX 改进
-- 跨启动器迁移工具
+- 实例和配置文件工作流
+- 模组加载器兼容性
+- Java/运行时检测
+- 下载器可靠性
+- UI/UX 清晰度
+- 文档和故障排查覆盖
 
-标准的 GitHub 工作流程适用：
-fork → 功能分支 → 拉取请求。
+使用标准 GitHub 流程：fork、创建分支、提交，然后向 [HydroRoll-Team/DropOut](https://github.com/HydroRoll-Team/DropOut) 打开 pull request。
+
+---
 
 ## 许可证
 
-根据 MIT 许可证分发。有关更多信息，请参见 `LICENSE`。
+[![AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-65a30d)](LICENSE)
 
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut.svg?type=shield&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut?ref=badge_shield&issueType=license)
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut.svg?type=shield&issueType=security)](https://app.fossa.com/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut?ref=badge_shield&issueType=security)
-
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2FHsiangNianian%2FDropOut?ref=badge_large)
+本项目基于 GNU Affero General Public License v3.0 分发。详见 [LICENSE](LICENSE)。

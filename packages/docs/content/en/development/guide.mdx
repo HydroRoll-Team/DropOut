@@ -132,15 +132,17 @@ DropOut/
 │   │   └── utils/          # Utilities
 │   └── Cargo.toml
 ├── packages/
-│   ├── ui/                 # Svelte 5 frontend
+│   ├── ui/                 # React frontend
 │   │   ├── src/
-│   │   │   ├── App.svelte
+│   │   │   ├── main.tsx
 │   │   │   ├── components/
-│   │   │   ├── stores/     # State management
+│   │   │   ├── pages/      # React Router routes
+│   │   │   ├── models/     # Zustand stores and models
 │   │   │   └── lib/
 │   │   └── package.json
 │   └── docs/               # Documentation site
-│       ├── content/docs/
+│       ├── content/en/
+│       ├── content/zh/
 │       └── package.json
 ├── .github/
 │   └── workflows/          # CI/CD pipelines
@@ -159,7 +161,7 @@ pnpm dev
 
 **Type checking:**
 ```bash
-pnpm check
+pnpm build
 ```
 
 **Linting:**
@@ -169,7 +171,7 @@ pnpm lint
 
 **Formatting:**
 ```bash
-pnpm format
+pnpm exec biome format --write .
 ```
 
 ### Backend Development
@@ -238,26 +240,25 @@ async fn start_microsoft_login(
 }
 ```
 
-### TypeScript/Svelte
+### TypeScript/React
 
 Follow the project's conventions:
-- Use Svelte 5 runes (`$state`, `$effect`)
+- Prefer React function components and hooks
+- Use Zustand stores for shared application state
 - Prefer TypeScript over JavaScript
 - Use Biome for formatting and linting
 - Follow component structure
 
 **Example:**
 ```typescript
-// stores/auth.svelte.ts
-export class AuthState {
-  currentAccount = $state<Account | null>(null);
-  isLoginModalOpen = $state(false);
-  
-  async login(username: string) {
-    const account = await invoke('offline_login', { username });
-    this.currentAccount = account;
-  }
-}
+// models/auth.ts
+export const useAuthStore = create<AuthState>((set) => ({
+  account: null,
+  loginOffline: async (username) => {
+    const account = await loginOffline(username);
+    set({ account });
+  },
+}));
 ```
 
 ## Testing
@@ -307,7 +308,7 @@ View workflow: `.github/workflows/test.yml`
 
 1. Open DevTools in Tauri window: `Ctrl+Shift+I` (Windows/Linux) or `Cmd+Option+I` (macOS)
 2. Check Console for errors
-3. Use React DevTools or Svelte DevTools
+3. Use React DevTools
 4. Monitor Network tab for API calls
 
 ### Backend Debugging
@@ -447,51 +448,59 @@ Be responsive to feedback and make requested changes.
 ### Adding a UI Component
 
 1. **Create component file:**
-   ```svelte
-   <!-- packages/ui/src/components/MyComponent.svelte -->
-   <script lang="ts">
-     let count = $state(0);
-   </script>
+   ```tsx
+   // packages/ui/src/components/my-component.tsx
+   import { useState } from "react";
 
-   <button onclick={() => count++}>
-     Count: {count}
-   </button>
+   export function MyComponent() {
+     const [count, setCount] = useState(0);
+
+     return (
+       <button type="button" onClick={() => setCount((value) => value + 1)}>
+         Count: {count}
+       </button>
+     );
+   }
    ```
 
 2. **Import and use:**
-   ```svelte
-   <script>
-     import MyComponent from './components/MyComponent.svelte';
-   </script>
+   ```tsx
+   import { MyComponent } from "@/components/my-component";
 
-   <MyComponent />
+   export function HomePage() {
+     return <MyComponent />;
+   }
    ```
 
 ### Adding a Store
 
 1. **Create store file:**
    ```typescript
-   // packages/ui/src/stores/mystore.svelte.ts
-   export class MyState {
-     value = $state(0);
-     
-     increment() {
-       this.value++;
-     }
-   }
-   
-   export const myState = new MyState();
+   // packages/ui/src/models/counter.ts
+   import { create } from "zustand";
+
+   export const useCounterStore = create<{
+     value: number;
+     increment: () => void;
+   }>((set) => ({
+     value: 0,
+     increment: () => set((state) => ({ value: state.value + 1 })),
+   }));
    ```
 
 2. **Use in components:**
-   ```svelte
-   <script>
-     import { myState } from '../stores/mystore.svelte';
-   </script>
+   ```tsx
+   import { useCounterStore } from "@/models/counter";
 
-   <button onclick={() => myState.increment()}>
-     {myState.value}
-   </button>
+   export function CounterButton() {
+     const { value, increment } = useCounterStore();
+
+     return (
+       <button type="button" onClick={increment}>
+         {value}
+       </button>
+     );
+   }
    ```
 
 ## Troubleshooting Development Issues
@@ -535,7 +544,7 @@ rustup update
 ## Resources
 
 - [Tauri Documentation](https://v2.tauri.app/)
-- [Svelte 5 Documentation](https://svelte.dev/docs)
+- [React Documentation](https://react.dev/)
 - [Rust Book](https://doc.rust-lang.org/book/)
 - [DropOut Repository](https://github.com/HydroRoll-Team/DropOut)
 

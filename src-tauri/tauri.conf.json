@@ -4,8 +4,8 @@
   "version": "0.2.0-alpha.6",
   "identifier": "com.dropout.launcher",
   "build": {
-    "beforeDevCommand": "pnpm --filter @dropout/ui dev",
-    "beforeBuildCommand": "pnpm --filter @dropout/ui build",
+    "beforeDevCommand": "pnpm -C packages/ui dev",
+    "beforeBuildCommand": "pnpm -C packages/ui build",
     "devUrl": "http://localhost:1420",
     "frontendDist": "../packages/ui/dist"
   },
@@ -40,6 +40,14 @@
       "appimage": {
         "bundleMediaFramework": false
       }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/HydroRoll-Team/DropOut/releases/latest/download/latest.json"
+      ],
+      "pubkey": ""
     }
   }
 }

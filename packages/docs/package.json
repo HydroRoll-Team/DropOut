@@ -2,7 +2,7 @@
   "name": "@dropout/docs",
   "private": true,
   "type": "module",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.2",
   "scripts": {
     "build": "react-router build",
     "dev": "react-router dev",
@@ -13,21 +13,23 @@
     "format": "biome format --write"
   },
   "dependencies": {
-    "@react-router/node": "^7.12.0",
-    "@react-router/serve": "^7.12.0",
+    "@react-router/node": "^7.18.1",
+    "@react-router/serve": "^7.18.1",
     "fumadocs-core": "16.4.7",
     "fumadocs-mdx": "14.2.6",
     "fumadocs-ui": "16.4.7",
     "isbot": "^5.1.32",
-    "mermaid": "^11.12.3",
+    "mermaid": "^11.15.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "react-router": "^7.12.0"
+    "react-router": "^7.18.1"
   },
   "devDependencies": {
-    "@react-router/dev": "^7.12.0",
+    "@biomejs/biome": "^2.4.9",
+    "@react-router/dev": "^7.18.1",
     "@tailwindcss/vite": "^4.1.18",
     "@types/mdx": "^2.0.13",
+    "@types/node": "^24.10.9",
     "@types/react": "^19.2.8",
     "@types/react-dom": "^19.2.3",
     "react-router-devtools": "^6.1.0",
