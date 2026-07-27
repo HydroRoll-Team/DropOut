@@ -9,7 +9,7 @@
     "deploy:docs": "wrangler deploy",
     "generate": "cargo test export_bindings && biome check packages/ui/src/types packages/ui/src/client.ts --fix",
     "bump-tauri": "tsx scripts/bump-tauri.ts",
-    "prepare": "prek install"
+    "prepare": "node scripts/install-prek-hooks.mjs"
   },
   "keywords": [
     "dropout",
@@ -65,7 +65,6 @@
       "ws": "8.21.0"
     },
     "onlyBuiltDependencies": [
-      "@j178/prek",
       "core-js",
       "esbuild",
       "msw"
