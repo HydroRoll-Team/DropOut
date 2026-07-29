@@ -1,0 +1,42 @@
+---
+title: Instance Library
+description: Search, inspect, launch, migrate, and recover isolated Minecraft environments
+---
+
+# Instance Library
+
+The instance library is the operating surface for every isolated Minecraft environment in DropOut. Selecting an instance also makes it the active instance used by the Home launch command center, so the library and launch state never point at different environments.
+
+## Find an instance
+
+Use the search field to match an instance name, Minecraft version, loader, or notes. Sort the result by:
+
+- **Last played** for the environments you use most often;
+- **Name** for large, structured libraries;
+- **Created** for recently added or imported environments.
+
+List view keeps dense libraries scannable. Grid view gives smaller libraries more visual separation. DropOut remembers the selected presentation on the current device.
+
+## Read launch state
+
+Each visible instance is checked progressively so a large library does not issue hundreds of runtime probes at once. The readiness marker uses the same backend check as the Home command center and considers the selected Minecraft version, local game files, compatible Java runtime, account, and memory override.
+
+The active workspace on the right shows:
+
+- Minecraft version, loader, and launch readiness;
+- local file and Java availability;
+- memory and Java overrides;
+- enabled and disabled mod count;
+- notes, creation date, and the managed game directory.
+
+Use **Launch active instance** as the primary action. Opening another card changes the active instance everywhere, including Home.
+
+## Manage and move environments
+
+Secondary commands are grouped under the instance menu. From there you can open the game directory, edit metadata and runtime overrides, duplicate the environment, manage mods, browse content, export a ZIP, or delete it. The active workspace repeats the most useful shortcuts without hiding launch state.
+
+Use **Library actions** to import a ZIP, migrate instances from Prism/MultiMC or PCL/HMCL, or repair the instance index from directories on disk.
+
+## Delete safely
+
+Deletion removes the managed game directory and cannot be undone from DropOut. Export the instance first when you may need its saves, mods, resource packs, or configuration later. Cancel the confirmation dialog if the target name or recovery plan is not correct.
