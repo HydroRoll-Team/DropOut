@@ -41,7 +41,140 @@
     "launcherActive": "Launcher Active",
     "title": "MINECRAFT",
     "javaEdition": "Java Edition",
-    "readyToLaunch": "> Ready to launch session."
+    "readyToLaunch": "> Ready to launch session.",
+    "commandCenter": "Launch command center",
+    "readinessProtocol": "Readiness protocol / 01",
+    "readinessTitle": "Launch readiness",
+    "readinessDescription": "Every launch-critical dependency, checked in one place.",
+    "checksCount": "{{ready}} / {{total}} ready",
+    "activeInstance": "Active instance",
+    "selectInstance": "Select an instance",
+    "activity": "Session activity",
+    "sessionLog": "Live launch log",
+    "failureDetails": "Failure details",
+    "noActivity": "No session activity yet. Launch events will appear here.",
+    "openLogs": "Open Minecraft logs",
+    "openLogsFailed": "Failed to open logs: {{error}}",
+    "activateFailed": "Failed to activate instance: {{error}}",
+    "actionFailed": "Action failed: {{error}}",
+    "manage": "Manage",
+    "folder": "Folder",
+    "downloadFiles": "{{completed}} of {{total}} files complete",
+    "check": {
+      "account": "Account",
+      "instance": "Instance",
+      "version": "Version",
+      "loader": "Loader",
+      "java": "Java",
+      "memory": "Memory",
+      "files": "Game files"
+    },
+    "checkTone": {
+      "pass": "Ready",
+      "warn": "Needs attention",
+      "fail": "Blocked",
+      "pending": "Checking",
+      "neutral": "Not applicable"
+    },
+    "value": {
+      "notSignedIn": "Not signed in",
+      "noInstance": "No instance selected",
+      "noVersion": "No version selected",
+      "vanilla": "Vanilla",
+      "notConfigured": "Not configured",
+      "checking": "Checking…",
+      "javaRequired": "Java {{version}} required",
+      "javaMissing": "No compatible runtime",
+      "downloadProgress": "Downloading · {{percentage}}%",
+      "filesReady": "Installed and verified",
+      "filesMissing": "Download required"
+    },
+    "state": {
+      "checking": {
+        "eyebrow": "Checking system",
+        "title": "Confirming launch readiness",
+        "description": "DropOut is validating the account, instance, runtime, and game files.",
+        "action": "Checking…"
+      },
+      "data-error": {
+        "eyebrow": "Launcher data unavailable",
+        "title": "Readiness check interrupted",
+        "description": "A launcher data source could not be read. Retry the checks before launching.",
+        "action": "Retry checks"
+      },
+      "no-account": {
+        "eyebrow": "Account required",
+        "title": "Sign in to continue",
+        "description": "Add a Microsoft account or an offline profile before starting Minecraft.",
+        "action": "Sign in"
+      },
+      "no-instance": {
+        "eyebrow": "Instance required",
+        "title": "Choose what to play",
+        "description": "Create a clean instance or import one from Prism Launcher, HMCL, or PCL.",
+        "action": "Create or import"
+      },
+      "version-missing": {
+        "eyebrow": "Instance incomplete",
+        "title": "Select a Minecraft version",
+        "description": "The active instance needs a game version before its files and Java can be checked.",
+        "action": "Configure instance"
+      },
+      "java-missing": {
+        "eyebrow": "Runtime blocked",
+        "title": "Compatible Java required",
+        "description": "DropOut could not resolve the Java runtime required by this Minecraft version.",
+        "action": "Repair Java"
+      },
+      "files-missing": {
+        "eyebrow": "Preparation required",
+        "title": "Game files need attention",
+        "description": "Download or repair the active instance before the first launch.",
+        "action": "Download & prepare"
+      },
+      "memory-invalid": {
+        "eyebrow": "Memory blocked",
+        "title": "Fix the memory allocation",
+        "description": "Maximum memory must be greater than or equal to the minimum allocation.",
+        "action": "Fix memory"
+      },
+      "downloading": {
+        "eyebrow": "Files in transit",
+        "title": "Preparing {{instance}}",
+        "description": "The required files are downloading. Progress remains visible without leaving the home screen.",
+        "action": "Track download"
+      },
+      "launching": {
+        "eyebrow": "Launch sequence active",
+        "title": "Starting {{instance}}",
+        "description": "DropOut is assembling the runtime, arguments, and game process.",
+        "action": "Launching…"
+      },
+      "running": {
+        "eyebrow": "Session online",
+        "title": "{{instance}} is running",
+        "description": "Minecraft is active. You can stop the process here if it no longer responds.",
+        "action": "Stop game"
+      },
+      "stopped": {
+        "eyebrow": "Session ended cleanly",
+        "title": "{{instance}} stopped",
+        "description": "The last session has closed. Logs remain available if you need them.",
+        "action": "Launch again"
+      },
+      "failed": {
+        "eyebrow": "Launch failure",
+        "title": "{{instance}} needs recovery",
+        "description": "The launch or game process failed. Inspect the captured output before retrying.",
+        "action": "Inspect failure"
+      },
+      "ready": {
+        "eyebrow": "All checks passed",
+        "title": "{{instance}} is ready",
+        "description": "Account, runtime, memory, and local game files are ready for launch.",
+        "action": "Launch"
+      }
+    }
   },
   "bottomBar": {
     "noInstances": "No instances available",
@@ -52,7 +185,12 @@
   "downloadMonitor": {
     "title": "Downloads",
     "close": "Close downloads",
-    "completed": "Completed"
+    "completed": "Completed",
+    "javaRuntime": "Java runtime",
+    "gameFiles": "Minecraft files",
+    "progress": "Download progress",
+    "preparing": "Preparing download queue…",
+    "files": "{{completed}} / {{total}} files"
   },
   "instances": {
     "title": "Instances",

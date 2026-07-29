@@ -22,6 +22,7 @@ import type {
   JavaDownloadInfo,
   JavaInstallation,
   LauncherConfig,
+  LaunchReadiness,
   Message,
   MigrationResult,
   ModelInfo,
@@ -266,6 +267,16 @@ export function getGithubReleases(): Promise<GithubRelease[]> {
 export function getInstance(instanceId: string): Promise<Instance> {
   return invoke<Instance>("get_instance", {
     instanceId,
+  });
+}
+
+export function getLaunchReadiness(
+  instanceId: string,
+  versionId: string,
+): Promise<LaunchReadiness> {
+  return invoke<LaunchReadiness>("get_launch_readiness", {
+    instanceId,
+    versionId,
   });
 }
 

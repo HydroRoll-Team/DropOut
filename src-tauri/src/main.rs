@@ -2208,6 +2208,19 @@ struct VersionMetadata {
     is_installed: bool,
 }
 
+/// The launch-critical checks used by the home command center.
+///
+/// Java resolution intentionally reuses the same priority and compatibility
+/// rules as `start_game`, so the UI cannot report a false-ready state.
+#[derive(serde::Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "core.ts")]
+struct LaunchReadiness {
+    version_installed: bool,
+    required_java_major: Option<u64>,
+    java: Option<core::java::JavaInstallation>,
+}
+
 /// Delete a version (remove version directory)
 #[tauri::command]
 #[dropout_macros::api]
@@ -2330,6 +2343,60 @@ async fn get_version_metadata(
     }
 
     Ok(metadata)
+}
+
+/// Resolve the files and Java runtime required by an instance before launch.
+#[tauri::command]
+#[dropout_macros::api]
+async fn get_launch_readiness(
+    window: Window,
+    config_state: State<'_, core::config::ConfigState>,
+    instance_state: State<'_, core::instance::InstanceState>,
+    instance_id: String,
+    version_id: String,
+) -> Result<LaunchReadiness, String> {
+    let config = config_state.config.lock().unwrap().clone();
+    let instance = instance_state
+        .get_instance(&instance_id)
+        .ok_or_else(|| format!("Instance {} not found", instance_id))?;
+    let resolved_paths =
+        instance_state.resolve_paths(&instance_id, &config, &window.app_handle())?;
+    let minecraft_version = resolve_minecraft_version(&version_id);
+
+    let version_json = resolved_paths
+        .metadata_versions
+        .join(&version_id)
+        .join(format!("{}.json", version_id));
+    let client_jar = resolved_paths
+        .version_cache
+        .join(&minecraft_version)
+        .join(format!("{}.jar", minecraft_version));
+    let loaded_version = if version_json.exists() {
+        core::manifest::load_version(&resolved_paths.root, &version_id)
+            .await
+            .ok()
+    } else {
+        None
+    };
+    let version_installed =
+        version_json.exists() && client_jar.exists() && loaded_version.is_some();
+    let required_java_major =
+        loaded_version.and_then(|version| version.java_version.map(|java| java.major_version));
+
+    let java = resolve_java_path(
+        &config,
+        &instance,
+        required_java_major,
+        &window.app_handle(),
+    )
+    .await
+    .ok();
+
+    Ok(LaunchReadiness {
+        version_installed,
+        required_java_major,
+        java,
+    })
 }
 
 /// Installed version info
@@ -3479,6 +3546,7 @@ fn main() {
             list_installed_versions,
             get_version_java_version,
             get_version_metadata,
+            get_launch_readiness,
             delete_version,
             login_offline,
             get_active_account,

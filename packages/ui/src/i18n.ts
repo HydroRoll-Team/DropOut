@@ -33,13 +33,15 @@ i18n.use(initReactI18next).init({
  * `language` config changes.
  */
 export function setLanguage(lang: string) {
-  if (lang === "auto") {
-    i18n.changeLanguage(detectLanguage());
-  } else if (resources[lang as keyof typeof resources]) {
-    i18n.changeLanguage(lang);
-  } else {
-    i18n.changeLanguage("en");
-  }
+  const nextLanguage =
+    lang === "auto"
+      ? detectLanguage()
+      : resources[lang as keyof typeof resources]
+        ? lang
+        : "en";
+
+  document.documentElement.lang = nextLanguage;
+  void i18n.changeLanguage(nextLanguage);
 }
 
 export default i18n;

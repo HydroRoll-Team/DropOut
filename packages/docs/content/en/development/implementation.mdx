@@ -120,6 +120,17 @@ For 1.17+ versions and high-load mod environments, DropOut injects a concise G1G
 -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC 
 ```
 
+### 3.3 Launch Readiness and Recovery APIs
+
+The home command center calls `get_launch_readiness(instance_id, version_id)` before enabling launch. The command checks the version metadata/client files and calls the same Java resolver used by `start_game` (instance override → global path → preferred managed runtime → automatic detection). This keeps the displayed Java result and the real launch decision consistent.
+
+| Command / Event | Type | Purpose |
+| :--- | :--- | :--- |
+| `get_launch_readiness` | Invoke | Return installed-file state, required Java major version, and the resolved compatible runtime |
+| `download-start` / `download-progress` / `download-complete` | Event | Drive the live aggregate download card |
+| `launcher-log` / `game-stdout` / `game-stderr` | Event | Preserve recent launch and game output for recovery |
+| `game-exited` | Event | Distinguish stopped, clean exit, and failed session states |
+
 ---
 
 ## 4. Mod Loader Mechanism

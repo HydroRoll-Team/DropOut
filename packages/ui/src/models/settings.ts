@@ -7,6 +7,8 @@ import type { LauncherConfig } from "@/types";
 export interface SettingsState {
   config: LauncherConfig | null;
   configPath: string | null;
+  status: "idle" | "loading" | "ready" | "error";
+  error: string | null;
 
   /* Theme getter */
   get theme(): string;
@@ -26,6 +28,8 @@ export interface SettingsState {
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   config: null,
   configPath: null,
+  status: "idle",
+  error: null,
 
   get theme() {
     const { config } = get();
@@ -49,10 +53,16 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
   refresh: async () => {
     const { applyTheme } = get();
+    set({ status: "loading", error: null });
     try {
       const settings = await getSettings();
       const path = await getConfigPath();
-      set({ config: settings, configPath: path });
+      set({
+        config: settings,
+        configPath: path,
+        status: "ready",
+        error: null,
+      });
       applyTheme(settings.theme);
       // Apply language from config
       if (settings.language) {
@@ -60,6 +70,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       }
     } catch (error) {
       console.error("Failed to load settings:", error);
+      set({
+        status: "error",
+        error: error instanceof Error ? error.message : String(error),
+      });
       toast.error("Failed to load settings");
     }
   },

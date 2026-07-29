@@ -120,6 +120,17 @@ fn check_java_installation(path: &PathBuf) -> Option<JavaInstallation> {
 -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC 
 ```
 
+### 3.3 启动就绪与恢复接口
+
+首页指挥台会在启用启动操作前调用 `get_launch_readiness(instance_id, version_id)`。该命令检查版本元数据和客户端文件，并调用与 `start_game` 相同的 Java 解析器（实例覆盖 → 全局路径 → 首选托管运行时 → 自动检测），确保页面显示的 Java 结果与真实启动判断一致。
+
+| 命令 / 事件 | 类型 | 用途 |
+| :--- | :--- | :--- |
+| `get_launch_readiness` | Invoke | 返回文件安装状态、所需 Java 主版本和已解析的兼容运行时 |
+| `download-start` / `download-progress` / `download-complete` | Event | 驱动实时汇总下载卡片 |
+| `launcher-log` / `game-stdout` / `game-stderr` | Event | 保留最近的启动和游戏输出，用于失败恢复 |
+| `game-exited` | Event | 区分主动停止、正常退出和失败会话 |
+
 ---
 
 ## 4. 模组加载机制 (Mod Loaders)

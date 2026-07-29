@@ -1,5 +1,6 @@
 import type { EventCallback, UnlistenFn } from "@tauri-apps/api/event";
 import {
+  getLauncherFixtureLocale,
   getLauncherFixtureName,
   getLauncherFixtureTheme,
 } from "@/lib/launcher-runtime";
@@ -13,9 +14,14 @@ import type {
   JavaCatalog,
   JavaInstallation,
   LauncherConfig,
+  LaunchReadiness,
   Version,
 } from "@/types";
 import type { GameExitedEvent } from "@/types/bindings/core";
+import type {
+  JavaDownloadProgress,
+  ProgressEvent,
+} from "@/types/bindings/downloader";
 
 const account: Account = {
   type: "microsoft",
@@ -198,8 +204,9 @@ const fixtureState: FixtureState = {
 
 function fixturesForCurrentScenario() {
   const name = getLauncherFixtureName() ?? "ready";
-  const empty = name === "empty";
-  const instances = empty ? [] : [readyInstance, vanillaInstance];
+  const noAccount = name === "empty" || name === "no-account";
+  const noInstances = name === "empty" || name === "no-instance";
+  const instances = noInstances ? [] : [readyInstance, vanillaInstance];
   const activeInstance =
     instances.find(
       (instance) => instance.id === fixtureState.activeInstanceId,
@@ -209,8 +216,8 @@ function fixturesForCurrentScenario() {
 
   return {
     name,
-    account: empty ? null : account,
-    accounts: empty ? [] : [accountSummary],
+    account: noAccount ? null : account,
+    accounts: noAccount ? [] : [accountSummary],
     instances,
     activeInstance,
   };
@@ -231,6 +238,23 @@ export async function fixtureListen<T>(
   const eventListeners = listeners.get(eventName) ?? new Set();
   eventListeners.add(handler as EventCallback<unknown>);
   listeners.set(eventName, eventListeners);
+
+  if (
+    getLauncherFixtureName() === "java-download-progress" &&
+    eventName === "java-download-progress"
+  ) {
+    queueMicrotask(() => {
+      emitFixtureEvent<JavaDownloadProgress>("java-download-progress", {
+        fileName: "OpenJDK21U-jre_aarch64_mac_hotspot_21.0.7_6.tar.gz",
+        downloadedBytes: 1_610_612_736n,
+        totalBytes: 2_147_483_648n,
+        speedBytesPerSec: 33_554_432n,
+        etaSeconds: 16n,
+        status: "Verifying",
+        percentage: 125,
+      });
+    });
+  }
 
   return () => {
     eventListeners.delete(handler as EventCallback<unknown>);
@@ -267,11 +291,19 @@ export async function fixtureInvoke<T>(
         return {
           ...fixtureState.settings,
           theme: getLauncherFixtureTheme() ?? fixtureState.settings.theme,
+          language:
+            getLauncherFixtureLocale() ?? fixtureState.settings.language,
         };
       case "list_instances":
         return fixture.instances;
       case "get_versions":
         return versions;
+      case "get_launch_readiness":
+        return {
+          versionInstalled: fixture.name !== "downloading",
+          requiredJavaMajor: 21n,
+          java: fixture.name === "not-ready" ? null : javaInstallations[0],
+        } satisfies LaunchReadiness;
       case "detect_launchers":
         return fixture.name === "migration" ? detectedLaunchers : [];
       case "scan_launcher_instances":
@@ -306,6 +338,22 @@ export async function fixtureInvoke<T>(
         return undefined;
       case "start_game":
         return `Fixture: started Minecraft ${String(args.versionId)}`;
+      case "install_version": {
+        emitFixtureEvent<number>("download-start", 4);
+        emitFixtureEvent<ProgressEvent>("download-progress", {
+          file: "client-1.21.1.jar",
+          downloaded: 64n,
+          total: 128n,
+          status: "Downloading",
+          completedFiles: 2,
+          totalFiles: 4,
+          totalDownloadedBytes: 192n,
+        });
+        emitFixtureEvent<void>("download-complete", undefined);
+        return undefined;
+      }
+      case "open_file_explorer":
+        return undefined;
       case "stop_game": {
         const active = fixturesForCurrentScenario().activeInstance;
         queueMicrotask(() => {

@@ -16,20 +16,30 @@ Open a fixture with query parameters before the hash route:
 ```text
 http://127.0.0.1:1420/?fixture=ready&theme=dark#/
 http://127.0.0.1:1420/?fixture=migration&theme=light#/instances/import
+http://127.0.0.1:1420/?fixture=failed&theme=dark&locale=zh-CN#/
 ```
 
 Available fixture states are:
 
 | Fixture | Purpose |
 |---|---|
-| `empty` | No account or instances |
-| `ready` | Account, active Fabric instance, versions, Java, and settings |
-| `downloading` | Stable active-download presentation |
-| `running` | Active game process and stop action |
+| `empty` | Legacy combined empty state |
+| `no-account` | Instance exists but authentication blocks launch |
+| `no-instance` | Account exists but no instance has been created or imported |
+| `not-ready` | Active instance has no compatible Java runtime |
+| `ready` | All account, instance, version, Java, memory, and file checks pass |
+| `downloading` | Live game-file progress in the home command center |
+| `java-download-progress` | Java runtime event progress with bounded percentage and byte formatting |
+| `launching` | Launch command is assembling the runtime and process |
+| `running` | Active game process with the stop action |
+| `stopped` | Cleanly ended session with retained logs and relaunch action |
+| `failed` | Failed session with captured diagnostic output |
 | `error` | Instance-index failure and recovery feedback |
 | `migration` | Detected Prism/MultiMC and PCL/HMCL import sources |
 
-Use `theme=dark` or `theme=light`. Fixture activation is guarded by `import.meta.env.DEV`; production builds ignore fixture parameters and continue to call Tauri directly.
+Use `theme=dark` or `theme=light`, and `locale=en` or `locale=zh-CN`. Fixture activation is guarded by `import.meta.env.DEV`; production builds ignore fixture parameters and continue to call Tauri directly.
+
+The home command center does not infer readiness from frontend configuration alone. `get_launch_readiness` reuses the backend's real Java priority and compatibility rules, while `download-start`, `download-progress`, `download-complete`, `launcher-log`, `game-stdout`, `game-stderr`, and `game-exited` events keep progress and recovery details live.
 
 ## Regression Tests
 
@@ -40,7 +50,7 @@ pnpm -C packages/ui exec playwright install chromium
 pnpm -C packages/ui test:ui
 ```
 
-The suite verifies both supported launcher window sizes (`1024x768` and `905x575`), both themes, deterministic screenshots, accessible names/image alternatives/unique IDs on critical routes, and a keyboard-only launch flow. Import and raw-config editor surfaces have independent lazy routes so their heavier dependencies do not inflate the initial route.
+The suite verifies both supported launcher window sizes (`1024x768` and `905x575`), both themes, every launch/recovery state, deterministic screenshots, English and Chinese rendering, reduced motion, accessible names/image alternatives/unique IDs on critical routes, and keyboard-only navigation and launch flows. Import and raw-config editor surfaces have independent lazy routes so their heavier dependencies do not inflate the initial route.
 
 When an intentional visual change has been reviewed at both window sizes, update and inspect the baselines before committing them:
 
