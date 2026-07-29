@@ -48,9 +48,7 @@ When an intentional visual change has been reviewed at both window sizes, update
 pnpm -C packages/ui test:ui:update
 ```
 
-Screenshots live under `tests/__screenshots__/`. Never update a baseline merely to silence an unexplained diff.
-
-The Latin UI font is bundled under `src/assets/fonts/` to keep browser rendering consistent across CI platforms. Inter remains covered by the included SIL Open Font License 1.1.
+Screenshots live under platform-specific folders in `tests/__screenshots__/`. Never update a baseline merely to silence an unexplained diff.
 
 ## Extending Fixtures
 

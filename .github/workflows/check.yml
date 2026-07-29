@@ -51,5 +51,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ui-regression-diagnostics
-          path: packages/ui/test-results
+          path: |
+            packages/ui/test-results
+            packages/ui/tests/__screenshots__/linux
           retention-days: 7

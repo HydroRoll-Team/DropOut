@@ -7,9 +7,10 @@ export default defineConfig({
   fullyParallel: true,
   workers: 1,
   forbidOnly: Boolean(process.env.CI),
-  retries: process.env.CI ? 2 : 0,
+  retries: 0,
   reporter: "list",
-  snapshotPathTemplate: "{testDir}/__screenshots__/{projectName}/{arg}{ext}",
+  snapshotPathTemplate:
+    "{testDir}/__screenshots__/{platform}/{projectName}/{arg}{ext}",
   use: {
     baseURL: `http://127.0.0.1:${port}`,
     colorScheme: "dark",
