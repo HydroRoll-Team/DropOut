@@ -50,6 +50,8 @@ pnpm -C packages/ui test:ui:update
 
 Screenshots live under `tests/__screenshots__/`. Never update a baseline merely to silence an unexplained diff.
 
+The Latin UI font is bundled under `src/assets/fonts/` to keep browser rendering consistent across CI platforms. Inter remains covered by the included SIL Open Font License 1.1.
+
 ## Extending Fixtures
 
 Add Tauri command responses to `src/fixtures/launcher.ts` and use the wrapper in `src/lib/launcher-runtime.ts`. Do not import fixture functions into feature code that can bypass the development guard. A new critical state should include:
