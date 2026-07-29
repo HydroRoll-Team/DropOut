@@ -55,3 +55,11 @@ jobs:
             packages/ui/test-results
             packages/ui/tests/__screenshots__/linux
           retention-days: 7
+
+      - name: Upload Linux baseline candidates
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-linux-baseline-candidates
+          path: packages/ui/tests/__screenshots__/linux
+          retention-days: 1
