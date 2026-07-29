@@ -53,9 +53,9 @@ export function HomePage() {
   return (
     <div className="relative z-10 h-full overflow-y-auto custom-scrollbar scroll-smooth">
       {/* Hero Section (Full Height) - Interactive area */}
-      <fieldset
+      <section
         aria-label={t("home.launcherActive")}
-        className="min-h-full flex flex-col justify-end p-12 pb-32 cursor-grab active:cursor-grabbing select-none"
+        className="min-h-full flex flex-col justify-start p-12 pb-32 cursor-grab active:cursor-grabbing select-none"
         onMouseDown={handleSaturnMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleSaturnMouseUp}
@@ -97,7 +97,7 @@ export function HomePage() {
         </div>
 
         <BottomBar />
-      </fieldset>
+      </section>
     </div>
   );
 }

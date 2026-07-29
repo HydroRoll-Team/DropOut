@@ -49,6 +49,11 @@
     "noVersion": "No version selected",
     "selectFirst": "Please select an instance first!"
   },
+  "downloadMonitor": {
+    "title": "Downloads",
+    "close": "Close downloads",
+    "completed": "Completed"
+  },
   "instances": {
     "title": "Instances",
     "create": "Create Instance",

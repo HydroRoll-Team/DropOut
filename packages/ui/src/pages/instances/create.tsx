@@ -638,17 +638,28 @@ export function CreateInstancePage() {
       >
         {stepper.state.all.map((step, idx) => {
           const current = stepper.state.current;
+          const currentIndex = stepper.lookup.getIndex(current.data.id);
           const isInactive = stepper.state.current.data.id !== step.id;
           const isLast = stepper.lookup.getLast().id === step.id;
+          const canNavigate = idx <= currentIndex && !isCreating;
           return (
             <li
               key={`stepper-item-${step.id}`}
               className={cn("flex items-center", !isLast && "flex-1")}
               aria-current={isInactive ? undefined : "step"}
             >
-              <span
+              <button
+                type="button"
+                disabled={!canNavigate}
+                onClick={() => {
+                  void stepper.navigation.goTo(step.id);
+                }}
                 className={cn(
                   "flex size-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  canNavigate
+                    ? "cursor-pointer"
+                    : "cursor-not-allowed opacity-60",
                   isInactive
                     ? "border-border bg-secondary text-secondary-foreground"
                     : "border-primary bg-primary text-primary-foreground",
@@ -656,13 +667,13 @@ export function CreateInstancePage() {
               >
                 <span className="sr-only">{step.title}: </span>
                 {idx + 1}
-              </span>
+              </button>
               {!isLast && (
                 <span
                   aria-hidden="true"
                   className={cn(
                     "mx-2 h-0.5 w-full bg-muted",
-                    current.status === "success" && "bg-primary",
+                    idx < currentIndex && "bg-primary",
                     "transition-all duration-300 ease-in-out",
                   )}
                 />

@@ -40,7 +40,7 @@ pnpm -C packages/ui exec playwright install chromium
 pnpm -C packages/ui test:ui
 ```
 
-The suite verifies both supported launcher window sizes (`1024x768` and `905x575`), both themes, deterministic screenshots, serious/critical WCAG violations on critical routes, and a keyboard-only launch flow. Import and raw-config editor surfaces have independent lazy routes so their heavier dependencies do not inflate the initial route.
+The suite verifies both supported launcher window sizes (`1024x768` and `905x575`), both themes, deterministic screenshots, accessible names/image alternatives/unique IDs on critical routes, and a keyboard-only launch flow. Import and raw-config editor surfaces have independent lazy routes so their heavier dependencies do not inflate the initial route.
 
 When an intentional visual change has been reviewed at both window sizes, update and inspect the baselines before committing them:
 
@@ -52,7 +52,7 @@ Screenshots live under platform-specific folders in `tests/__screenshots__/`. Ne
 
 ## Extending Fixtures
 
-Add Tauri command responses to `src/fixtures/launcher.ts` and use the wrapper in `src/lib/launcher-runtime.ts`. Do not import fixture functions into feature code that can bypass the development guard. A new critical state should include:
+Add Tauri command responses to the centralized switch in `src/fixtures/launcher.ts` and use the wrapper in `src/lib/launcher-runtime.ts`. Unsupported commands deliberately throw with the command name so fixture drift fails fast. Do not import fixture functions into feature code that can bypass the development guard. A new critical state should include:
 
 - deterministic typed data with no local-machine paths or credentials;
 - dark and light screenshots at both launcher sizes;

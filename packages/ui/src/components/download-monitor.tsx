@@ -1,8 +1,10 @@
 import { X } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export function DownloadMonitor() {
   const [isVisible, setIsVisible] = useState(true);
+  const { t } = useTranslation();
 
   if (!isVisible) return null;
 
@@ -12,11 +14,13 @@ export function DownloadMonitor() {
       <div className="flex items-center justify-between px-4 py-3 bg-muted/50 border-b border-border">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-          <span className="text-sm font-medium text-foreground">Downloads</span>
+          <span className="text-sm font-medium text-foreground">
+            {t("downloadMonitor.title")}
+          </span>
         </div>
         <button
           type="button"
-          aria-label="Close downloads"
+          aria-label={t("downloadMonitor.close")}
           onClick={() => setIsVisible(false)}
           className="text-muted-foreground hover:text-foreground transition-colors p-1"
         >
@@ -55,7 +59,7 @@ export function DownloadMonitor() {
               <div className="h-full bg-emerald-500 rounded-full"></div>
             </div>
             <div className="text-[10px] text-emerald-700 dark:text-emerald-400">
-              Completed
+              {t("downloadMonitor.completed")}
             </div>
           </div>
         </div>

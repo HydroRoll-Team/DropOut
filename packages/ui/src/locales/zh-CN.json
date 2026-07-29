@@ -49,6 +49,11 @@
     "noVersion": "未选择版本",
     "selectFirst": "请先选择一个实例！"
   },
+  "downloadMonitor": {
+    "title": "下载任务",
+    "close": "关闭下载任务",
+    "completed": "已完成"
+  },
   "instances": {
     "title": "实例管理",
     "create": "创建实例",

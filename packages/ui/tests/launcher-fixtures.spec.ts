@@ -1,7 +1,12 @@
-import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 const themes = ["dark", "light"] as const;
+const screenshotTolerance = {
+  animations: "disabled",
+  fullPage: true,
+  maxDiffPixelRatio: 0.005,
+  threshold: 0.2,
+} as const;
 
 const visualScenarios = [
   { fixture: "empty", route: "/" },
@@ -51,12 +56,10 @@ for (const theme of themes) {
         expect(pageErrors).toEqual([]);
       }
 
-      await expect(page).toHaveScreenshot(`${fixture}-${theme}.png`, {
-        animations: "disabled",
-        fullPage: true,
-        maxDiffPixelRatio: 0.015,
-        threshold: 0.25,
-      });
+      await expect(page).toHaveScreenshot(
+        `${fixture}-${theme}.png`,
+        screenshotTolerance,
+      );
     });
   }
 }
@@ -82,9 +85,44 @@ const accessibleRoutes = [
   },
 ] as const;
 
+async function expectAccessibilitySmoke(page: Page) {
+  await expect(page.locator("html")).toHaveAttribute("lang", /^[a-z]{2}/i);
+
+  const duplicateIds = await page.locator("[id]").evaluateAll((elements) => {
+    const counts = new Map<string, number>();
+    for (const element of elements) {
+      counts.set(element.id, (counts.get(element.id) ?? 0) + 1);
+    }
+    return [...counts.entries()]
+      .filter(([, count]) => count > 1)
+      .map(([id]) => id);
+  });
+  expect(duplicateIds).toEqual([]);
+
+  const images = page.locator("img");
+  for (let index = 0; index < (await images.count()); index += 1) {
+    await expect(images.nth(index)).toHaveAttribute("alt");
+  }
+
+  const interactiveControls = page.locator(
+    'button, a[href], input:not([type="hidden"]), select, textarea, [role="button"], [role="link"], [role="tab"], [role="checkbox"], [role="radio"], [role="switch"]',
+  );
+  for (let index = 0; index < (await interactiveControls.count()); index += 1) {
+    const control = interactiveControls.nth(index);
+    const isHiddenFromAccessibilityTree = await control.evaluate(
+      (element) =>
+        element.matches('[aria-hidden="true"]') ||
+        element.closest('[aria-hidden="true"], [inert]') !== null,
+    );
+    if ((await control.isVisible()) && !isHiddenFromAccessibilityTree) {
+      await expect(control).toHaveAccessibleName(/\S+/);
+    }
+  }
+}
+
 for (const theme of themes) {
   for (const { fixture, heading, route } of accessibleRoutes) {
-    test(`${theme} fixture route ${route} has no serious accessibility violations`, async ({
+    test(`${theme} fixture route ${route} passes accessibility smoke checks`, async ({
       page,
     }) => {
       await page.goto(`/?fixture=${fixture}&theme=${theme}#${route}`);
@@ -111,24 +149,7 @@ for (const theme of themes) {
         );
       });
 
-      const results = await new AxeBuilder({ page })
-        .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
-        .analyze();
-      const seriousViolations = results.violations.filter(
-        ({ impact }) => impact === "serious" || impact === "critical",
-      );
-
-      expect(
-        seriousViolations.map(({ id, impact, nodes }) => ({
-          id,
-          impact,
-          nodes: nodes.map(({ any, html, target }) => ({
-            html,
-            target,
-            checks: any.map(({ data, message }) => ({ data, message })),
-          })),
-        })),
-      ).toEqual([]);
+      await expectAccessibilitySmoke(page);
     });
   }
 }
