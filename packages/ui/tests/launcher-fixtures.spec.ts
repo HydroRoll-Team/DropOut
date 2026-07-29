@@ -9,16 +9,25 @@ const screenshotTolerance = {
 } as const;
 
 const visualScenarios = [
-  { fixture: "empty", route: "/" },
-  { fixture: "ready", route: "/" },
-  { fixture: "downloading", route: "/" },
-  { fixture: "running", route: "/" },
-  { fixture: "error", route: "/" },
-  { fixture: "migration", route: "/instances/import" },
+  { fixture: "no-account", route: "/", heading: "Sign in to continue" },
+  { fixture: "no-instance", route: "/", heading: "Choose what to play" },
+  { fixture: "not-ready", route: "/", heading: "Compatible Java required" },
+  { fixture: "ready", route: "/", heading: "Copper Valley is ready" },
+  { fixture: "downloading", route: "/", heading: "Preparing Copper Valley" },
+  { fixture: "launching", route: "/", heading: "Starting Copper Valley" },
+  { fixture: "running", route: "/", heading: "Copper Valley is running" },
+  { fixture: "stopped", route: "/", heading: "Copper Valley stopped" },
+  { fixture: "failed", route: "/", heading: "Copper Valley needs recovery" },
+  { fixture: "error", route: "/", heading: "Readiness check interrupted" },
+  {
+    fixture: "migration",
+    route: "/instances/import",
+    heading: "Import from another launcher",
+  },
 ] as const;
 
 for (const theme of themes) {
-  for (const { fixture, route } of visualScenarios) {
+  for (const { fixture, heading, route } of visualScenarios) {
     test(`${fixture} launcher fixture is deterministic in ${theme} mode`, async ({
       page,
     }) => {
@@ -35,15 +44,10 @@ for (const theme of themes) {
         theme,
       );
 
+      await expect(page.getByRole("heading", { name: heading })).toBeVisible();
+
       if (fixture === "migration") {
-        await expect(
-          page.getByRole("heading", { name: "Import from another launcher" }),
-        ).toBeVisible();
         await expect(page.getByText("MultiMC compatible")).toBeVisible();
-      } else {
-        await expect(
-          page.getByRole("heading", { name: "MINECRAFT" }),
-        ).toBeVisible();
       }
 
       if (fixture === "downloading") {
@@ -52,9 +56,7 @@ for (const theme of themes) {
 
       await page.evaluate(() => document.fonts.ready);
 
-      if (fixture !== "error") {
-        expect(pageErrors).toEqual([]);
-      }
+      expect(pageErrors).toEqual([]);
 
       await expect(page).toHaveScreenshot(
         `${fixture}-${theme}.png`,
@@ -65,7 +67,7 @@ for (const theme of themes) {
 }
 
 const accessibleRoutes = [
-  { fixture: "ready", route: "/", heading: "MINECRAFT" },
+  { fixture: "ready", route: "/", heading: "Copper Valley is ready" },
   { fixture: "ready", route: "/instances", heading: "Instances" },
   {
     fixture: "ready",
@@ -156,7 +158,9 @@ for (const theme of themes) {
 
 test("primary launcher flow is keyboard operable", async ({ page }) => {
   await page.goto("/?fixture=ready&theme=dark#/");
-  await expect(page.getByRole("heading", { name: "MINECRAFT" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Copper Valley is ready" }),
+  ).toBeVisible();
 
   const tabTo = async (target: ReturnType<typeof page.getByRole>) => {
     for (let index = 0; index < 10; index += 1) {
@@ -185,4 +189,67 @@ test("primary launcher flow is keyboard operable", async ({ page }) => {
   await tabTo(backButton);
   await page.keyboard.press("Enter");
   await expect(page.getByRole("heading", { name: "Instances" })).toBeVisible();
+});
+
+test("home primary action follows launcher recovery state", async ({
+  page,
+}) => {
+  await page.goto("/?fixture=no-account&theme=dark#/");
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByRole("heading", { name: "Login" })).toBeVisible();
+
+  await page.goto("/?fixture=no-instance&theme=dark#/");
+  await page.getByRole("button", { name: "Create or import" }).click();
+  await expect(page.getByRole("heading", { name: "Instances" })).toBeVisible();
+
+  await page.goto("/?fixture=not-ready&theme=dark#/");
+  await page.getByRole("button", { name: "Repair Java" }).click();
+  await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+});
+
+test("home launch and stop actions follow the game lifecycle", async ({
+  page,
+}) => {
+  await page.goto("/?fixture=ready&theme=dark#/");
+  await page.getByRole("button", { name: "Launch", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Copper Valley is running" }),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Stop game" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Copper Valley stopped" }),
+  ).toBeVisible();
+});
+
+test("download and failure states expose actionable diagnostics", async ({
+  page,
+}) => {
+  await page.goto("/?fixture=downloading&theme=dark#/");
+  await expect(
+    page.getByRole("progressbar", { name: "Download progress" }),
+  ).toHaveAttribute("aria-valuenow", "65");
+  await page.getByRole("button", { name: "Track download" }).click();
+  await expect(page.locator("#download-monitor")).toBeFocused();
+
+  await page.goto("/?fixture=failed&theme=dark#/");
+  await page.getByRole("button", { name: "Inspect failure" }).click();
+  await expect(page.getByText("Process exited with code 1")).toBeVisible();
+  await expect(
+    page.locator('section[aria-labelledby="activity-title"]'),
+  ).toBeFocused();
+});
+
+test("home supports Chinese and reduced motion", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/?fixture=ready&theme=dark&locale=zh-CN#/");
+
+  await expect(page.locator("html")).toHaveAttribute("lang", "zh-CN");
+  await expect(
+    page.getByRole("heading", { name: "Copper Valley 已就绪" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "启动", exact: true }),
+  ).toBeVisible();
+  await expectAccessibilitySmoke(page);
 });

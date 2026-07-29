@@ -23,6 +23,8 @@ function getAuthErrorMessage(error: unknown): string {
 export interface AuthState {
   account: Account | null;
   accounts: AccountSummary[];
+  status: "idle" | "loading" | "ready" | "error";
+  error: string | null;
   loginMode: Account["type"] | null;
   deviceCode: DeviceCodeResponse | null;
   _pollingInterval: number | null;
@@ -48,6 +50,8 @@ export interface AuthState {
 export const useAuthStore = create<AuthState>((set, get) => ({
   account: null,
   accounts: [],
+  status: "idle",
+  error: null,
   loginMode: null,
   deviceCode: null,
   _pollingInterval: null,
@@ -56,14 +60,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   _mutex: new Mutex(),
 
   init: async () => {
+    set({ status: "loading", error: null });
     try {
       const [account, accounts] = await Promise.all([
         getActiveAccount(),
         getAllAccounts(),
       ]);
-      set({ account, accounts });
+      set({ account, accounts, status: "ready", error: null });
     } catch (error) {
       console.error("Failed to initialize auth store:", error);
+      set({ status: "error", error: getAuthErrorMessage(error) });
     }
   },
   setLoginMode: (mode) => set({ loginMode: mode }),
@@ -186,7 +192,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     try {
       const account = await loginOffline(trimmedUsername);
-      set({ account, loginMode: "offline" });
+      set({ account, loginMode: "offline", status: "ready", error: null });
       get().refreshAccounts();
     } catch (error) {
       console.error("Failed to login offline:", error);
@@ -196,7 +202,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: async () => {
     try {
       await logout();
-      set({ account: null });
+      set({ account: null, status: "ready", error: null });
       get().refreshAccounts();
     } catch (error) {
       console.error("Failed to logout:", error);
@@ -214,7 +220,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   switchAccount: async (uuid: string) => {
     try {
       const account = await switchAccountApi(uuid);
-      set({ account });
+      set({ account, status: "ready", error: null });
       get().refreshAccounts();
       toast.success(`Switched to ${account.username}`);
     } catch (error) {

@@ -27,7 +27,9 @@ pub fn export_api_bindings(import_from: &str, export_to: &str) {
     sort_api_infos(&mut api_infos);
 
     let mut ts_lines = Vec::new();
-    ts_lines.push(r#"import { invoke } from "@tauri-apps/api/core""#.to_string());
+    // Keep generated clients behind the runtime adapter so the same API works
+    // in Tauri production builds and deterministic browser fixtures.
+    ts_lines.push(r#"import { invoke } from "@/lib/launcher-runtime""#.to_string());
 
     let mut import_types: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
     let mut ts_funcs = Vec::new();

@@ -1,69 +1,101 @@
-import { X } from "lucide-react";
-import { useState } from "react";
+import { Download, FileDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { cn } from "@/lib/utils";
+import { useDownloadStore } from "@/models/downloads";
 
-export function DownloadMonitor() {
-  const [isVisible, setIsVisible] = useState(true);
+function formatBytes(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return "—";
+  const units = ["B", "KB", "MB", "GB"];
+  const unit = Math.min(
+    Math.floor(Math.log(value) / Math.log(1024)),
+    units.length - 1,
+  );
+  return `${(value / 1024 ** unit).toFixed(unit > 1 ? 1 : 0)} ${units[unit]}`;
+}
+
+export function DownloadMonitor({ className }: { className?: string }) {
   const { t } = useTranslation();
+  const download = useDownloadStore();
 
-  if (!isVisible) return null;
+  if (!download.active && download.totalFiles === 0) return null;
+
+  const percentage = Math.round(download.percentage);
 
   return (
-    <div className="bg-card/95 backdrop-blur-md border border-border rounded-lg shadow-2xl overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-muted/50 border-b border-border">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-          <span className="text-sm font-medium text-foreground">
-            {t("downloadMonitor.title")}
+    <section
+      id="download-monitor"
+      tabIndex={-1}
+      aria-labelledby="download-monitor-title"
+      aria-live="polite"
+      className={cn(
+        "border-border/80 bg-card/90 focus-visible:ring-ring overflow-hidden border shadow-sm backdrop-blur-xl focus-visible:ring-2 focus-visible:outline-none",
+        className,
+      )}
+      data-testid="download-monitor"
+    >
+      <div className="border-border/70 flex items-center justify-between border-b px-3 py-2.5">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="bg-primary/10 text-primary flex size-7 shrink-0 items-center justify-center rounded-md">
+            <Download className="size-3.5" aria-hidden="true" />
           </span>
+          <div className="min-w-0">
+            <h2 id="download-monitor-title" className="text-xs font-semibold">
+              {t("downloadMonitor.title")}
+            </h2>
+            <p className="text-muted-foreground truncate text-[10px]">
+              {download.kind === "java"
+                ? t("downloadMonitor.javaRuntime")
+                : t("downloadMonitor.gameFiles")}
+            </p>
+          </div>
         </div>
-        <button
-          type="button"
-          aria-label={t("downloadMonitor.close")}
-          onClick={() => setIsVisible(false)}
-          className="text-muted-foreground hover:text-foreground transition-colors p-1"
+        <span className="text-primary font-mono text-xs font-bold">
+          {percentage}%
+        </span>
+      </div>
+
+      <div className="space-y-3 p-3">
+        <div
+          className="bg-muted h-1.5 overflow-hidden rounded-full"
+          role="progressbar"
+          aria-label={t("downloadMonitor.progress")}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={percentage}
         >
-          <X size={16} />
-        </button>
-      </div>
+          <div
+            className="bg-primary h-full rounded-full transition-[width] duration-300 motion-reduce:transition-none"
+            style={{ width: `${percentage}%` }}
+          />
+        </div>
 
-      {/* Content */}
-      <div className="p-4">
-        <div className="space-y-3">
-          {/* Download Item */}
-          <div className="space-y-1">
-            <div className="flex justify-between text-xs">
-              <span className="text-foreground">Minecraft 1.20.4</span>
-              <span className="text-muted-foreground">65%</span>
-            </div>
-            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full bg-emerald-500 rounded-full transition-all duration-300"
-                style={{ width: "65%" }}
-              ></div>
-            </div>
-            <div className="flex justify-between text-[10px] text-muted-foreground">
-              <span>142 MB / 218 MB</span>
-              <span>2.1 MB/s • 36s remaining</span>
-            </div>
-          </div>
-
-          {/* Download Item */}
-          <div className="space-y-1">
-            <div className="flex justify-between text-xs">
-              <span className="text-foreground">Java 17</span>
-              <span className="text-muted-foreground">100%</span>
-            </div>
-            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-              <div className="h-full bg-emerald-500 rounded-full"></div>
-            </div>
-            <div className="text-[10px] text-emerald-700 dark:text-emerald-400">
-              {t("downloadMonitor.completed")}
+        <div className="flex items-start gap-2">
+          <FileDown
+            className="text-muted-foreground mt-0.5 size-3.5 shrink-0"
+            aria-hidden="true"
+          />
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-mono text-[11px]">
+              {download.currentFile ?? t("downloadMonitor.preparing")}
+            </p>
+            <div className="text-muted-foreground mt-1 flex justify-between gap-2 text-[10px]">
+              <span>
+                {download.totalFiles > 0
+                  ? t("downloadMonitor.files", {
+                      completed: download.completedFiles,
+                      total: download.totalFiles,
+                    })
+                  : download.status}
+              </span>
+              <span>
+                {download.totalBytes > 0
+                  ? `${formatBytes(download.downloadedBytes)} / ${formatBytes(download.totalBytes)}`
+                  : download.status}
+              </span>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 }

@@ -9,9 +9,15 @@ export type { UnlistenFn };
 
 export const launcherFixtureNames = [
   "empty",
+  "no-account",
+  "no-instance",
+  "not-ready",
   "ready",
   "downloading",
+  "launching",
   "running",
+  "stopped",
+  "failed",
   "error",
   "migration",
 ] as const;
@@ -41,6 +47,15 @@ export function getLauncherFixtureTheme(): "light" | "dark" | null {
 
   const requested = new URLSearchParams(window.location.search).get("theme");
   return requested === "light" || requested === "dark" ? requested : null;
+}
+
+export function getLauncherFixtureLocale(): "en" | "zh-CN" | null {
+  if (!import.meta.env.DEV || typeof window === "undefined") {
+    return null;
+  }
+
+  const requested = new URLSearchParams(window.location.search).get("locale");
+  return requested === "en" || requested === "zh-CN" ? requested : null;
 }
 
 export function isLauncherFixtureMode(): boolean {

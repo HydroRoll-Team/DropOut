@@ -19,6 +19,8 @@ import type { Instance } from "@/types";
 interface InstanceState {
   instances: Instance[];
   activeInstance: Instance | null;
+  status: "idle" | "loading" | "ready" | "error";
+  error: string | null;
 
   refresh: () => Promise<void>;
   create: (name: string) => Promise<Instance>;
@@ -38,8 +40,11 @@ interface InstanceState {
 export const useInstanceStore = create<InstanceState>((set, get) => ({
   instances: [],
   activeInstance: null,
+  status: "idle",
+  error: null,
 
   refresh: async () => {
+    set({ status: "loading", error: null });
     try {
       const instances = await listInstances();
       let activeInstance = await getActiveInstance();
@@ -56,9 +61,13 @@ export const useInstanceStore = create<InstanceState>((set, get) => ({
         activeInstance = instances[0];
       }
 
-      set({ instances, activeInstance });
+      set({ instances, activeInstance, status: "ready", error: null });
     } catch (e) {
       console.error("Failed to load instances:", e);
+      set({
+        status: "error",
+        error: e instanceof Error ? e.message : String(e),
+      });
       toast.error(translate("store.instancesLoadFailed"));
     }
   },

@@ -1,12 +1,12 @@
 import { useEffect } from "react";
 import { Outlet, useLocation } from "react-router";
-import { DownloadMonitor } from "@/components/download-monitor";
 import { GuidedTour } from "@/components/guided-tour";
 import { ParticleBackground } from "@/components/particle-background";
 import { Sidebar } from "@/components/sidebar";
 import { UpdateDialog, useUpdater } from "@/components/updater";
-import { getLauncherFixtureName } from "@/lib/launcher-runtime";
 import { useAuthStore } from "@/models/auth";
+import { useDownloadStore } from "@/models/downloads";
+import { useGameStore } from "@/models/game";
 import { useInstanceStore } from "@/models/instance";
 import { useSettingsStore } from "@/models/settings";
 
@@ -15,19 +15,24 @@ export function IndexPage() {
   const settingsStore = useSettingsStore();
   const instanceStore = useInstanceStore();
   const updater = useUpdater();
+  const initializeDownloads = useDownloadStore((state) => state.initialize);
+  const initializeGame = useGameStore((state) => state.initialize);
 
   const location = useLocation();
-  const fixtureName = getLauncherFixtureName();
 
   useEffect(() => {
     authStore.init();
     settingsStore.refresh();
     instanceStore.refresh();
+    void initializeDownloads();
+    void initializeGame();
     updater.checkForUpdate(true);
   }, [
     authStore.init,
     settingsStore.refresh,
     instanceStore.refresh,
+    initializeDownloads,
+    initializeGame,
     updater.checkForUpdate,
   ]);
 
@@ -98,12 +103,6 @@ export function IndexPage() {
         downloading={updater.downloading}
         onConfirm={updater.downloadAndInstall}
       />
-
-      {import.meta.env.DEV && fixtureName === "downloading" && (
-        <div className="fixed bottom-24 right-8 z-50 w-80">
-          <DownloadMonitor />
-        </div>
-      )}
 
       <GuidedTour />
     </div>

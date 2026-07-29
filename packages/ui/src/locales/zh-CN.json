@@ -41,7 +41,140 @@
     "launcherActive": "启动器就绪",
     "title": "MINECRAFT",
     "javaEdition": "Java 版",
-    "readyToLaunch": "> 准备启动游戏会话。"
+    "readyToLaunch": "> 准备启动游戏会话。",
+    "commandCenter": "启动指挥台",
+    "readinessProtocol": "就绪协议 / 01",
+    "readinessTitle": "启动就绪检查",
+    "readinessDescription": "在一个页面核对所有启动关键依赖。",
+    "checksCount": "{{ready}} / {{total}} 已就绪",
+    "activeInstance": "当前实例",
+    "selectInstance": "选择实例",
+    "activity": "会话活动",
+    "sessionLog": "实时启动日志",
+    "failureDetails": "失败详情",
+    "noActivity": "暂无会话活动，启动事件会显示在这里。",
+    "openLogs": "打开 Minecraft 日志",
+    "openLogsFailed": "打开日志失败：{{error}}",
+    "activateFailed": "切换实例失败：{{error}}",
+    "actionFailed": "操作失败：{{error}}",
+    "manage": "管理",
+    "folder": "文件夹",
+    "downloadFiles": "已完成 {{completed}} / {{total}} 个文件",
+    "check": {
+      "account": "账户",
+      "instance": "实例",
+      "version": "版本",
+      "loader": "加载器",
+      "java": "Java",
+      "memory": "内存",
+      "files": "游戏文件"
+    },
+    "checkTone": {
+      "pass": "已就绪",
+      "warn": "需要处理",
+      "fail": "已阻塞",
+      "pending": "检查中",
+      "neutral": "不适用"
+    },
+    "value": {
+      "notSignedIn": "尚未登录",
+      "noInstance": "未选择实例",
+      "noVersion": "未选择版本",
+      "vanilla": "原版",
+      "notConfigured": "未配置",
+      "checking": "检查中…",
+      "javaRequired": "需要 Java {{version}}",
+      "javaMissing": "没有兼容运行时",
+      "downloadProgress": "下载中 · {{percentage}}%",
+      "filesReady": "已安装并验证",
+      "filesMissing": "需要下载"
+    },
+    "state": {
+      "checking": {
+        "eyebrow": "正在检查系统",
+        "title": "确认启动就绪状态",
+        "description": "DropOut 正在验证账户、实例、运行时和游戏文件。",
+        "action": "检查中…"
+      },
+      "data-error": {
+        "eyebrow": "启动器数据不可用",
+        "title": "就绪检查被中断",
+        "description": "部分启动器数据无法读取，请重新检查后再启动。",
+        "action": "重新检查"
+      },
+      "no-account": {
+        "eyebrow": "需要账户",
+        "title": "登录后继续",
+        "description": "启动 Minecraft 前，请添加 Microsoft 账户或离线档案。",
+        "action": "登录"
+      },
+      "no-instance": {
+        "eyebrow": "需要实例",
+        "title": "选择要游玩的内容",
+        "description": "创建全新实例，或从 Prism Launcher、HMCL、PCL 导入。",
+        "action": "创建或导入"
+      },
+      "version-missing": {
+        "eyebrow": "实例未完成",
+        "title": "选择 Minecraft 版本",
+        "description": "当前实例需要先选择游戏版本，才能检查文件和 Java。",
+        "action": "配置实例"
+      },
+      "java-missing": {
+        "eyebrow": "运行时阻塞",
+        "title": "需要兼容的 Java",
+        "description": "DropOut 无法解析此 Minecraft 版本所需的 Java 运行时。",
+        "action": "修复 Java"
+      },
+      "files-missing": {
+        "eyebrow": "需要准备",
+        "title": "游戏文件需要处理",
+        "description": "首次启动前，请下载或修复当前实例。",
+        "action": "下载并准备"
+      },
+      "memory-invalid": {
+        "eyebrow": "内存配置阻塞",
+        "title": "修正内存分配",
+        "description": "最大内存必须大于或等于最小内存。",
+        "action": "修复内存"
+      },
+      "downloading": {
+        "eyebrow": "文件传输中",
+        "title": "正在准备 {{instance}}",
+        "description": "所需文件正在下载，无需离开首页即可持续查看进度。",
+        "action": "查看下载"
+      },
+      "launching": {
+        "eyebrow": "启动流程进行中",
+        "title": "正在启动 {{instance}}",
+        "description": "DropOut 正在装配运行时、启动参数和游戏进程。",
+        "action": "启动中…"
+      },
+      "running": {
+        "eyebrow": "会话在线",
+        "title": "{{instance}} 正在运行",
+        "description": "Minecraft 进程已启动；如进程失去响应，可在此停止。",
+        "action": "停止游戏"
+      },
+      "stopped": {
+        "eyebrow": "会话已正常结束",
+        "title": "{{instance}} 已停止",
+        "description": "上次会话已经关闭，需要时仍可查看日志。",
+        "action": "再次启动"
+      },
+      "failed": {
+        "eyebrow": "启动失败",
+        "title": "{{instance}} 需要恢复",
+        "description": "启动或游戏进程失败，请先查看已捕获的输出再重试。",
+        "action": "查看失败详情"
+      },
+      "ready": {
+        "eyebrow": "全部检查通过",
+        "title": "{{instance}} 已就绪",
+        "description": "账户、运行时、内存和本地游戏文件均已准备完成。",
+        "action": "启动"
+      }
+    }
   },
   "bottomBar": {
     "noInstances": "暂无可用实例",
@@ -52,7 +185,12 @@
   "downloadMonitor": {
     "title": "下载任务",
     "close": "关闭下载任务",
-    "completed": "已完成"
+    "completed": "已完成",
+    "javaRuntime": "Java 运行时",
+    "gameFiles": "Minecraft 文件",
+    "progress": "下载进度",
+    "preparing": "正在准备下载队列…",
+    "files": "{{completed}} / {{total}} 个文件"
   },
   "instances": {
     "title": "实例管理",
