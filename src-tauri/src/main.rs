@@ -2371,16 +2371,17 @@ async fn get_launch_readiness(
         .version_cache
         .join(&minecraft_version)
         .join(format!("{}.jar", minecraft_version));
-    let version_installed = version_json.exists() && client_jar.exists();
-
-    let required_java_major = if version_json.exists() {
+    let loaded_version = if version_json.exists() {
         core::manifest::load_version(&resolved_paths.root, &version_id)
             .await
             .ok()
-            .and_then(|version| version.java_version.map(|java| java.major_version))
     } else {
         None
     };
+    let version_installed =
+        version_json.exists() && client_jar.exists() && loaded_version.is_some();
+    let required_java_major =
+        loaded_version.and_then(|version| version.java_version.map(|java| java.major_version));
 
     let java = resolve_java_path(
         &config,

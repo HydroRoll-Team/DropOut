@@ -69,6 +69,7 @@ export function bootstrapLauncherFixture() {
   } else if (fixtureName === "failed") {
     useGameStore.setState({
       lastError: "Minecraft 1.21.1 exited with code 1",
+      lastErrorInstanceId: "fixture-fabric-1211",
       lastExit: {
         instanceId: "fixture-fabric-1211",
         versionId: "1.21.1",

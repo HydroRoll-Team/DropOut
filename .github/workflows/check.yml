@@ -46,6 +46,16 @@ jobs:
       - name: Run UI fixture regression suite
         run: pnpm -C packages/ui test:ui
 
+      - name: Upload Linux screenshot candidates
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-screenshot-candidates
+          path: packages/ui/test-results/**/*-actual.png
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+
       - name: Upload UI regression diagnostics
         if: failure()
         uses: actions/upload-artifact@v4

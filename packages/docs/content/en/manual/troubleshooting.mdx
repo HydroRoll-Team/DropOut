@@ -97,6 +97,17 @@ sudo pacman -S webkit2gtk gtk3
 
 ## Game Launch Issues
 
+### Use the Home Recovery Action First
+
+The Overview page summarizes the active account, instance, version, loader, Java runtime, memory allocation, and local files. Follow its primary action before changing configuration manually:
+
+- **Repair Java** opens the runtime settings when no compatible installation can be resolved.
+- **Download & prepare** installs or repairs missing version files and keeps progress visible.
+- **Inspect failure** keeps the captured launcher/stdout/stderr lines on screen; **Open Minecraft logs** opens the full log directory.
+- **Retry checks** reloads account, settings, and instance data after a read error.
+
+If the page reports **ready** but launch still fails, preserve the failure details and full Minecraft log when reporting the problem.
+
 ### Java Not Found
 
 **Issue:** "No Java installation found"

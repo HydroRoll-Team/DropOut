@@ -105,14 +105,18 @@ When you first launch DropOut, you'll need to:
 
 ### 3. Launch the Game
 
-1. Go to the **Home** tab
-2. Select your desired version from the dropdown
-3. Adjust settings if needed:
-   - Memory allocation (RAM)
-   - Window resolution
-   - Java path
-4. Click **"Launch Game"**
-5. Monitor the launch process in the console
+1. Go to **Overview** and choose an instance from **Active instance**.
+2. Read the **Launch readiness** checks for account, instance, version, loader, Java, memory, and local game files.
+3. Use the single primary action. It changes with the current state:
+   - sign in or create/import an instance;
+   - configure a missing version or repair Java/memory;
+   - download required game files;
+   - launch, stop, or launch again;
+   - inspect a failed session.
+4. During preparation, the download card shows file count, current file, bytes, and overall progress.
+5. During and after a session, use **Live launch log** or **Open Minecraft logs** to inspect output without searching for the instance directory.
+
+DropOut calculates the Java and file checks with the same backend rules used by the real launch command. A green **ready** state therefore means the launch-critical checks passed, not merely that fields were filled in.
 
 ## Next Steps
 

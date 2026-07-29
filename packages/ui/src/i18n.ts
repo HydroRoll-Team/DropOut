@@ -41,13 +41,7 @@ export function setLanguage(lang: string) {
         : "en";
 
   document.documentElement.lang = nextLanguage;
-  if (lang === "auto") {
-    i18n.changeLanguage(nextLanguage);
-  } else if (resources[lang as keyof typeof resources]) {
-    i18n.changeLanguage(nextLanguage);
-  } else {
-    i18n.changeLanguage(nextLanguage);
-  }
+  void i18n.changeLanguage(nextLanguage);
 }
 
 export default i18n;

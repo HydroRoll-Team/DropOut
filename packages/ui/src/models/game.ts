@@ -22,6 +22,7 @@ interface GameState {
   stoppingInstanceId: string | null;
   lastExit: GameExitedEvent | null;
   lastError: string | null;
+  lastErrorInstanceId: string | null;
   recentLogs: GameLogEntry[];
   eventUnlisteners: UnlistenFn[];
   initialization: Promise<void> | null;
@@ -47,6 +48,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   stoppingInstanceId: null,
   lastExit: null,
   lastError: null,
+  lastErrorInstanceId: null,
   recentLogs: [],
   eventUnlisteners: [],
   initialization: null,
@@ -86,6 +88,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           lastError: failed
             ? `Minecraft ${versionId} exited with code ${exitCode ?? "unknown"}`
             : null,
+          lastErrorInstanceId: failed ? instanceId : null,
         });
 
         get().appendLog(
@@ -117,7 +120,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     return initialization;
   },
 
-  clearFailure: () => set({ lastError: null, lastExit: null }),
+  clearFailure: () =>
+    set({ lastError: null, lastErrorInstanceId: null, lastExit: null }),
 
   startGame: async (instanceId, versionId) => {
     const { isGameRunning, initialize } = get();
@@ -131,6 +135,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({
       launchingInstanceId: instanceId,
       lastError: null,
+      lastErrorInstanceId: null,
       lastExit: null,
     });
     get().appendLog("launcher", `Preparing Minecraft ${versionId}`);
@@ -148,7 +153,11 @@ export const useGameStore = create<GameState>((set, get) => ({
     } catch (error) {
       const message = errorMessage(error);
       console.error("Failed to start game:", error);
-      set({ launchingInstanceId: null, lastError: message });
+      set({
+        launchingInstanceId: null,
+        lastError: message,
+        lastErrorInstanceId: instanceId,
+      });
       get().appendLog("stderr", message);
       toast.error(`Error: ${message}`);
       return null;
@@ -177,7 +186,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     } catch (error) {
       const message = errorMessage(error);
       console.error("Failed to stop game:", error);
-      set({ lastError: message });
+      set({ lastError: message, lastErrorInstanceId: runningInstanceId });
       get().appendLog("stderr", message);
       toast.error(`Failed to stop game: ${message}`);
       return null;

@@ -148,6 +148,9 @@ export function HomePage() {
   const stoppingInstanceId = useGameStore((state) => state.stoppingInstanceId);
   const lastExit = useGameStore((state) => state.lastExit);
   const lastError = useGameStore((state) => state.lastError);
+  const lastErrorInstanceId = useGameStore(
+    (state) => state.lastErrorInstanceId,
+  );
   const recentLogs = useGameStore((state) => state.recentLogs);
   const startGame = useGameStore((state) => state.startGame);
   const stopGame = useGameStore((state) => state.stopGame);
@@ -208,7 +211,7 @@ export function HomePage() {
     launchingInstanceId,
     runningInstanceId,
     lastExit,
-    lastError,
+    lastError: lastErrorInstanceId === activeInstance?.id ? lastError : null,
   });
 
   const memory = activeInstance?.memoryOverride ?? {
@@ -337,7 +340,11 @@ export function HomePage() {
   };
 
   const errorDetail =
-    lastError ?? probeError ?? instanceError ?? authError ?? settingsError;
+    (lastErrorInstanceId === activeInstance?.id ? lastError : null) ??
+    probeError ??
+    instanceError ??
+    authError ??
+    settingsError;
 
   const refreshReadiness = useCallback(async () => {
     await Promise.all([refreshAuth(), refreshSettings(), refreshInstances()]);
