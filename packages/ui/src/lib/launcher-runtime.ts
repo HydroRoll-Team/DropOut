@@ -20,6 +20,13 @@ export const launcherFixtureNames = [
   "stopped",
   "failed",
   "error",
+  "instances-empty",
+  "instances-single",
+  "instances-20",
+  "instances-grid",
+  "instances-100",
+  "instances-loading",
+  "instances-error",
   "migration",
 ] as const;
 

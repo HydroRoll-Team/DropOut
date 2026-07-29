@@ -35,6 +35,13 @@ Available fixture states are:
 | `stopped` | Cleanly ended session with retained logs and relaunch action |
 | `failed` | Failed session with captured diagnostic output |
 | `error` | Instance-index failure and recovery feedback |
+| `instances-empty` | Empty instance library onboarding |
+| `instances-single` | One-instance library and active detail workspace |
+| `instances-20` | Medium library for grid/list and visual review |
+| `instances-grid` | Medium library with the grid presentation preselected |
+| `instances-100` | Large library for search, sorting, and keyboard flows |
+| `instances-loading` | Pending instance-index read |
+| `instances-error` | Failed instance-index read with retry and repair actions |
 | `migration` | Detected Prism/MultiMC and PCL/HMCL import sources |
 
 Use `theme=dark` or `theme=light`, and `locale=en` or `locale=zh-CN`. Fixture activation is guarded by `import.meta.env.DEV`; production builds ignore fixture parameters and continue to call Tauri directly.

@@ -20,6 +20,26 @@ const visualScenarios = [
   { fixture: "failed", route: "/", heading: "Copper Valley needs recovery" },
   { fixture: "error", route: "/", heading: "Readiness check interrupted" },
   {
+    fixture: "instances-20",
+    route: "/instances",
+    heading: "Instance library",
+  },
+  {
+    fixture: "instances-grid",
+    route: "/instances",
+    heading: "Instance library",
+  },
+  {
+    fixture: "instances-empty",
+    route: "/instances",
+    heading: "Instance library",
+  },
+  {
+    fixture: "instances-error",
+    route: "/instances",
+    heading: "Instance library",
+  },
+  {
     fixture: "migration",
     route: "/instances/import",
     heading: "Import from another launcher",
@@ -68,7 +88,11 @@ for (const theme of themes) {
 
 const accessibleRoutes = [
   { fixture: "ready", route: "/", heading: "Copper Valley is ready" },
-  { fixture: "ready", route: "/instances", heading: "Instances" },
+  {
+    fixture: "instances-20",
+    route: "/instances",
+    heading: "Instance library",
+  },
   {
     fixture: "ready",
     route: "/instances/create",
@@ -177,7 +201,9 @@ test("primary launcher flow is keyboard operable", async ({ page }) => {
   await tabTo(page.getByRole("button", { name: "Instances" }));
   await page.keyboard.press("Enter");
 
-  await expect(page.getByRole("heading", { name: "Instances" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Instance library" }),
+  ).toBeVisible();
   const createButton = page.getByRole("button", { name: "Create Instance" });
   await tabTo(createButton);
   await page.keyboard.press("Enter");
@@ -188,7 +214,9 @@ test("primary launcher flow is keyboard operable", async ({ page }) => {
   const backButton = page.getByRole("button", { name: "Back" });
   await tabTo(backButton);
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("heading", { name: "Instances" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Instance library" }),
+  ).toBeVisible();
 });
 
 test("home primary action follows launcher recovery state", async ({
@@ -200,7 +228,9 @@ test("home primary action follows launcher recovery state", async ({
 
   await page.goto("/?fixture=no-instance&theme=dark#/");
   await page.getByRole("button", { name: "Create or import" }).click();
-  await expect(page.getByRole("heading", { name: "Instances" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Instance library" }),
+  ).toBeVisible();
 
   await page.goto("/?fixture=not-ready&theme=dark#/");
   await page.getByRole("button", { name: "Repair Java" }).click();
@@ -257,6 +287,95 @@ test("Java runtime download progress stays bounded and accessible", async ({
   await expect(monitor).toBeFocused();
 });
 
+test("instance library scales from empty to one active workspace", async ({
+  page,
+}) => {
+  await page.goto("/?fixture=instances-empty&theme=dark#/instances");
+  await expect(
+    page.getByRole("heading", { name: "Build your first environment" }),
+  ).toBeVisible();
+  await expect(
+    page
+      .locator('section[aria-label="Instance library"]')
+      .getByRole("button", { name: "Create Instance" }),
+  ).toBeVisible();
+
+  await page.goto("/?fixture=instances-single&theme=dark#/instances");
+  await expect(page.locator("#instance-detail-title")).toHaveText(
+    "Copper Valley",
+  );
+  await expect(page.getByText("12", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Launch active instance" }),
+  ).toBeVisible();
+
+  await page
+    .getByRole("button", { name: "More actions for Copper Valley" })
+    .click();
+  await page.getByRole("menuitem", { name: "Delete" }).click();
+  await expect(
+    page.getByText(/Export the instance first if you may need its saves/),
+  ).toBeVisible();
+});
+
+test("large instance library supports search, sorting, views, and active selection", async ({
+  page,
+}) => {
+  await page.goto("/?fixture=instances-100&theme=dark#/instances");
+  await expect(page.getByText("100 / 100 shown")).toBeVisible({
+    timeout: 15_000,
+  });
+
+  const search = page.getByRole("searchbox", { name: "Search instances" });
+  await search.fill("Redstone Archive 097");
+  await expect(page.getByText("1 / 100 shown")).toBeVisible();
+  await page
+    .getByRole("button", {
+      name: "Use Redstone Archive 097 as the active instance",
+    })
+    .click();
+  await expect(page.locator("#instance-detail-title")).toHaveText(
+    "Redstone Archive 097",
+  );
+
+  await search.fill("");
+  await page.getByRole("combobox", { name: "Sort instances" }).click();
+  await page.getByRole("option", { name: "Name", exact: true }).click();
+  await expect(
+    page.getByTestId("instance-library-item").first(),
+  ).toHaveAttribute("data-instance-name", "Alpine 006");
+
+  await page.getByRole("button", { name: "Grid view" }).click();
+  await expect(page.getByRole("button", { name: "Grid view" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await page.getByRole("button", { name: "List view" }).click();
+
+  await page.getByRole("button", { name: "Overview" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Redstone Archive 097 is ready" }),
+  ).toBeVisible();
+});
+
+test("instance library exposes deterministic loading and repair states", async ({
+  page,
+}) => {
+  await page.goto("/?fixture=instances-loading&theme=dark#/instances");
+  await expect(
+    page.getByRole("heading", { name: "Reading the instance index" }),
+  ).toBeVisible();
+
+  await page.goto("/?fixture=instances-error&theme=dark#/instances");
+  await expect(
+    page.getByRole("heading", { name: "The instance index needs repair" }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Repair Index" }),
+  ).toBeVisible();
+});
+
 test("home supports Chinese and reduced motion", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/?fixture=ready&theme=dark&locale=zh-CN#/");
@@ -268,5 +387,11 @@ test("home supports Chinese and reduced motion", async ({ page }) => {
   await expect(
     page.getByRole("button", { name: "启动", exact: true }),
   ).toBeVisible();
+  await expectAccessibilitySmoke(page);
+
+  await page.goto("/?fixture=instances-20&theme=dark&locale=zh-CN#/instances");
+  await expect(page.getByRole("heading", { name: "实例库" })).toBeVisible();
+  await expect(page.getByRole("searchbox", { name: "搜索实例" })).toBeVisible();
+  await expect(page.getByText("当前工作区")).toBeVisible();
   await expectAccessibilitySmoke(page);
 });
