@@ -58,7 +58,7 @@
   --secondary: #f4f4f5; /* zinc-100 */
   --secondary-foreground: #18181b;
   --muted: #f4f4f5; /* zinc-100 */
-  --muted-foreground: #71717a; /* zinc-500 */
+  --muted-foreground: #52525b; /* zinc-600 */
   --accent: #f4f4f5; /* zinc-100 */
   --accent-foreground: #18181b;
   --destructive: #ef4444; /* red-500 */
@@ -88,7 +88,7 @@
   --card-foreground: #fafafa;
   --popover: #18181b;
   --popover-foreground: #fafafa;
-  --primary: #6366f1; /* indigo-500 */
+  --primary: #4f46e5; /* indigo-600, WCAG AA with white text */
   --primary-foreground: #ffffff;
   --secondary: #27272a; /* zinc-800 */
   --secondary-foreground: #fafafa;
@@ -176,4 +176,19 @@
 
 .dropout-tour-popover .driver-popover-close-btn:hover {
   color: var(--card-foreground) !important;
+}
+
+html[data-launcher-fixture] canvas {
+  visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto;
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+    transition-duration: 0.01ms;
+  }
 }

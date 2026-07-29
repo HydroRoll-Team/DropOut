@@ -7,12 +7,21 @@ import { Toaster } from "./components/ui/sonner";
 import { LanguageProvider } from "./lib/i18n";
 import router from "./pages/routes";
 
-const root = createRoot(document.getElementById("root") as HTMLElement);
-root.render(
-  <StrictMode>
-    <LanguageProvider>
-      <RouterProvider router={router} />
-      <Toaster position="top-right" richColors />
-    </LanguageProvider>
-  </StrictMode>,
-);
+async function renderApp() {
+  if (import.meta.env.DEV) {
+    const { bootstrapLauncherFixture } = await import("./fixtures/bootstrap");
+    bootstrapLauncherFixture();
+  }
+
+  const root = createRoot(document.getElementById("root") as HTMLElement);
+  root.render(
+    <StrictMode>
+      <LanguageProvider>
+        <RouterProvider router={router} />
+        <Toaster position="top-right" richColors />
+      </LanguageProvider>
+    </StrictMode>,
+  );
+}
+
+void renderApp();

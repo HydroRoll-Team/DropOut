@@ -114,6 +114,7 @@ pnpm -C packages/docs dev
 ```
 
 The UI can run in a browser for layout work, but Tauri-backed flows require the desktop shell.
+For repeatable browser-only UI work, use the development fixtures and Playwright workflow documented in [packages/ui/README.md](packages/ui/README.md).
 
 ---
 
@@ -129,6 +130,8 @@ The UI can run in a browser for layout work, but Tauri-backed flows require the 
 | Run UI dev server | `pnpm -C packages/ui dev` |
 | Build UI bundle | `pnpm -C packages/ui build` |
 | Lint UI | `pnpm -C packages/ui lint` |
+| Test UI fixtures, accessibility, and screenshots | `pnpm -C packages/ui test:ui` |
+| Update reviewed UI screenshot baselines | `pnpm -C packages/ui test:ui:update` |
 | Run docs site | `pnpm -C packages/docs dev` |
 | Build docs site | `pnpm -C packages/docs build` |
 | Check docs types/content | `pnpm -C packages/docs types:check` |
@@ -205,6 +208,7 @@ DropOut is built for long-term maintainability. Useful contributions usually imp
 - documentation and troubleshooting coverage
 
 Use the standard GitHub flow: fork, branch, commit, and open a pull request against [HydroRoll-Team/DropOut](https://github.com/HydroRoll-Team/DropOut).
+UI contributors should also read the [fixture and regression testing guide](packages/ui/README.md).
 
 ---
 

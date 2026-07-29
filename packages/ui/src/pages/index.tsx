@@ -1,9 +1,11 @@
 import { useEffect } from "react";
 import { Outlet, useLocation } from "react-router";
+import { DownloadMonitor } from "@/components/download-monitor";
 import { GuidedTour } from "@/components/guided-tour";
 import { ParticleBackground } from "@/components/particle-background";
 import { Sidebar } from "@/components/sidebar";
 import { UpdateDialog, useUpdater } from "@/components/updater";
+import { getLauncherFixtureName } from "@/lib/launcher-runtime";
 import { useAuthStore } from "@/models/auth";
 import { useInstanceStore } from "@/models/instance";
 import { useSettingsStore } from "@/models/settings";
@@ -15,6 +17,7 @@ export function IndexPage() {
   const updater = useUpdater();
 
   const location = useLocation();
+  const fixtureName = getLauncherFixtureName();
 
   useEffect(() => {
     authStore.init();
@@ -54,7 +57,7 @@ export function IndexPage() {
               <div className="absolute inset-0 opacity-100 bg-linear-to-br from-emerald-100 via-gray-100 to-indigo-100"></div>
             )}
 
-            <div className="absolute inset-0 bg-linear-to-t from-zinc-900 via-transparent to-black/50 dark:from-zinc-900 dark:to-black/50"></div>
+            <div className="absolute inset-0 bg-linear-to-t from-white/60 via-transparent to-white/20 dark:from-zinc-900 dark:to-black/50"></div>
           </>
         )}
 
@@ -95,6 +98,12 @@ export function IndexPage() {
         downloading={updater.downloading}
         onConfirm={updater.downloadAndInstall}
       />
+
+      {import.meta.env.DEV && fixtureName === "downloading" && (
+        <div className="fixed bottom-24 right-8 z-50 w-80">
+          <DownloadMonitor />
+        </div>
+      )}
 
       <GuidedTour />
     </div>

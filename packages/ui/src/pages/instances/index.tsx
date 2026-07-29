@@ -16,7 +16,6 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { openFileExplorer } from "@/client";
-import { ImportWizard } from "@/components/import-wizard";
 import InstanceEditorModal from "@/components/instance-editor-modal";
 import { Button } from "@/components/ui/button";
 import {
@@ -55,7 +54,6 @@ export function InstancesPage() {
   const [isImporting, setIsImporting] = useState(false);
   const [repairing, setRepairing] = useState(false);
   const [exportingId, setExportingId] = useState<string | null>(null);
-  const [showImportWizard, setShowImportWizard] = useState(false);
 
   // Selected / editing instance state
   const [selectedInstance, setSelectedInstance] = useState<Instance | null>(
@@ -171,7 +169,7 @@ export function InstancesPage() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => setShowImportWizard(true)}
+            onClick={() => navigate("/instances/import")}
           >
             {t("instances.fromLauncher")}
           </Button>
@@ -267,6 +265,10 @@ export function InstancesPage() {
                   <div className="flex items-center">
                     <div className="flex flex-row space-x-2">
                       <Button
+                        aria-label={t(
+                          isRunning ? "instances.stop" : "instances.launch",
+                          { name: instance.name },
+                        )}
                         variant={isRunning ? "destructive" : "ghost"}
                         size="icon"
                         onClick={async (e) => {
@@ -321,6 +323,9 @@ export function InstancesPage() {
                         )}
                       </Button>
                       <Button
+                        aria-label={t("instances.openFolder", {
+                          name: instance.name,
+                        })}
                         variant="ghost"
                         size="icon"
                         onClick={(e) => {
@@ -331,6 +336,9 @@ export function InstancesPage() {
                         <FolderOpenIcon />
                       </Button>
                       <Button
+                        aria-label={t("instances.export", {
+                          name: instance.name,
+                        })}
                         variant="ghost"
                         size="icon"
                         onClick={(e) => {
@@ -344,6 +352,9 @@ export function InstancesPage() {
                         </span>
                       </Button>
                       <Button
+                        aria-label={t("instances.duplicate", {
+                          name: instance.name,
+                        })}
                         variant="ghost"
                         size="icon"
                         onClick={(e) => {
@@ -354,6 +365,7 @@ export function InstancesPage() {
                         <CopyIcon />
                       </Button>
                       <Button
+                        aria-label={t("instances.manageMods")}
                         variant="ghost"
                         size="icon"
                         onClick={(e) => {
@@ -365,6 +377,7 @@ export function InstancesPage() {
                         <PackageIcon />
                       </Button>
                       <Button
+                        aria-label={t("instances.browseContent")}
                         variant="ghost"
                         size="icon"
                         onClick={(e) => {
@@ -376,6 +389,9 @@ export function InstancesPage() {
                         <GlobeIcon />
                       </Button>
                       <Button
+                        aria-label={t("instances.edit", {
+                          name: instance.name,
+                        })}
                         variant="ghost"
                         size="icon"
                         onClick={(e) => {
@@ -386,6 +402,9 @@ export function InstancesPage() {
                         <EditIcon />
                       </Button>
                       <Button
+                        aria-label={t("instances.delete", {
+                          name: instance.name,
+                        })}
                         variant="destructive"
                         size="icon"
                         onClick={(e) => {
@@ -491,12 +510,6 @@ export function InstancesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <ImportWizard
-        open={showImportWizard}
-        onOpenChange={setShowImportWizard}
-        onComplete={() => instancesStore.refresh()}
-      />
     </div>
   );
 }

@@ -2,9 +2,9 @@ import { toNumber } from "es-toolkit/compat";
 import { FileJsonIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { migrateSharedCaches } from "@/client";
-import { ConfigEditor } from "@/components/config-editor";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -45,8 +45,8 @@ export function SettingsPage() {
   const javaStore = useJavaStore();
   const updater = useUpdater();
   const { t } = useTranslation();
-  const [showConfigEditor, setShowConfigEditor] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
+  const navigate = useNavigate();
 
   useEffect(() => {
     const refresh = async () => {
@@ -105,6 +105,7 @@ export function SettingsPage() {
                           {t("settings.general.width")}
                         </FieldLabel>
                         <Input
+                          id="width"
                           type="number"
                           name="width"
                           value={config?.width}
@@ -125,6 +126,7 @@ export function SettingsPage() {
                           {t("settings.general.height")}
                         </FieldLabel>
                         <Input
+                          id="height"
                           type="number"
                           name="height"
                           value={config?.height}
@@ -151,6 +153,8 @@ export function SettingsPage() {
                         </FieldDescription>
                       </FieldContent>
                       <Switch
+                        id="gpu-acceleration"
+                        aria-label={t("settings.general.gpuAcceleration")}
                         checked={config?.enableGpuAcceleration}
                         onCheckedChange={(checked) => {
                           settings.merge({
@@ -169,6 +173,7 @@ export function SettingsPage() {
                       {t("settings.network.downloadThreads")}
                     </Label>
                     <Input
+                      id="download-threads"
                       type="number"
                       name="download-threads"
                       value={config?.downloadThreads}
@@ -206,7 +211,10 @@ export function SettingsPage() {
                         }
                       }}
                     >
-                      <SelectTrigger className="w-full max-w-48">
+                      <SelectTrigger
+                        aria-label={t("settings.network.mirror")}
+                        className="w-full max-w-48"
+                      >
                         <SelectValue
                           placeholder={t("settings.network.mirror")}
                         />
@@ -268,7 +276,10 @@ export function SettingsPage() {
                         }
                       }}
                     >
-                      <SelectTrigger className="w-full max-w-48">
+                      <SelectTrigger
+                        aria-label={t("settings.jvm.gcPreset")}
+                        className="w-full max-w-48"
+                      >
                         <SelectValue placeholder={t("settings.jvm.gcPreset")} />
                       </SelectTrigger>
                       <SelectContent alignItemWithTrigger={false}>
@@ -294,6 +305,7 @@ export function SettingsPage() {
                       {t("settings.jvm.minMemory")}
                     </FieldLabel>
                     <Input
+                      id="min-memory"
                       type="number"
                       name="min-memory"
                       value={config?.minMemory}
@@ -314,6 +326,7 @@ export function SettingsPage() {
                       {t("settings.jvm.maxMemory")}
                     </FieldLabel>
                     <Input
+                      id="max-memory"
                       type="number"
                       name="max-memory"
                       value={config?.maxMemory}
@@ -347,6 +360,7 @@ export function SettingsPage() {
                       {t("settings.java.javaPath")}
                     </FieldLabel>
                     <Input
+                      id="java-path"
                       type="text"
                       name="java-path"
                       value={config?.javaPath}
@@ -442,7 +456,10 @@ export function SettingsPage() {
                       }
                     }}
                   >
-                    <SelectTrigger className="w-full max-w-48">
+                    <SelectTrigger
+                      aria-label={t("settings.appearance.theme")}
+                      className="w-full max-w-48"
+                    >
                       <SelectValue
                         placeholder={t("settings.appearance.theme")}
                       />
@@ -486,7 +503,10 @@ export function SettingsPage() {
                       }
                     }}
                   >
-                    <SelectTrigger className="w-full max-w-48">
+                    <SelectTrigger
+                      aria-label={t("settings.appearance.language")}
+                      className="w-full max-w-48"
+                    >
                       <SelectValue
                         placeholder={t("settings.appearance.language")}
                       />
@@ -530,6 +550,8 @@ export function SettingsPage() {
                         </FieldDescription>
                       </FieldContent>
                       <Switch
+                        id="use-shared-caches"
+                        aria-label={t("settings.advanced.sharedCaches")}
                         checked={config?.useSharedCaches}
                         onCheckedChange={async (checked) => {
                           checked && (await migrateSharedCaches());
@@ -550,6 +572,8 @@ export function SettingsPage() {
                         </FieldDescription>
                       </FieldContent>
                       <Switch
+                        id="keep-per-instance-storage"
+                        aria-label={t("settings.advanced.legacyStorage")}
                         checked={config?.keepLegacyPerInstanceStorage}
                         onCheckedChange={(checked) => {
                           settings.merge({
@@ -574,6 +598,8 @@ export function SettingsPage() {
                         </FieldDescription>
                       </FieldContent>
                       <Switch
+                        id="enable-system-tray"
+                        aria-label={t("settings.advanced.enableSystemTray")}
                         checked={config?.enableSystemTray}
                         onCheckedChange={(checked) => {
                           settings.merge({
@@ -598,6 +624,8 @@ export function SettingsPage() {
                         </FieldDescription>
                       </FieldContent>
                       <Switch
+                        id="first-launch-completed"
+                        aria-label={t("settings.advanced.firstLaunchCompleted")}
                         checked={config?.firstLaunchCompleted}
                         onCheckedChange={(checked) => {
                           settings.merge({
@@ -650,7 +678,7 @@ export function SettingsPage() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setShowConfigEditor(true)}
+          onClick={() => navigate("/settings/editor")}
         >
           <FileJsonIcon />
           <span className="hidden sm:inline">{t("settings.openJson")}</span>
@@ -676,11 +704,6 @@ export function SettingsPage() {
         </TabsList>
         {renderScrollArea()}
       </Tabs>
-
-      <ConfigEditor
-        open={showConfigEditor}
-        onOpenChange={() => setShowConfigEditor(false)}
-      />
     </div>
   );
 }

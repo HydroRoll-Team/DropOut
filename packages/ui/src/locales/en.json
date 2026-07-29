@@ -15,6 +15,7 @@
     "disabled": "Disabled",
     "none": "None",
     "back": "Back",
+    "open": "Open",
     "next": "Next",
     "start": "Start",
     "login": "Login",
@@ -67,7 +68,14 @@
     "duplicateHint": "Provide a name for the duplicated instance.",
     "duplicatePlaceholder": "New instance name",
     "manageMods": "Manage Mods",
-    "browseContent": "Browse Content"
+    "browseContent": "Browse Content",
+    "launch": "Launch {{name}}",
+    "stop": "Stop {{name}}",
+    "openFolder": "Open {{name}} folder",
+    "export": "Export {{name}}",
+    "duplicate": "Duplicate {{name}}",
+    "edit": "Edit {{name}}",
+    "delete": "Delete {{name}}"
   },
   "mods": {
     "title": "Mods",

@@ -114,6 +114,7 @@ pnpm -C packages/docs dev
 ```
 
 UI 可以在浏览器中用于布局开发，但依赖 Tauri 的功能需要在桌面外壳中验证。
+需要可重复的纯浏览器 UI 开发环境时，请使用 [packages/ui/README.md](packages/ui/README.md) 中的开发 fixture 与 Playwright 流程。
 
 ---
 
@@ -129,6 +130,8 @@ UI 可以在浏览器中用于布局开发，但依赖 Tauri 的功能需要在�
 | 运行 UI 开发服务器 | `pnpm -C packages/ui dev` |
 | 构建 UI | `pnpm -C packages/ui build` |
 | Lint UI | `pnpm -C packages/ui lint` |
+| 测试 UI fixture、无障碍与截图 | `pnpm -C packages/ui test:ui` |
+| 更新已人工复核的 UI 截图基线 | `pnpm -C packages/ui test:ui:update` |
 | 运行文档站 | `pnpm -C packages/docs dev` |
 | 构建文档站 | `pnpm -C packages/docs build` |
 | 检查文档类型/内容 | `pnpm -C packages/docs types:check` |
@@ -205,6 +208,7 @@ DropOut 面向长期维护。适合贡献的方向包括：
 - 文档和故障排查覆盖
 
 使用标准 GitHub 流程：fork、创建分支、提交，然后向 [HydroRoll-Team/DropOut](https://github.com/HydroRoll-Team/DropOut) 打开 pull request。
+UI 贡献者还应阅读 [fixture 与回归测试指南](packages/ui/README.md)。
 
 ---
 

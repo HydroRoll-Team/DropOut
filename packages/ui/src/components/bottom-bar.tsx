@@ -101,7 +101,7 @@ export function BottomBar() {
       <Button
         className={cn(
           "px-4 py-2 shadow-xl",
-          "bg-emerald-600! hover:bg-emerald-500!",
+          "bg-emerald-700! hover:bg-emerald-800!",
         )}
         size="lg"
         onClick={handleStartGame}
@@ -114,10 +114,10 @@ export function BottomBar() {
   };
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/30 via-transparent to-transparent p-4 z-10">
+    <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-white/60 dark:from-black/30 via-transparent to-transparent p-4 z-10">
       <div className="max-w-7xl mx-auto">
         <div
-          className="flex items-center justify-between bg-white/5 dark:bg-black/20 backdrop-blur-xl border border-white/10 dark:border-white/5 p-3 shadow-lg"
+          className="flex items-center justify-between bg-white/75 dark:bg-black/20 backdrop-blur-xl border border-black/10 dark:border-white/5 p-3 shadow-lg"
           data-tour="bottom-bar"
         >
           <div
@@ -137,7 +137,10 @@ export function BottomBar() {
               }}
               disabled={instances.length === 0}
             >
-              <SelectTrigger className="w-full min-w-64 max-w-80">
+              <SelectTrigger
+                aria-label={t("bottomBar.selectInstance")}
+                className="w-full min-w-64 max-w-80"
+              >
                 <SelectValue
                   placeholder={
                     instances.length === 0

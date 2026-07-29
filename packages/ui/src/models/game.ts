@@ -1,10 +1,10 @@
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { toast } from "sonner";
 import { create } from "zustand";
 import {
   startGame as startGameCommand,
   stopGame as stopGameCommand,
 } from "@/client";
+import { listen, type UnlistenFn } from "@/lib/launcher-runtime";
 import type { GameExitedEvent } from "@/types/bindings/core";
 
 interface GameState {
