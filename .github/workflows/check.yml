@@ -45,3 +45,11 @@ jobs:
 
       - name: Run UI fixture regression suite
         run: pnpm -C packages/ui test:ui
+
+      - name: Upload UI regression diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-regression-diagnostics
+          path: packages/ui/test-results
+          retention-days: 7

@@ -17,6 +17,9 @@ export default defineConfig({
     port: 1420,
     strictPort: true,
     host: host || false,
+    fs: {
+      allow: [path.resolve(__dirname, "../..")],
+    },
     hmr: host
       ? {
           protocol: "ws",

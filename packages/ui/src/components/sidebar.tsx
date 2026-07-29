@@ -204,6 +204,7 @@ export function Sidebar() {
       >
         <DropdownMenu>
           <DropdownMenuTrigger
+            aria-label={t("nav.accounts")}
             render={renderUserAvatar()}
             nativeButton={false}
             className="w-full"
