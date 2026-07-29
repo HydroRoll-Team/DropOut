@@ -240,6 +240,23 @@ test("download and failure states expose actionable diagnostics", async ({
   ).toBeFocused();
 });
 
+test("Java runtime download progress stays bounded and accessible", async ({
+  page,
+}) => {
+  await page.goto("/?fixture=java-download-progress&theme=dark#/");
+
+  const monitor = page.locator("#download-monitor");
+  await expect(monitor.getByText("Java runtime")).toBeVisible();
+  await expect(monitor.getByText("100%", { exact: true })).toBeVisible();
+  await expect(
+    monitor.getByRole("progressbar", { name: "Download progress" }),
+  ).toHaveAttribute("aria-valuenow", "100");
+  await expect(monitor).toContainText("1.5 GB / 2.0 GB");
+
+  await page.getByRole("button", { name: "Track download" }).click();
+  await expect(monitor).toBeFocused();
+});
+
 test("home supports Chinese and reduced motion", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/?fixture=ready&theme=dark&locale=zh-CN#/");

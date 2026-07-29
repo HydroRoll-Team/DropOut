@@ -18,7 +18,10 @@ import type {
   Version,
 } from "@/types";
 import type { GameExitedEvent } from "@/types/bindings/core";
-import type { ProgressEvent } from "@/types/bindings/downloader";
+import type {
+  JavaDownloadProgress,
+  ProgressEvent,
+} from "@/types/bindings/downloader";
 
 const account: Account = {
   type: "microsoft",
@@ -235,6 +238,23 @@ export async function fixtureListen<T>(
   const eventListeners = listeners.get(eventName) ?? new Set();
   eventListeners.add(handler as EventCallback<unknown>);
   listeners.set(eventName, eventListeners);
+
+  if (
+    getLauncherFixtureName() === "java-download-progress" &&
+    eventName === "java-download-progress"
+  ) {
+    queueMicrotask(() => {
+      emitFixtureEvent<JavaDownloadProgress>("java-download-progress", {
+        fileName: "OpenJDK21U-jre_aarch64_mac_hotspot_21.0.7_6.tar.gz",
+        downloadedBytes: 1_610_612_736n,
+        totalBytes: 2_147_483_648n,
+        speedBytesPerSec: 33_554_432n,
+        etaSeconds: 16n,
+        status: "Verifying",
+        percentage: 125,
+      });
+    });
+  }
 
   return () => {
     eventListeners.delete(handler as EventCallback<unknown>);

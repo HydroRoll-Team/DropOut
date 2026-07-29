@@ -14,6 +14,7 @@ export const launcherFixtureNames = [
   "not-ready",
   "ready",
   "downloading",
+  "java-download-progress",
   "launching",
   "running",
   "stopped",

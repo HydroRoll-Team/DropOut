@@ -29,6 +29,7 @@ Available fixture states are:
 | `not-ready` | Active instance has no compatible Java runtime |
 | `ready` | All account, instance, version, Java, memory, and file checks pass |
 | `downloading` | Live game-file progress in the home command center |
+| `java-download-progress` | Java runtime event progress with bounded percentage and byte formatting |
 | `launching` | Launch command is assembling the runtime and process |
 | `running` | Active game process with the stop action |
 | `stopped` | Cleanly ended session with retained logs and relaunch action |
