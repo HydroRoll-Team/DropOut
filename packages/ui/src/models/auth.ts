@@ -1,4 +1,3 @@
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-shell";
 import { Mutex } from "es-toolkit";
 import { toString as stringify } from "es-toolkit/compat";
@@ -14,6 +13,7 @@ import {
   startMicrosoftLogin,
   switchAccount as switchAccountApi,
 } from "@/client";
+import { listen, type UnlistenFn } from "@/lib/launcher-runtime";
 import type { Account, AccountSummary, DeviceCodeResponse } from "@/types";
 
 function getAuthErrorMessage(error: unknown): string {

@@ -53,9 +53,9 @@ export function HomePage() {
   return (
     <div className="relative z-10 h-full overflow-y-auto custom-scrollbar scroll-smooth">
       {/* Hero Section (Full Height) - Interactive area */}
-      <div
-        role="tab"
-        className="min-h-full flex flex-col justify-end p-12 pb-32 cursor-grab active:cursor-grabbing select-none"
+      <section
+        aria-label={t("home.launcherActive")}
+        className="min-h-full flex flex-col justify-start p-12 pb-32 cursor-grab active:cursor-grabbing select-none"
         onMouseDown={handleSaturnMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleSaturnMouseUp}
@@ -63,7 +63,6 @@ export function HomePage() {
         onTouchStart={handleSaturnTouchStart}
         onTouchMove={handleSaturnTouchMove}
         onTouchEnd={handleSaturnTouchEnd}
-        tabIndex={0}
       >
         {/* 3D Floating Hero Text */}
         <div
@@ -73,18 +72,18 @@ export function HomePage() {
           }}
         >
           <div className="flex items-center gap-3 mb-6">
-            <div className="h-px w-12 bg-white/50"></div>
-            <span className="text-xs font-mono font-bold tracking-[0.2em] text-white/50 uppercase">
+            <div className="h-px w-12 bg-black/30 dark:bg-white/50"></div>
+            <span className="text-xs font-mono font-bold tracking-[0.2em] text-zinc-600 dark:text-white/50 uppercase">
               {t("home.launcherActive")}
             </span>
           </div>
 
-          <h1 className="text-8xl font-black tracking-tighter text-white mb-6 leading-none">
+          <h1 className="text-8xl font-black tracking-tighter text-zinc-950 dark:text-white mb-6 leading-none">
             {t("home.title")}
           </h1>
 
           <div className="flex items-center gap-4">
-            <div className="bg-white/10 backdrop-blur-md border border-white/10 px-3 py-1 rounded-sm text-xs font-bold uppercase tracking-widest text-white shadow-sm">
+            <div className="bg-black/5 dark:bg-white/10 backdrop-blur-md border border-black/10 dark:border-white/10 px-3 py-1 rounded-sm text-xs font-bold uppercase tracking-widest text-zinc-900 dark:text-white shadow-sm">
               {t("home.javaEdition")}
             </div>
           </div>
@@ -92,13 +91,13 @@ export function HomePage() {
 
         {/* Action Area */}
         <div className="mt-8 flex gap-4">
-          <div className="text-zinc-500 text-sm font-mono">
+          <div className="text-zinc-600 dark:text-zinc-500 text-sm font-mono">
             {t("home.readyToLaunch")}
           </div>
         </div>
 
         <BottomBar />
-      </div>
+      </section>
     </div>
   );
 }

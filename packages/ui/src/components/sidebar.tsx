@@ -36,6 +36,7 @@ function NavItem({ Icon, label, to }: NavItemProps) {
 
   return (
     <Button
+      aria-label={label}
       variant="ghost"
       className={cn(
         "w-fit lg:w-full justify-center lg:justify-start",
@@ -67,10 +68,10 @@ export function Sidebar() {
         <div className="w-full hidden lg:flex bg-accent/90 p-3 flex-row space-x-3">
           <UserAvatar />
           <div className="">
-            <p className="text-sm font-medium text-white">
+            <p className="text-sm font-medium text-foreground">
               {authStore.account?.username}
             </p>
-            <p className="text-xs text-zinc-400">
+            <p className="text-xs text-muted-foreground">
               {authStore.account?.type === "microsoft"
                 ? t("common.online")
                 : t("common.offline")}
@@ -203,6 +204,7 @@ export function Sidebar() {
       >
         <DropdownMenu>
           <DropdownMenuTrigger
+            aria-label={t("nav.accounts")}
             render={renderUserAvatar()}
             nativeButton={false}
             className="w-full"

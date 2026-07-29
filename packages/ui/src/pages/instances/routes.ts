@@ -1,27 +1,42 @@
 import type { RouteObject } from "react-router";
-import BrowsePage from "./browse";
-import CreateInstancePage from "./create";
-import { InstancesPage } from "./index";
-import ModsPage from "./mods";
 
 const routes = {
   path: "/instances",
   children: [
     {
       index: true,
-      Component: InstancesPage,
+      lazy: async () => {
+        const { InstancesPage } = await import("./index");
+        return { Component: InstancesPage };
+      },
     },
     {
       path: "create",
-      Component: CreateInstancePage,
+      lazy: async () => {
+        const { default: CreateInstancePage } = await import("./create");
+        return { Component: CreateInstancePage };
+      },
+    },
+    {
+      path: "import",
+      lazy: async () => {
+        const { ImportInstancesPage } = await import("./import");
+        return { Component: ImportInstancesPage };
+      },
     },
     {
       path: ":instanceId/mods",
-      Component: ModsPage,
+      lazy: async () => {
+        const { default: ModsPage } = await import("./mods");
+        return { Component: ModsPage };
+      },
     },
     {
       path: ":instanceId/browse",
-      Component: BrowsePage,
+      lazy: async () => {
+        const { default: BrowsePage } = await import("./browse");
+        return { Component: BrowsePage };
+      },
     },
   ],
 } satisfies RouteObject;

@@ -33,5 +33,23 @@ jobs:
 
       - run: pnpm -C packages/ui --lockfile-dir "${{ github.workspace }}" install --frozen-lockfile
 
-      - run: pnpm biome ci
+      - name: Lint UI
+        run: pnpm biome ci
         working-directory: packages/ui
+
+      - name: Build UI
+        run: pnpm -C packages/ui build
+
+      - name: Install Playwright browser
+        run: pnpm -C packages/ui exec playwright install --with-deps chromium
+
+      - name: Run UI fixture regression suite
+        run: pnpm -C packages/ui test:ui
+
+      - name: Upload UI regression diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-regression-diagnostics
+          path: packages/ui/test-results
+          retention-days: 7

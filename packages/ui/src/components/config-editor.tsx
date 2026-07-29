@@ -111,6 +111,7 @@ export function ConfigEditor({ onOpenChange, ...props }: ConfigEditorProps) {
         </DialogHeader>
 
         <Textarea
+          aria-label={t("config.title")}
           value={rawConfigContent}
           onChange={(e) => setRawConfigContent(e.target.value)}
           className="font-mono text-sm h-100 resize-none"

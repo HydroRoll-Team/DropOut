@@ -21,6 +21,8 @@ src-tauri/gen/
 
 # Node.js
 node_modules/
+playwright-report/
+test-results/
 
 # Python Build
 dist/

@@ -2,6 +2,7 @@ import { check } from "@tauri-apps/plugin-updater";
 import { marked } from "marked";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
+import { isLauncherFixtureMode } from "@/lib/launcher-runtime";
 import { Button } from "./ui/button";
 import {
   Dialog,
@@ -26,6 +27,8 @@ export function useUpdater() {
   const [showDialog, setShowDialog] = useState(false);
 
   const checkForUpdate = useCallback(async (silent = false) => {
+    if (isLauncherFixtureMode()) return;
+
     setChecking(true);
     try {
       const result = await check();
@@ -48,6 +51,8 @@ export function useUpdater() {
   }, []);
 
   const downloadAndInstall = useCallback(async () => {
+    if (isLauncherFixtureMode()) return;
+
     setDownloading(true);
     setProgress(0);
     try {

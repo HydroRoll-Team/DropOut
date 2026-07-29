@@ -15,6 +15,7 @@
     "disabled": "禁用",
     "none": "无",
     "back": "返回",
+    "open": "打开",
     "next": "下一步",
     "start": "开始",
     "login": "登录",
@@ -48,6 +49,11 @@
     "noVersion": "未选择版本",
     "selectFirst": "请先选择一个实例！"
   },
+  "downloadMonitor": {
+    "title": "下载任务",
+    "close": "关闭下载任务",
+    "completed": "已完成"
+  },
   "instances": {
     "title": "实例管理",
     "create": "创建实例",
@@ -67,7 +73,14 @@
     "duplicateHint": "为复制的实例提供一个名称。",
     "duplicatePlaceholder": "新实例名称",
     "manageMods": "管理模组",
-    "browseContent": "浏览内容"
+    "browseContent": "浏览内容",
+    "launch": "启动 {{name}}",
+    "stop": "停止 {{name}}",
+    "openFolder": "打开 {{name}} 文件夹",
+    "export": "导出 {{name}}",
+    "duplicate": "复制 {{name}}",
+    "edit": "编辑 {{name}}",
+    "delete": "删除 {{name}}"
   },
   "mods": {
     "title": "模组",

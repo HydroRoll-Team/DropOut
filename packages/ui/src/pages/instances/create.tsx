@@ -132,10 +132,11 @@ function VersionComponent() {
     <div className="flex flex-col min-h-0 h-full overflow-hidden">
       <div className="flex flex-row items-center mb-4 space-x-2">
         <div className="flex flex-row space-x-2 w-full">
-          <FieldLabel className="text-nowrap">
+          <FieldLabel htmlFor="version-search" className="text-nowrap">
             {t("create.versions")}
           </FieldLabel>
           <Input
+            id="version-search"
             placeholder={t("create.searchVersions")}
             value={versionSearch}
             onChange={(e) => setVersionSearch(e.target.value)}
@@ -147,7 +148,7 @@ function VersionComponent() {
             value={versionFilter}
             onValueChange={(value) => setVersionFilter(value)}
           >
-            <SelectTrigger>
+            <SelectTrigger aria-label={t("create.filterByType")}>
               <SelectValue placeholder={t("create.filterByType")} />
             </SelectTrigger>
             <SelectContent alignItemWithTrigger={false}>
@@ -206,6 +207,7 @@ function VersionComponent() {
                         </FieldContent>
                         <div className="flex flex-row space-x-2 items-center">
                           <Button
+                            aria-label={`${t("common.open")} ${version.id}`}
                             size="icon"
                             variant="ghost"
                             onClick={() => {
@@ -216,7 +218,11 @@ function VersionComponent() {
                           >
                             <Link2Icon />
                           </Button>
-                          <RadioGroupItem value={version.id} id={version.id} />
+                          <RadioGroupItem
+                            value={version.id}
+                            id={version.id}
+                            aria-label={`${version.id} ${version.type}`}
+                          />
                         </div>
                       </Field>
                     </FieldLabel>
@@ -302,7 +308,11 @@ function InstanceComponent() {
               <FieldLabel htmlFor="name" className="text-nowrap" required>
                 {t("create.instanceName")}
               </FieldLabel>
-              <Input {...register("name")} aria-invalid={!!errors.name} />
+              <Input
+                id="name"
+                {...register("name")}
+                aria-invalid={!!errors.name}
+              />
               {errors.name && <FieldError errors={[errors.name]} />}
             </Field>
             <Field>
@@ -310,6 +320,7 @@ function InstanceComponent() {
                 {t("create.instanceNotes")}
               </FieldLabel>
               <Textarea
+                id="notes"
                 className="resize-none min-h-0"
                 {...register("notes")}
                 rows={1}
@@ -621,43 +632,56 @@ export function CreateInstancePage() {
 
   return (
     <FormProvider {...form}>
-      <Stepper.List className="w-full flex list-none flex-row items-center justify-center px-6 mb-6">
+      <ol
+        aria-label={t("create.title")}
+        className="w-full flex list-none flex-row items-center justify-center px-6 mb-6"
+      >
         {stepper.state.all.map((step, idx) => {
           const current = stepper.state.current;
+          const currentIndex = stepper.lookup.getIndex(current.data.id);
           const isInactive = stepper.state.current.data.id !== step.id;
           const isLast = stepper.lookup.getLast().id === step.id;
+          const canNavigate = idx <= currentIndex && !isCreating;
           return (
-            <React.Fragment key={`stepper-item-${step.id}`}>
-              <Stepper.Item step={step.id}>
-                <Stepper.Trigger
-                  render={(domProps) => (
-                    <Button
-                      className="rounded-full"
-                      variant={isInactive ? "secondary" : "default"}
-                      size="icon"
-                      disabled={isInactive}
-                      {...domProps}
-                    >
-                      <Stepper.Indicator>{idx + 1}</Stepper.Indicator>
-                    </Button>
-                  )}
-                />
-              </Stepper.Item>
+            <li
+              key={`stepper-item-${step.id}`}
+              className={cn("flex items-center", !isLast && "flex-1")}
+              aria-current={isInactive ? undefined : "step"}
+            >
+              <button
+                type="button"
+                disabled={!canNavigate}
+                onClick={() => {
+                  void stepper.navigation.goTo(step.id);
+                }}
+                className={cn(
+                  "flex size-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  canNavigate
+                    ? "cursor-pointer"
+                    : "cursor-not-allowed opacity-60",
+                  isInactive
+                    ? "border-border bg-secondary text-secondary-foreground"
+                    : "border-primary bg-primary text-primary-foreground",
+                )}
+              >
+                <span className="sr-only">{step.title}: </span>
+                {idx + 1}
+              </button>
               {!isLast && (
-                <Stepper.Separator
-                  orientation="horizontal"
-                  data-status={current.status}
+                <span
+                  aria-hidden="true"
                   className={cn(
-                    "w-full h-0.5 mx-2",
-                    "bg-muted data-[status=success]:bg-primary data-disabled:opacity-50",
+                    "mx-2 h-0.5 w-full bg-muted",
+                    idx < currentIndex && "bg-primary",
                     "transition-all duration-300 ease-in-out",
                   )}
                 />
               )}
-            </React.Fragment>
+            </li>
           );
         })}
-      </Stepper.List>
+      </ol>
       <form
         className="flex flex-col flex-1 min-h-0 space-y-4 px-6"
         onSubmit={form.handleSubmit(handleSubmit)}
@@ -718,6 +742,7 @@ function PageWrapper() {
           <>
             <div className="flex flex-row space-x-4">
               <Button
+                aria-label={t("common.back")}
                 variant="secondary"
                 size="icon"
                 onClick={() => {
