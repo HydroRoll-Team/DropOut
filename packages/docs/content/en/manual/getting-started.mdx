@@ -11,22 +11,23 @@ DropOut is a modern, reproducible, and developer-grade Minecraft launcher built 
 
 ### Download Pre-built Binaries
 
-Download the latest release for your platform from the [Releases](https://github.com/HsiangNianian/DropOut/releases) page.
+Download the latest prerelease for your platform from the [HydroRoll Team releases](https://github.com/HydroRoll-Team/DropOut/releases) page. Alpha builds are intended for testing, so export important instances before upgrading.
 
-| Platform       | Files               |
-| -------------- | ------------------- |
-| Linux x86_64   | `.deb`, `.AppImage` |
-| Linux ARM64    | `.deb`, `.AppImage` |
-| macOS ARM64    | `.dmg`              |
-| Windows x86_64 | `.msi`, `.exe`      |
-| Windows ARM64  | `.msi`, `.exe`      |
+| Platform       | Release asset        |
+| -------------- | -------------------- |
+| Linux x86_64   | `.deb`, `.AppImage`  |
+| Linux ARM64    | `.deb`, `.AppImage`  |
+| macOS x86_64   | `.dmg`               |
+| macOS ARM64    | `.dmg`               |
+| Windows x86_64 | NSIS `.exe` installer |
+| Windows ARM64  | NSIS `.exe` installer |
 
 ### Linux Installation
 
 #### Using .deb Package
 
 ```bash
-sudo dpkg -i dropout_*.deb
+sudo dpkg -i Dropout_*.deb
 # Fix dependencies if needed
 sudo apt-get install -f
 ```
@@ -34,8 +35,8 @@ sudo apt-get install -f
 #### Using AppImage
 
 ```bash
-chmod +x dropout_*.AppImage
-./dropout_*.AppImage
+chmod +x Dropout_*.AppImage
+./Dropout_*.AppImage
 ```
 
 ### macOS Installation
@@ -46,16 +47,9 @@ chmod +x dropout_*.AppImage
 
 ### Windows Installation
 
-#### Using .msi Installer
-
-1. Double-click the `.msi` file
-2. Follow the installation wizard
-3. Launch DropOut from the Start Menu
-
-#### Using .exe Portable
-
-1. Double-click the `.exe` file
-2. DropOut will run directly without installation
+1. Double-click the architecture-appropriate `-setup.exe` installer.
+2. Follow the installation wizard.
+3. Launch DropOut from the Start Menu.
 
 ## First Launch
 
@@ -137,8 +131,13 @@ DropOut calculates the Java and file checks with the same backend rules used by 
     description="Install and manage Fabric and Forge"
   />
   <Card
+    title="Alpha 7 release notes"
+    href="/docs/manual/releases/alpha-7"
+    description="Review the UX changes, upgrade notes, and known limitations"
+  />
+  <Card
     title="Troubleshooting"
-    href="/docs/troubleshooting"
+    href="/docs/manual/troubleshooting"
     description="Common issues and solutions"
   />
 </Cards>
@@ -163,6 +162,6 @@ DropOut calculates the Java and file checks with the same backend rules used by 
 
 If you encounter issues:
 
-- Check the [Troubleshooting Guide](/docs/troubleshooting)
-- Report bugs on [GitHub Issues](https://github.com/HsiangNianian/DropOut/issues)
+- Check the [Troubleshooting Guide](/docs/manual/troubleshooting)
+- Report bugs on [GitHub Issues](https://github.com/HydroRoll-Team/DropOut/issues)
 - Join our community discussions

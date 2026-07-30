@@ -1,0 +1,49 @@
+---
+title: 0.2.0-alpha.7 — UX Foundation
+description: Launch readiness, a scalable instance library, Monaco configuration editing, and reproducible UI validation.
+---
+
+# 0.2.0-alpha.7 — UX Foundation
+
+Alpha 7 turns DropOut's core launcher surfaces into an inspectable daily workflow. It is a prerelease: back up or export important instances before upgrading, and report regressions on [GitHub Issues](https://github.com/HydroRoll-Team/DropOut/issues).
+
+## Highlights
+
+### Launch from real readiness
+
+Home is now a launch command center. One primary action follows the current account, instance, game files, loader, Java, memory, download, and process state. The same screen exposes recovery actions, aggregate download progress, live output, recent failures, and Minecraft logs.
+
+### Navigate large instance libraries
+
+The instance library adds name/content search, sorting, persistent grid/list views, progressive readiness checks, and an active detail workspace. Management actions include edit, duplicate, export, migrate, open directory, mod shortcuts, and guarded deletion with recovery guidance.
+
+### Edit JSON safely with Monaco
+
+The advanced configuration editor now bundles Monaco and its JSON worker locally. Schema diagnostics, formatting, <kbd>Ctrl</kbd>/<kbd>Command</kbd>+<kbd>S</kbd>, reset, cursor/validation status, immediate theme/language application, and unsaved-change protection work without a CDN.
+
+### Reproduce UI states before shipping
+
+Development fixtures cover empty, ready, downloading, running, failed, migration, and scaled instance-library states without requiring Tauri services. The Alpha 7 gate exercises 108 UI checks with keyboard/accessibility coverage and reviewed dark/light screenshots at both the 1024×768 default and 905×575 minimum window sizes on macOS and Linux.
+
+## Upgrade and migration notes
+
+- Existing DropOut configuration and instances are reused; Alpha 7 does not intentionally change their storage format.
+- Basic PCL, HMCL, MultiMC, and Prism discovery/import remains available from **Library actions** and copies selected game content into a DropOut-managed instance.
+- Full conflict preview, cancellation, rollback, launcher-specific compatibility reporting, and broader cross-platform migration fixtures are scheduled for Alpha 8.
+- Export an instance before destructive changes when its saves, mods, packs, or configuration cannot be recreated.
+
+## Release assets
+
+| Platform | Assets |
+| --- | --- |
+| Linux x86_64 / ARM64 | `.deb`, `.AppImage` |
+| macOS x86_64 / ARM64 | `.dmg` |
+| Windows x86_64 / ARM64 | NSIS `-setup.exe` |
+
+## Known limitations
+
+- Alpha builds may change behavior and data contracts before the stable release.
+- Launcher auto-update and the complete in-launcher mods manager are not finished.
+- Migration is a preview workflow until the Alpha 8 compatibility milestone is complete.
+
+Continue with the [launch workflow](/docs/manual/getting-started), [instance library](/docs/manual/features/instances), or [Monaco configuration editor](/docs/manual/features/config-editor).

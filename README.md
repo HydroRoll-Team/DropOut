@@ -58,12 +58,14 @@ The Rust core owns side effects. The React UI invokes Tauri commands and renders
 
 - **Microsoft authentication** - device-code OAuth flow, Minecraft Services login, token refresh, and persisted account state.
 - **Offline accounts** - local accounts for testing or non-network play.
-- **Instance system** - isolated game directories with per-instance notes, memory overrides, Java arguments, version, and loader state.
+- **Launch command center** - one state-driven action for sign-in, repair, download, launch, stop, and failure recovery, backed by real readiness checks.
+- **Instance library** - searchable and sortable grid/list views, progressive readiness, active-instance details, and guarded management actions.
+- **Instance system** - isolated game directories with per-instance notes, memory and Java overrides, version, loader, mods, saves, and migration entry points.
 - **Minecraft version management** - install, verify, list, delete, and launch local versions.
 - **Fabric and Forge support** - loader version discovery plus installer flows for modded instances.
 - **Java management** - local Java detection, compatibility checks, Adoptium catalog lookup, downloads, resume, and cancellation.
 - **Concurrent downloads** - asset/library queues with progress events and recovery paths.
-- **Configuration editor** - inspect and edit raw JSON/TOML launcher configuration.
+- **Configuration editor** - edit launcher JSON with locally bundled Monaco, schema diagnostics, formatting, keyboard save, and discard protection.
 - **Release feed** - GitHub release notes surfaced on the home screen.
 - **Game assistant** - optional local or OpenAI-compatible helper for logs, crashes, and configuration questions.
 
@@ -190,7 +192,8 @@ The UI keeps long-lived state in `packages/ui/src/models/`, renders routes from 
 - [ ] Built-in mods manager
 - [ ] Custom game directory selection
 - [ ] Launcher auto-updater
-- [x] Import from PCL, HMCL, MultiMC, Prism Launcher, and other profiles
+- [x] Basic discovery and copy-based import from PCL, HMCL, MultiMC, and Prism Launcher
+- [ ] Migration conflict previews, cancellation, rollback, and structured compatibility reports
 
 The public roadmap is tracked at <https://roadmap.sh/r/minecraft-launcher-dev>.
 

@@ -30,15 +30,10 @@ DropOut is packed with features designed for both casual players and power users
     href="instances"
     description="Isolated game environments with independent configs"
   />
-  <Card 
-    title="Downloads" 
-    href="downloads"
-    description="Fast concurrent downloads with resume support"
-  />
-  <Card 
-    title="AI Assistant" 
-    href="assistant"
-    description="Built-in AI helper for troubleshooting and guidance"
+  <Card
+    title="Configuration Editor"
+    href="config-editor"
+    description="Schema-aware Monaco JSON editing"
   />
 </Cards>
 
@@ -65,7 +60,7 @@ DropOut is packed with features designed for both casual players and power users
 | Mods Manager | Planned | Enable/disable mods in launcher |
 | Launcher Auto-update | Planned | Self-updating mechanism |
 | Custom Game Directory | Planned | Choose game files location |
-| Import Profiles | Planned | Import from MultiMC/Prism |
+| Launcher Migration | Preview | Basic PCL/HMCL/MultiMC/Prism discovery and copy import |
 
 ## Performance Features
 
@@ -90,7 +85,7 @@ DropOut is packed with features designed for both casual players and power users
 ## User Interface Features
 
 ### Modern Design
-- Dark mode enforced for eye comfort
+- Light and dark themes with readable launch-state contrast
 - Particle background effects
 - Clean, distraction-free layout
 - Responsive design
@@ -163,11 +158,11 @@ Built-in [Monaco configuration editor](/docs/manual/features/config-editor) with
 - Mod compatibility checking
 - Version management
 
-### Profile Import
-- Import from MultiMC
-- Import from Prism Launcher
-- Import from other launchers
-- Preserve settings and saves
+### Migration Compatibility
+- Preview imported, skipped, unsupported, and conflicting content
+- Preserve launcher-specific metadata and overrides
+- Add cancellation, rollback, and compatibility reports
+- Keep source launcher data unchanged
 
 ### Launcher Auto-update
 - Background update checks
