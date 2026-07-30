@@ -11,22 +11,23 @@ DropOut 是一个使用 Tauri v2 构建的现代化、可复现、开发者级�
 
 ### 下载预编译二进制文件
 
-从[发布页面](https://github.com/HsiangNianian/DropOut/releases)下载适合你平台的最新版本。
+从 [HydroRoll Team 发布页面](https://github.com/HydroRoll-Team/DropOut/releases)下载适合你平台的最新预发布版本。Alpha 版本用于测试，升级前请先导出重要实例。
 
-| 平台           | 文件                |
-| -------------- | ------------------- |
-| Linux x86_64   | `.deb`, `.AppImage` |
-| Linux ARM64    | `.deb`, `.AppImage` |
-| macOS ARM64    | `.dmg`              |
-| Windows x86_64 | `.msi`, `.exe`      |
-| Windows ARM64  | `.msi`, `.exe`      |
+| 平台           | 发布产物              |
+| -------------- | --------------------- |
+| Linux x86_64   | `.deb`、`.AppImage`   |
+| Linux ARM64    | `.deb`、`.AppImage`   |
+| macOS x86_64   | `.dmg`                |
+| macOS ARM64    | `.dmg`                |
+| Windows x86_64 | NSIS `.exe` 安装程序  |
+| Windows ARM64  | NSIS `.exe` 安装程序  |
 
 ### Linux 安装
 
 #### 使用 .deb 包
 
 ```bash
-sudo dpkg -i dropout_*.deb
+sudo dpkg -i Dropout_*.deb
 # 如果需要，修复依赖
 sudo apt-get install -f
 ```
@@ -34,8 +35,8 @@ sudo apt-get install -f
 #### 使用 AppImage
 
 ```bash
-chmod +x dropout_*.AppImage
-./dropout_*.AppImage
+chmod +x Dropout_*.AppImage
+./Dropout_*.AppImage
 ```
 
 ### macOS 安装
@@ -46,16 +47,9 @@ chmod +x dropout_*.AppImage
 
 ### Windows 安装
 
-#### 使用 .msi 安装程序
-
-1. 双击 `.msi` 文件
-2. 按照安装向导操作
-3. 从开始菜单启动 DropOut
-
-#### 使用 .exe 便携版
-
-1. 双击 `.exe` 文件
-2. DropOut 将直接运行，无需安装
+1. 双击与系统架构对应的 `-setup.exe` 安装程序。
+2. 按照安装向导操作。
+3. 从开始菜单启动 DropOut。
 
 ## 首次启动
 
@@ -121,14 +115,19 @@ DropOut 使用与真实启动命令相同的后端规则计算 Java 和文件状
 ## 下一步
 
 <Cards>
-  <Card title="功能特性" href="/docs/manual/features" description="了解 DropOut 提供的所有功能" />
-  <Card title="实例管理" href="/docs/manual/features/instances" description="创建隔离的游戏环境" />
+  <Card title="功能特性" href="/zh/docs/manual/features" description="了解 DropOut 提供的所有功能" />
+  <Card title="实例管理" href="/zh/docs/manual/features/instances" description="创建隔离的游戏环境" />
   <Card
     title="模组加载器"
-    href="/docs/manual/features/mod-loaders"
+    href="/zh/docs/manual/features/mod-loaders"
     description="安装和管理 Fabric 和 Forge"
   />
-  <Card title="故障排除" href="/docs/troubleshooting" description="常见问题和解决方案" />
+  <Card
+    title="Alpha 7 发布说明"
+    href="/zh/docs/manual/releases/alpha-7"
+    description="查看 UX 变化、升级说明和已知限制"
+  />
+  <Card title="故障排除" href="/zh/docs/manual/troubleshooting" description="常见问题和解决方案" />
 </Cards>
 
 ## 系统要求
@@ -151,6 +150,6 @@ DropOut 使用与真实启动命令相同的后端规则计算 Java 和文件状
 
 如果遇到问题：
 
-- 查看[故障排除指南](/docs/troubleshooting)
-- 在 [GitHub Issues](https://github.com/HsiangNianian/DropOut/issues) 上报告 bug
+- 查看[故障排除指南](/zh/docs/manual/troubleshooting)
+- 在 [GitHub Issues](https://github.com/HydroRoll-Team/DropOut/issues) 上报告 bug
 - 加入我们的社区讨论

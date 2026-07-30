@@ -1,0 +1,49 @@
+---
+title: 0.2.0-alpha.7 — UX 基础
+description: 启动就绪、可扩展实例库、Monaco 配置编辑与可复现 UI 验证。
+---
+
+# 0.2.0-alpha.7 — UX 基础
+
+Alpha 7 将 DropOut 的核心启动器界面整理为可检查的日常工作流。这仍是预发布版本：升级前请备份或导出重要实例，并在 [GitHub Issues](https://github.com/HydroRoll-Team/DropOut/issues) 报告回归问题。
+
+## 主要变化
+
+### 基于真实就绪状态启动
+
+主页现在是启动指挥中心。唯一的主操作会依据账户、实例、游戏文件、加载器、Java、内存、下载和进程状态切换；同一界面还提供恢复操作、汇总下载进度、实时输出、最近失败记录和 Minecraft 日志入口。
+
+### 管理大型实例库
+
+实例库新增名称/内容搜索、排序、持久化网格/列表视图、渐进就绪检查和当前实例详情工作区。管理操作包含编辑、复制、导出、迁移、打开目录、模组快捷入口，以及带恢复提示的删除确认。
+
+### 使用 Monaco 安全编辑 JSON
+
+高级配置编辑器现在会在本地打包 Monaco 及其 JSON Worker。无需 CDN 即可使用 Schema 诊断、格式化、<kbd>Ctrl</kbd>/<kbd>Command</kbd>+<kbd>S</kbd>、重置、光标/校验状态、主题/语言即时应用和未保存更改保护。
+
+### 发版前复现 UI 状态
+
+开发 fixture 无需 Tauri 服务即可覆盖空状态、就绪、下载、运行、失败、迁移和不同规模实例库。Alpha 7 门禁包含 108 项 UI 检查、键盘/无障碍覆盖，以及 macOS 与 Linux 上 1024×768 默认窗口和 905×575 最小窗口的亮/暗截图基线。
+
+## 升级与迁移说明
+
+- 现有 DropOut 配置和实例会继续使用；Alpha 7 不会有意修改其存储格式。
+- **实例库操作**仍提供 PCL、HMCL、MultiMC 和 Prism 的基础发现/导入，并将所选游戏内容复制到 DropOut 管理的实例。
+- 完整冲突预览、取消、回滚、启动器专属兼容性报告和更完整的跨平台迁移 fixture 计划在 Alpha 8 完成。
+- 如果存档、模组、资源包或配置无法重建，请在破坏性操作前先导出实例。
+
+## 发布产物
+
+| 平台 | 产物 |
+| --- | --- |
+| Linux x86_64 / ARM64 | `.deb`、`.AppImage` |
+| macOS x86_64 / ARM64 | `.dmg` |
+| Windows x86_64 / ARM64 | NSIS `-setup.exe` |
+
+## 已知限制
+
+- Alpha 阶段的行为和数据契约在稳定版前仍可能调整。
+- 启动器自动更新和完整的内置模组管理器尚未完成。
+- Alpha 8 兼容性里程碑完成前，迁移仍属于预览工作流。
+
+继续阅读[启动流程](/zh/docs/manual/getting-started)、[实例库](/zh/docs/manual/features/instances)或 [Monaco 配置编辑器](/zh/docs/manual/features/config-editor)。
