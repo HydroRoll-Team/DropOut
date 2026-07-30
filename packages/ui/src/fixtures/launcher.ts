@@ -147,6 +147,9 @@ const settings: LauncherConfig = {
   mirrorSource: "official",
   language: "en",
   enableSystemTray: false,
+  closeToTray: true,
+  startMinimizedToTray: false,
+  minimizeToTrayAfterLaunch: true,
   firstLaunchCompleted: true,
   jvmPreset: "g1gc",
   githubProxy: "",
@@ -615,6 +618,11 @@ export async function fixtureInvoke<T>(
         return undefined;
       case "save_settings":
         fixtureState.settings = args.config as LauncherConfig;
+        return undefined;
+      case "update_tray_download_status":
+      case "refresh_system_tray":
+      case "show_system_notification":
+      case "show_main_window":
         return undefined;
       case "start_game":
         return `Fixture: started Minecraft ${String(args.versionId)}`;

@@ -2,6 +2,7 @@ import { check } from "@tauri-apps/plugin-updater";
 import { marked } from "marked";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
+import { showSystemNotification } from "@/client";
 import { isLauncherFixtureMode } from "@/lib/launcher-runtime";
 import { Button } from "./ui/button";
 import {
@@ -38,6 +39,12 @@ export function useUpdater() {
           body: result.body ?? "",
         });
         setShowDialog(true);
+        void showSystemNotification(
+          "DropOut update available",
+          `Version ${result.version} is ready to install.`,
+        ).catch((error) =>
+          console.warn("Failed to show update notification:", error),
+        );
       } else if (!silent) {
         toast.info("You're on the latest version");
       }

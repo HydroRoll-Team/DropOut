@@ -267,6 +267,60 @@ test("settings avoids version errors outside the Tauri runtime", async ({
   );
 });
 
+test("system tray lifecycle settings are progressive and save immediately", async ({
+  page,
+}, testInfo) => {
+  await page.goto("/?fixture=ready&theme=dark#/settings");
+  await page.getByRole("tab", { name: "Advanced" }).click();
+
+  const enableTray = page.getByRole("switch", {
+    name: "Enable system tray",
+  });
+  const closeToTray = page.getByRole("switch", {
+    name: "Close window to tray",
+  });
+  const startMinimized = page.getByRole("switch", {
+    name: "Start minimized to tray",
+  });
+  const minimizeAfterLaunch = page.getByRole("switch", {
+    name: "Minimize after launching Minecraft",
+  });
+
+  await expect(enableTray).not.toBeChecked();
+  await expect(closeToTray).toBeDisabled();
+  await expect(startMinimized).toBeDisabled();
+  await expect(minimizeAfterLaunch).toBeDisabled();
+
+  await enableTray.click();
+
+  await expect(enableTray).toBeChecked();
+  await expect(closeToTray).toBeEnabled();
+  await expect(closeToTray).toBeChecked();
+  await expect(startMinimized).toBeEnabled();
+  await expect(minimizeAfterLaunch).toBeEnabled();
+  await expect(minimizeAfterLaunch).toBeChecked();
+
+  const checkUpdates = page.getByRole("button", { name: "Check for Updates" });
+  await checkUpdates.scrollIntoViewIfNeeded();
+  await expect(checkUpdates).toBeVisible();
+  await expect
+    .poll(() =>
+      page
+        .locator("main")
+        .evaluate((element) => [element.scrollLeft, element.scrollTop]),
+    )
+    .toEqual([0, 0]);
+  if (testInfo.project.name === "minimum-window") {
+    await expect
+      .poll(() =>
+        page
+          .locator('[data-slot="scroll-area-viewport"]')
+          .evaluate((element) => element.scrollTop),
+      )
+      .toBeGreaterThan(0);
+  }
+});
+
 test("home primary action follows launcher recovery state", async ({
   page,
 }) => {

@@ -23,6 +23,7 @@ macro_rules! emit_log {
 }
 
 mod core;
+mod desktop;
 mod utils;
 
 // Global storage for MS refresh token (not in Account struct to keep it separate)
@@ -53,9 +54,6 @@ struct RunningGameProcess {
 pub struct GameProcessState {
     running_game: AsyncMutex<Option<RunningGameProcess>>,
 }
-
-/// Tracks whether the system tray is active for close-to-tray behavior
-struct TrayEnabledState(bool);
 
 impl Default for GameProcessState {
     fn default() -> Self {
@@ -1076,6 +1074,14 @@ async fn start_game(
                 let _ = window_exit.emit("launcher-log", &msg);
                 let _ = window_exit.emit("game-exited", &event);
 
+                if event.exit_code != Some(0) {
+                    desktop::notify_game_crash(
+                        window_exit.app_handle(),
+                        &event.version_id,
+                        event.exit_code,
+                    );
+                }
+
                 let state: State<core::instance::InstanceState> = window_exit.app_handle().state();
                 state.end_operation(&event.instance_id);
                 break;
@@ -1085,10 +1091,20 @@ async fn start_game(
         }
     });
 
-    // Update instance's version_id to track last launched version
+    // Update the recent-launch list after the process starts successfully.
     if let Some(mut instance) = instance_state.get_instance(&instance_id) {
         instance.version_id = Some(version_id.clone());
+        instance.last_played = Some(chrono::Utc::now().timestamp());
         let _ = instance_state.update_instance(instance);
+    }
+    let _ = desktop::refresh_tray(app_handle);
+
+    let minimize_after_launch = {
+        let config = config_state.config.lock().unwrap();
+        desktop::should_minimize_after_launch(&config)
+    };
+    if minimize_after_launch {
+        let _ = window.hide();
     }
 
     Ok(format!("Launched Minecraft {} successfully!", version_id))
@@ -1801,11 +1817,14 @@ async fn get_settings(
 #[tauri::command]
 #[dropout_macros::api]
 async fn save_settings(
+    app: tauri::AppHandle,
     state: State<'_, core::config::ConfigState>,
-    config: core::config::LauncherConfig,
+    mut config: core::config::LauncherConfig,
 ) -> Result<(), String> {
+    config.sanitize();
     *state.config.lock().unwrap() = config;
     state.save()?;
+    desktop::refresh_tray(&app)?;
     Ok(())
 }
 
@@ -3593,49 +3612,12 @@ async fn download_content_file(
     .await
 }
 
-fn setup_system_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    use tauri::menu::{MenuBuilder, MenuItemBuilder};
-    use tauri::tray::TrayIconBuilder;
-
-    let show_item = MenuItemBuilder::with_id("show", "Show Window").build(app)?;
-    let quit_item = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
-    let menu = MenuBuilder::new(app)
-        .items(&[&show_item, &quit_item])
-        .build()?;
-
-    TrayIconBuilder::new()
-        .tooltip("DropOut Minecraft Launcher")
-        .menu(&menu)
-        .on_menu_event(|app: &tauri::AppHandle, event| match event.id().as_ref() {
-            "show" => {
-                if let Some(win) = app.get_webview_window("main") {
-                    let _ = win.show();
-                    let _ = win.set_focus();
-                }
-            }
-            "quit" => {
-                app.exit(0);
-            }
-            _ => {}
-        })
-        .on_tray_icon_event(|tray: &tauri::tray::TrayIcon, event| {
-            if let tauri::tray::TrayIconEvent::DoubleClick { .. } = event {
-                if let Some(win) = tray.app_handle().get_webview_window("main") {
-                    let _ = win.show();
-                    let _ = win.set_focus();
-                }
-            }
-        })
-        .build(app)?;
-
-    Ok(())
-}
-
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(core::auth::AccountState::new())
         .manage(MsRefreshTokenState::new())
@@ -3644,13 +3626,6 @@ fn main() {
         .manage(core::migration::MigrationOperationState::default())
         .setup(|app| {
             let config_state = core::config::ConfigState::new(app.handle());
-
-            // Set up system tray if enabled
-            let tray_enabled = config_state.config.lock().unwrap().enable_system_tray;
-            if tray_enabled {
-                setup_system_tray(app)?;
-            }
-
             app.manage(config_state);
 
             // Initialize instance state
@@ -3662,6 +3637,8 @@ fn main() {
             }
 
             app.manage(instance_state);
+            app.manage(desktop::TrayDownloadState::default());
+            desktop::setup_system_tray(app)?;
 
             // Load saved account on startup
             let app_dir = app.path().app_data_dir().unwrap();
@@ -3688,20 +3665,29 @@ fn main() {
                 let _ = app.emit("pending-java-downloads", pending.len());
             }
 
-            // Store tray_enabled flag so window event handler can reference it
-            app.manage(TrayEnabledState(tray_enabled));
+            let start_minimized = {
+                let config_state: State<core::config::ConfigState> = app.state();
+                let config = config_state.config.lock().unwrap();
+                desktop::should_start_minimized(&config)
+            };
+            if start_minimized {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.hide();
+                }
+            }
 
             Ok(())
         })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                let tray_state = window.app_handle().try_state::<TrayEnabledState>();
-                if let Some(state) = tray_state {
-                    if state.0 {
-                        // Hide window instead of closing when tray is enabled
-                        api.prevent_close();
-                        let _ = window.hide();
-                    }
+                let config_state: State<core::config::ConfigState> = window.app_handle().state();
+                let hide_to_tray = {
+                    let config = config_state.config.lock().unwrap();
+                    desktop::should_hide_on_close(&config)
+                };
+                if hide_to_tray {
+                    api.prevent_close();
+                    let _ = window.hide();
                 }
             }
         })
@@ -3794,7 +3780,11 @@ fn main() {
             // Content browser
             search_content,
             get_content_versions,
-            download_content_file
+            download_content_file,
+            desktop::refresh_system_tray,
+            desktop::update_tray_download_status,
+            desktop::show_system_notification,
+            desktop::show_main_window
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

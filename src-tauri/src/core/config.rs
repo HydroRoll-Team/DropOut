@@ -112,6 +112,15 @@ pub struct LauncherConfig {
     /// Enable system tray (minimize to tray)
     #[serde(default)]
     pub enable_system_tray: bool,
+    /// Hide the launcher window instead of exiting when the close button is used.
+    #[serde(default = "default_close_to_tray")]
+    pub close_to_tray: bool,
+    /// Start with the launcher window hidden when the system tray is enabled.
+    #[serde(default)]
+    pub start_minimized_to_tray: bool,
+    /// Hide the launcher after Minecraft starts successfully.
+    #[serde(default = "default_minimize_to_tray_after_launch")]
+    pub minimize_to_tray_after_launch: bool,
     /// Whether the guided tour has been completed
     #[serde(default)]
     pub first_launch_completed: bool,
@@ -130,6 +139,14 @@ fn default_mirror_source() -> String {
 
 fn default_language() -> String {
     "auto".to_string()
+}
+
+fn default_close_to_tray() -> bool {
+    true
+}
+
+fn default_minimize_to_tray_after_launch() -> bool {
+    true
 }
 
 fn default_jvm_preset() -> String {
@@ -163,6 +180,9 @@ impl Default for LauncherConfig {
             mirror_source: "official".to_string(),
             language: "auto".to_string(),
             enable_system_tray: false,
+            close_to_tray: true,
+            start_minimized_to_tray: false,
+            minimize_to_tray_after_launch: true,
             first_launch_completed: false,
             jvm_preset: "default".to_string(),
             github_proxy: "https://ghproxy.hydroroll.team".to_string(),
@@ -210,5 +230,26 @@ impl ConfigState {
         fs::create_dir_all(self.file_path.parent().unwrap()).map_err(|e| e.to_string())?;
         fs::write(&self.file_path, content).map_err(|e| e.to_string())?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::LauncherConfig;
+
+    #[test]
+    fn legacy_config_gets_safe_tray_lifecycle_defaults() {
+        let config: LauncherConfig = serde_json::from_str(
+            r#"{
+                "enableSystemTray": true,
+                "language": "zh-CN"
+            }"#,
+        )
+        .expect("legacy launcher config should deserialize");
+
+        assert!(config.enable_system_tray);
+        assert!(config.close_to_tray);
+        assert!(!config.start_minimized_to_tray);
+        assert!(config.minimize_to_tray_after_launch);
     }
 }

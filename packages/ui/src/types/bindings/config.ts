@@ -74,6 +74,18 @@ export type LauncherConfig = {
    */
   enableSystemTray: boolean;
   /**
+   * Hide the launcher window instead of exiting when the close button is used.
+   */
+  closeToTray: boolean;
+  /**
+   * Start with the launcher window hidden when the system tray is enabled.
+   */
+  startMinimizedToTray: boolean;
+  /**
+   * Hide the launcher after Minecraft starts successfully.
+   */
+  minimizeToTrayAfterLaunch: boolean;
+  /**
    * Whether the guided tour has been completed
    */
   firstLaunchCompleted: boolean;

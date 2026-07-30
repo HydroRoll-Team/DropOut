@@ -4,6 +4,7 @@
     "index",
     "instances",
     "migration",
+    "system-tray",
     "config-editor",
     "authentication",
     "java",

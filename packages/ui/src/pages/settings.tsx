@@ -100,9 +100,9 @@ export function SettingsPage() {
       );
     }
     return (
-      <ScrollArea className="size-full pr-2">
-        <TabsContent value="general" className="size-full">
-          <Card className="size-full">
+      <ScrollArea className="min-h-0 flex-1 pr-2">
+        <TabsContent value="general" className="min-h-full pb-1">
+          <Card className="min-h-full">
             <CardHeader>
               <CardTitle className="font-bold text-xl">
                 {t("settings.general.title")}
@@ -162,7 +162,10 @@ export function SettingsPage() {
                         />
                       </Field>
                     </div>
-                    <Field className="flex flex-row items-center justify-between">
+                    <Field
+                      orientation="horizontal"
+                      className="flex flex-row items-center justify-between"
+                    >
                       <FieldContent>
                         <FieldLabel htmlFor="gpu-acceleration">
                           {t("settings.general.gpuAcceleration")}
@@ -208,7 +211,7 @@ export function SettingsPage() {
                       max={MAX_DOWNLOAD_THREADS}
                     />
                   </Field>
-                  <Field className="flex flex-row">
+                  <Field orientation="horizontal" className="flex flex-row">
                     <FieldContent>
                       <FieldLabel htmlFor="mirror-source">
                         {t("settings.network.mirror")}
@@ -271,7 +274,7 @@ export function SettingsPage() {
                 </FieldSet>
                 <FieldSet>
                   <FieldLegend>{t("settings.jvm.title")}</FieldLegend>
-                  <Field className="flex flex-row">
+                  <Field orientation="horizontal" className="flex flex-row">
                     <FieldContent>
                       <FieldLabel htmlFor="jvm-preset">
                         {t("settings.jvm.gcPreset")}
@@ -366,8 +369,8 @@ export function SettingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
-        <TabsContent value="java" className="size-full">
-          <Card className="size-full">
+        <TabsContent value="java" className="min-h-full pb-1">
+          <Card className="min-h-full">
             <CardHeader>
               <CardTitle className="font-bold text-xl">
                 {t("settings.java.title")}
@@ -438,8 +441,8 @@ export function SettingsPage() {
             </CardHeader>
           </Card>
         </TabsContent>
-        <TabsContent value="appearance" className="size-full">
-          <Card className="size-full">
+        <TabsContent value="appearance" className="min-h-full pb-1">
+          <Card className="min-h-full">
             <CardHeader>
               <CardTitle className="font-bold text-xl">
                 {t("settings.appearance.title")}
@@ -447,7 +450,7 @@ export function SettingsPage() {
             </CardHeader>
             <CardContent>
               <FieldGroup>
-                <Field className="flex flex-row">
+                <Field orientation="horizontal" className="flex flex-row">
                   <FieldContent>
                     <FieldLabel htmlFor="theme">
                       {t("settings.appearance.theme")}
@@ -498,7 +501,7 @@ export function SettingsPage() {
                     </SelectContent>
                   </Select>
                 </Field>
-                <Field className="flex flex-row">
+                <Field orientation="horizontal" className="flex flex-row">
                   <FieldContent>
                     <FieldLabel htmlFor="language">
                       {t("settings.appearance.language")}
@@ -545,8 +548,8 @@ export function SettingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
-        <TabsContent value="advanced" className="size-full">
-          <Card className="size-full">
+        <TabsContent value="advanced" className="min-h-full pb-1">
+          <Card className="min-h-full">
             <CardHeader>
               <CardTitle className="font-bold text-xl">
                 {t("settings.advanced.title")}
@@ -559,7 +562,10 @@ export function SettingsPage() {
                     {t("settings.advanced.advancedOptions")}
                   </FieldLegend>
                   <FieldGroup>
-                    <Field className="flex flex-row items-center justify-between">
+                    <Field
+                      orientation="horizontal"
+                      className="flex flex-row items-center justify-between"
+                    >
                       <FieldContent>
                         <FieldLabel htmlFor="use-shared-caches">
                           {t("settings.advanced.sharedCaches")}
@@ -581,7 +587,10 @@ export function SettingsPage() {
                         }}
                       />
                     </Field>
-                    <Field className="flex flex-row items-center justify-between">
+                    <Field
+                      orientation="horizontal"
+                      className="flex flex-row items-center justify-between"
+                    >
                       <FieldContent>
                         <FieldLabel htmlFor="keep-per-instance-storage">
                           {t("settings.advanced.legacyStorage")}
@@ -606,8 +615,14 @@ export function SettingsPage() {
                 </FieldSet>
                 <FieldSet>
                   <FieldLegend>{t("settings.advanced.systemTray")}</FieldLegend>
+                  <FieldDescription>
+                    {t("settings.advanced.systemTrayHint")}
+                  </FieldDescription>
                   <FieldGroup>
-                    <Field className="flex flex-row items-center justify-between">
+                    <Field
+                      orientation="horizontal"
+                      className="flex flex-row items-center justify-between"
+                    >
                       <FieldContent>
                         <FieldLabel htmlFor="enable-system-tray">
                           {t("settings.advanced.enableSystemTray")}
@@ -628,12 +643,88 @@ export function SettingsPage() {
                         }}
                       />
                     </Field>
+                    <Field
+                      orientation="horizontal"
+                      className="flex flex-row items-center justify-between"
+                    >
+                      <FieldContent>
+                        <FieldLabel htmlFor="close-to-tray">
+                          {t("settings.advanced.closeToTray")}
+                        </FieldLabel>
+                        <FieldDescription>
+                          {t("settings.advanced.closeToTrayHint")}
+                        </FieldDescription>
+                      </FieldContent>
+                      <Switch
+                        id="close-to-tray"
+                        aria-label={t("settings.advanced.closeToTray")}
+                        checked={config.closeToTray}
+                        disabled={!config.enableSystemTray}
+                        onCheckedChange={(checked) => {
+                          settings.merge({ closeToTray: checked });
+                          settings.save();
+                        }}
+                      />
+                    </Field>
+                    <Field
+                      orientation="horizontal"
+                      className="flex flex-row items-center justify-between"
+                    >
+                      <FieldContent>
+                        <FieldLabel htmlFor="start-minimized-to-tray">
+                          {t("settings.advanced.startMinimizedToTray")}
+                        </FieldLabel>
+                        <FieldDescription>
+                          {t("settings.advanced.startMinimizedToTrayHint")}
+                        </FieldDescription>
+                      </FieldContent>
+                      <Switch
+                        id="start-minimized-to-tray"
+                        aria-label={t("settings.advanced.startMinimizedToTray")}
+                        checked={config.startMinimizedToTray}
+                        disabled={!config.enableSystemTray}
+                        onCheckedChange={(checked) => {
+                          settings.merge({ startMinimizedToTray: checked });
+                          settings.save();
+                        }}
+                      />
+                    </Field>
+                    <Field
+                      orientation="horizontal"
+                      className="flex flex-row items-center justify-between"
+                    >
+                      <FieldContent>
+                        <FieldLabel htmlFor="minimize-to-tray-after-launch">
+                          {t("settings.advanced.minimizeToTrayAfterLaunch")}
+                        </FieldLabel>
+                        <FieldDescription>
+                          {t("settings.advanced.minimizeToTrayAfterLaunchHint")}
+                        </FieldDescription>
+                      </FieldContent>
+                      <Switch
+                        id="minimize-to-tray-after-launch"
+                        aria-label={t(
+                          "settings.advanced.minimizeToTrayAfterLaunch",
+                        )}
+                        checked={config.minimizeToTrayAfterLaunch}
+                        disabled={!config.enableSystemTray}
+                        onCheckedChange={(checked) => {
+                          settings.merge({
+                            minimizeToTrayAfterLaunch: checked,
+                          });
+                          settings.save();
+                        }}
+                      />
+                    </Field>
                   </FieldGroup>
                 </FieldSet>
                 <FieldSet>
                   <FieldLegend>{t("settings.advanced.guidedTour")}</FieldLegend>
                   <FieldGroup>
-                    <Field className="flex flex-row items-center justify-between">
+                    <Field
+                      orientation="horizontal"
+                      className="flex flex-row items-center justify-between"
+                    >
                       <FieldContent>
                         <FieldLabel htmlFor="first-launch-completed">
                           {t("settings.advanced.firstLaunchCompleted")}
@@ -659,7 +750,10 @@ export function SettingsPage() {
                 <FieldSet>
                   <FieldLegend>{t("settings.advanced.updates")}</FieldLegend>
                   <FieldGroup>
-                    <Field className="flex flex-row items-center justify-between">
+                    <Field
+                      orientation="horizontal"
+                      className="flex flex-row items-center justify-between"
+                    >
                       <FieldContent>
                         <FieldLabel>
                           {t("settings.advanced.currentVersion")}
@@ -690,8 +784,8 @@ export function SettingsPage() {
   };
 
   return (
-    <div className="size-full flex flex-col p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="flex h-full min-h-0 flex-col gap-6 p-6">
+      <div className="flex shrink-0 items-center justify-between">
         <h2 className="text-3xl font-black bg-clip-text text-transparent bg-linear-to-r dark:from-white dark:to-white/60 from-gray-900 to-gray-600">
           Settings
         </h2>
@@ -709,9 +803,9 @@ export function SettingsPage() {
       <Tabs
         value={activeTab}
         onValueChange={setActiveTab}
-        className="size-full flex flex-col gap-6"
+        className="min-h-0 flex-1 flex flex-col gap-6"
       >
-        <TabsList>
+        <TabsList className="shrink-0">
           <TabsTrigger value="general">
             {t("settings.tabs.general")}
           </TabsTrigger>
