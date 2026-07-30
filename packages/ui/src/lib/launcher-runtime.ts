@@ -28,6 +28,7 @@ export const launcherFixtureNames = [
   "instances-loading",
   "instances-error",
   "migration",
+  "config-editor",
 ] as const;
 
 export type LauncherFixtureName = (typeof launcherFixtureNames)[number];

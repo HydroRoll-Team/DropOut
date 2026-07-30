@@ -1,0 +1,24 @@
+---
+title: Configuration Editor
+description: Safely edit DropOut's launcher configuration with the built-in Monaco workspace.
+---
+
+## Overview
+
+DropOut includes Monaco—the editor core used by Visual Studio Code—for advanced launcher configuration. The editor and its JSON worker are bundled with the app, so highlighting and validation continue to work offline without loading code from a CDN.
+
+Open **Settings**, then choose **Open JSON**. The workspace shows the active configuration path, cursor position, validation state, and whether edits are unsaved.
+
+## Editing safely
+
+- Schema-aware diagnostics flag invalid fields and malformed JSON before saving.
+- **Format JSON** formats the complete document.
+- **Reset** restores the last saved version.
+- **Save changes** writes valid, changed JSON only. You can also press <kbd>Ctrl</kbd>+<kbd>S</kbd> on Windows/Linux or <kbd>Command</kbd>+<kbd>S</kbd> on macOS.
+- Closing with unsaved edits asks for confirmation before discarding them.
+
+The Save action remains disabled while the document is unchanged or invalid. A successful save applies supported settings such as theme and display language immediately.
+
+## Caution
+
+This editor exposes the complete launcher configuration. Prefer the normal Settings controls for routine changes. If you edit the JSON directly, keep field names and value types intact; the diagnostics explain the first blocking problem in the status bar.
