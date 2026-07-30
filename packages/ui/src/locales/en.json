@@ -476,6 +476,28 @@
       "checking": "Checking..."
     }
   },
+  "config": {
+    "eyebrow": "Advanced settings",
+    "title": "Configuration studio",
+    "description": "Edit launcher settings with schema-aware validation. Changes apply after saving.",
+    "pathUnavailable": "Configuration path unavailable",
+    "format": "Format JSON",
+    "reset": "Reset",
+    "editorLabel": "Configuration source",
+    "loading": "Loading configuration…",
+    "saved": "Configuration saved",
+    "saveFailed": "Could not save configuration",
+    "validUnsaved": "Valid JSON · Unsaved changes",
+    "validSaved": "Valid JSON · All changes saved",
+    "valid": "Valid JSON",
+    "cursor": "Ln {{line}}, Col {{column}}",
+    "close": "Close",
+    "save": "Save changes",
+    "discardTitle": "Discard unsaved changes?",
+    "discardDescription": "Your edits have not been saved to the launcher configuration.",
+    "keepEditing": "Keep editing",
+    "discard": "Discard changes"
+  },
   "account": {
     "addAccount": "Add Account",
     "removeCurrent": "Remove Current"

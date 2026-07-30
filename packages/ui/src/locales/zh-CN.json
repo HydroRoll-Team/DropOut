@@ -476,6 +476,28 @@
       "checking": "检查中..."
     }
   },
+  "config": {
+    "eyebrow": "高级设置",
+    "title": "配置工作台",
+    "description": "使用架构感知校验编辑启动器设置，保存后生效。",
+    "pathUnavailable": "配置文件路径不可用",
+    "format": "格式化 JSON",
+    "reset": "重置",
+    "editorLabel": "配置源代码",
+    "loading": "正在加载配置…",
+    "saved": "配置已保存",
+    "saveFailed": "无法保存配置",
+    "validUnsaved": "JSON 有效 · 有未保存更改",
+    "validSaved": "JSON 有效 · 所有更改已保存",
+    "valid": "JSON 有效",
+    "cursor": "第 {{line}} 行，第 {{column}} 列",
+    "close": "关闭",
+    "save": "保存更改",
+    "discardTitle": "放弃未保存的更改？",
+    "discardDescription": "你的编辑尚未保存到启动器配置中。",
+    "keepEditing": "继续编辑",
+    "discard": "放弃更改"
+  },
   "account": {
     "addAccount": "添加账户",
     "removeCurrent": "移除当前账户"

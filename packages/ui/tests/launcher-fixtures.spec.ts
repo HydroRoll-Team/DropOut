@@ -44,6 +44,11 @@ const visualScenarios = [
     route: "/instances/import",
     heading: "Import from another launcher",
   },
+  {
+    fixture: "config-editor",
+    route: "/settings/editor",
+    heading: "Configuration studio",
+  },
 ] as const;
 
 for (const theme of themes) {
@@ -105,9 +110,9 @@ const accessibleRoutes = [
   },
   { fixture: "ready", route: "/settings", heading: "Settings" },
   {
-    fixture: "ready",
+    fixture: "config-editor",
     route: "/settings/editor",
-    heading: "Edit Configuration",
+    heading: "Configuration studio",
   },
 ] as const;
 
@@ -394,4 +399,58 @@ test("home supports Chinese and reduced motion", async ({ page }) => {
   await expect(page.getByRole("searchbox", { name: "搜索实例" })).toBeVisible();
   await expect(page.getByText("当前工作区")).toBeVisible();
   await expectAccessibilitySmoke(page);
+
+  await page.goto(
+    "/?fixture=config-editor&theme=dark&locale=zh-CN#/settings/editor",
+  );
+  await expect(page.getByRole("heading", { name: "配置工作台" })).toBeVisible();
+  await expect(
+    page.getByRole("textbox", { name: "配置源代码" }),
+  ).toBeAttached();
+  await expect(page.getByRole("button", { name: "格式化 JSON" })).toBeVisible();
+  await expectAccessibilitySmoke(page);
+});
+
+test("configuration studio validates, saves, and protects unsaved changes", async ({
+  page,
+}) => {
+  await page.goto("/?fixture=config-editor&theme=dark#/settings/editor");
+
+  const editor = page.getByTestId("monaco-config-editor");
+  const save = page.getByRole("button", { name: /Save changes/ });
+  await expect(editor).toBeVisible();
+  await expect(
+    page.getByRole("textbox", { name: "Configuration source" }),
+  ).toBeAttached();
+  await expect(save).toBeDisabled();
+
+  await editor.click({ position: { x: 240, y: 120 } });
+  await page.keyboard.press("ControlOrMeta+End");
+  await page.keyboard.insertText(" ");
+  await expect(page.getByText("Valid JSON · Unsaved changes")).toBeVisible();
+  await expect(save).toBeEnabled();
+
+  await page.keyboard.press("ControlOrMeta+s");
+  await expect(page.getByText("Valid JSON · All changes saved")).toBeVisible();
+  await expect(save).toBeDisabled();
+
+  await page.keyboard.press("ControlOrMeta+End");
+  await page.keyboard.insertText(" ");
+  await page
+    .getByRole("button", { name: "Close", exact: true })
+    .first()
+    .click();
+  await expect(
+    page.getByRole("alertdialog").getByText("Discard unsaved changes?"),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Keep editing" }).click();
+  await expect(page.getByTestId("monaco-config-editor")).toBeVisible();
+
+  await editor.click({ position: { x: 240, y: 120 } });
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.insertText("{");
+  await expect(save).toBeDisabled();
+  await expect(page.getByTestId("config-editor-status")).not.toContainText(
+    "Valid JSON",
+  );
 });

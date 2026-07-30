@@ -1,4 +1,11 @@
 {
   "title": "Features",
-  "pages": ["index", "instances", "authentication", "java", "mod-loaders"]
+  "pages": [
+    "index",
+    "instances",
+    "config-editor",
+    "authentication",
+    "java",
+    "mod-loaders"
+  ]
 }
