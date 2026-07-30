@@ -1,4 +1,4 @@
 {
   "title": "Features",
-  "pages": ["index", "authentication", "java", "mod-loaders"]
+  "pages": ["index", "instances", "authentication", "java", "mod-loaders"]
 }

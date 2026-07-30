@@ -15,6 +15,7 @@ import type {
   JavaInstallation,
   LauncherConfig,
   LaunchReadiness,
+  ModInfo,
   Version,
 } from "@/types";
 import type { GameExitedEvent } from "@/types/bindings/core";
@@ -70,6 +71,39 @@ const vanillaInstance: Instance = {
   modLoaderVersion: null,
   memoryOverride: null,
 };
+
+function createLibraryInstances(count: number): Instance[] {
+  return Array.from({ length: count }, (_, index) => {
+    if (index === 0) return readyInstance;
+
+    const ordinal = index + 1;
+    const padded = String(ordinal).padStart(3, "0");
+    const loader =
+      index % 3 === 0 ? null : index % 3 === 1 ? "fabric" : "forge";
+    const name =
+      ordinal === 97
+        ? "Redstone Archive 097"
+        : `${["Alpine", "Copper", "Deep Dark", "Skyblock", "Workshop"][index % 5]} ${padded}`;
+
+    return {
+      ...readyInstance,
+      id: `fixture-library-${padded}`,
+      name,
+      gameDir: `/fixtures/dropout/instances/library-${padded}`,
+      versionId:
+        index % 13 === 0 ? null : index % 4 === 0 ? "1.20.6" : "1.21.1",
+      createdAt: BigInt(1_735_689_600_000 - index * 86_400_000),
+      lastPlayed:
+        index % 9 === 0 ? null : BigInt(1_786_464_000_000 - index * 7_200_000),
+      notes:
+        index % 4 === 0 ? "Automation and progression test environment." : null,
+      modLoader: loader,
+      modLoaderVersion:
+        loader === "fabric" ? "0.16.14" : loader === "forge" ? "52.0.16" : null,
+      memoryOverride: index % 5 === 0 ? { min: 3072, max: 8192 } : null,
+    };
+  });
+}
 
 const settings: LauncherConfig = {
   minMemory: 1024,
@@ -205,8 +239,17 @@ const fixtureState: FixtureState = {
 function fixturesForCurrentScenario() {
   const name = getLauncherFixtureName() ?? "ready";
   const noAccount = name === "empty" || name === "no-account";
-  const noInstances = name === "empty" || name === "no-instance";
-  const instances = noInstances ? [] : [readyInstance, vanillaInstance];
+  const noInstances =
+    name === "empty" || name === "no-instance" || name === "instances-empty";
+  const instances = noInstances
+    ? []
+    : name === "instances-single"
+      ? [readyInstance]
+      : name === "instances-20" || name === "instances-grid"
+        ? createLibraryInstances(20)
+        : name === "instances-100"
+          ? createLibraryInstances(100)
+          : [readyInstance, vanillaInstance];
   const activeInstance =
     instances.find(
       (instance) => instance.id === fixtureState.activeInstanceId,
@@ -267,8 +310,15 @@ export async function fixtureInvoke<T>(
 ): Promise<T> {
   const fixture = fixturesForCurrentScenario();
 
-  if (fixture.name === "error" && command === "list_instances") {
+  if (
+    (fixture.name === "error" || fixture.name === "instances-error") &&
+    command === "list_instances"
+  ) {
     throw new Error("Fixture: instance index could not be read");
+  }
+
+  if (fixture.name === "instances-loading" && command === "list_instances") {
+    return new Promise<T>(() => undefined);
   }
 
   const result = (() => {
@@ -298,12 +348,22 @@ export async function fixtureInvoke<T>(
         return fixture.instances;
       case "get_versions":
         return versions;
-      case "get_launch_readiness":
+      case "get_launch_readiness": {
+        const requestedInstance = fixture.instances.find(
+          (instance) => instance.id === args.instanceId,
+        );
         return {
-          versionInstalled: fixture.name !== "downloading",
+          versionInstalled:
+            fixture.name !== "downloading" &&
+            requestedInstance?.versionId !== null,
           requiredJavaMajor: 21n,
-          java: fixture.name === "not-ready" ? null : javaInstallations[0],
+          java:
+            fixture.name === "not-ready" ||
+            String(args.instanceId).endsWith("017")
+              ? null
+              : javaInstallations[0],
         } satisfies LaunchReadiness;
+      }
       case "detect_launchers":
         return fixture.name === "migration" ? detectedLaunchers : [];
       case "scan_launcher_instances":
@@ -354,6 +414,23 @@ export async function fixtureInvoke<T>(
       }
       case "open_file_explorer":
         return undefined;
+      case "scan_instance_mods": {
+        const libraryOrdinal = String(args.instanceId).match(
+          /^fixture-library-(\d+)$/,
+        )?.[1];
+        const count = libraryOrdinal ? Number(libraryOrdinal) % 18 : 12;
+        return Array.from({ length: count }, (_, index) => ({
+          fileName: `fixture-mod-${index + 1}.jar`,
+          filePath: `/fixtures/mods/fixture-mod-${index + 1}.jar`,
+          enabled: index % 5 !== 0,
+          fileSize: BigInt((index + 1) * 1024 * 1024),
+          modName: `Fixture Mod ${index + 1}`,
+          modId: `fixture_mod_${index + 1}`,
+          version: "1.0.0",
+          description: null,
+          modLoader: fixture.activeInstance?.modLoader ?? "fabric",
+        })) satisfies ModInfo[];
+      }
       case "stop_game": {
         const active = fixturesForCurrentScenario().activeInstance;
         queueMicrotask(() => {

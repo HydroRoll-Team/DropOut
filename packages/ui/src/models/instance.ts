@@ -24,7 +24,7 @@ interface InstanceState {
 
   refresh: () => Promise<void>;
   create: (name: string) => Promise<Instance>;
-  delete: (id: string) => Promise<void>;
+  delete: (id: string) => Promise<boolean>;
   update: (instance: Instance) => Promise<void>;
   setActiveInstance: (instance: Instance) => Promise<void>;
   duplicate: (id: string, newName: string) => Promise<Instance | null>;
@@ -37,6 +37,8 @@ interface InstanceState {
   get: (id: string) => Promise<Instance | null>;
 }
 
+let pendingRefresh: Promise<void> | null = null;
+
 export const useInstanceStore = create<InstanceState>((set, get) => ({
   instances: [],
   activeInstance: null,
@@ -44,32 +46,40 @@ export const useInstanceStore = create<InstanceState>((set, get) => ({
   error: null,
 
   refresh: async () => {
+    if (pendingRefresh) return pendingRefresh;
+
     set({ status: "loading", error: null });
-    try {
-      const instances = await listInstances();
-      let activeInstance = await getActiveInstance();
+    pendingRefresh = (async () => {
+      try {
+        const instances = await listInstances();
+        let activeInstance = await getActiveInstance();
 
-      if (
-        activeInstance &&
-        !instances.some((instance) => instance.id === activeInstance?.id)
-      ) {
-        activeInstance = null;
+        if (
+          activeInstance &&
+          !instances.some((instance) => instance.id === activeInstance?.id)
+        ) {
+          activeInstance = null;
+        }
+
+        if (!activeInstance && instances.length > 0) {
+          await setActiveInstanceCommand(instances[0].id);
+          activeInstance = instances[0];
+        }
+
+        set({ instances, activeInstance, status: "ready", error: null });
+      } catch (e) {
+        console.error("Failed to load instances:", e);
+        set({
+          status: "error",
+          error: e instanceof Error ? e.message : String(e),
+        });
+        toast.error(translate("store.instancesLoadFailed"));
       }
+    })().finally(() => {
+      pendingRefresh = null;
+    });
 
-      if (!activeInstance && instances.length > 0) {
-        await setActiveInstanceCommand(instances[0].id);
-        activeInstance = instances[0];
-      }
-
-      set({ instances, activeInstance, status: "ready", error: null });
-    } catch (e) {
-      console.error("Failed to load instances:", e);
-      set({
-        status: "error",
-        error: e instanceof Error ? e.message : String(e),
-      });
-      toast.error(translate("store.instancesLoadFailed"));
-    }
+    return pendingRefresh;
   },
 
   create: async (name) => {
@@ -88,9 +98,11 @@ export const useInstanceStore = create<InstanceState>((set, get) => ({
       await refresh();
 
       toast.success(translate("store.instanceDeleted"));
+      return true;
     } catch (e) {
       console.error("Failed to delete instance:", e);
       toast.error(String(e));
+      return false;
     }
   },
 

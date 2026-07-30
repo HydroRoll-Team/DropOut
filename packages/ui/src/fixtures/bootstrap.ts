@@ -16,6 +16,10 @@ export function bootstrapLauncherFixture() {
   document.documentElement.dataset.launcherFixtureLocale =
     getLauncherFixtureLocale() ?? "en";
 
+  if (fixtureName === "instances-grid") {
+    window.localStorage.setItem("dropout.instanceLibraryView", "grid");
+  }
+
   if (fixtureName === "downloading") {
     useDownloadStore.setState({
       active: true,

@@ -60,6 +60,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
   // Settings tab fields
   const [editMemoryMin, setEditMemoryMin] = useState<number>(0);
   const [editMemoryMax, setEditMemoryMax] = useState<number>(0);
+  const [editJavaPath, setEditJavaPath] = useState<string>("");
   const [editJavaArgs, setEditJavaArgs] = useState<string>("");
   const [editServerAddress, setEditServerAddress] = useState<string>("");
   const [editSkinPath, setEditSkinPath] = useState<string>("");
@@ -82,6 +83,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
           config?.maxMemory ??
           2048,
       );
+      setEditJavaPath(instance.javaPathOverride ?? "");
       setEditJavaArgs(instance.jvmArgsOverride ?? "");
       setEditServerAddress(instance.serverAddress ?? "");
       setEditSkinPath(instance.skinPath ?? "");
@@ -181,6 +183,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
           min: editMemoryMin,
           max: editMemoryMax,
         },
+        javaPathOverride: editJavaPath.trim() ? editJavaPath.trim() : null,
         jvmArgsOverride: editJavaArgs.trim() ? editJavaArgs.trim() : null,
         serverAddress: editServerAddress.trim()
           ? editServerAddress.trim()
@@ -466,6 +469,45 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
 
           {activeTab === "settings" && (
             <div className="space-y-4">
+              <div>
+                <label
+                  htmlFor="java-path-edit"
+                  className="block text-sm font-medium mb-2"
+                >
+                  {t("editor.javaPath")}
+                </label>
+                <div className="flex gap-2">
+                  <Input
+                    id="java-path-edit"
+                    value={editJavaPath}
+                    onChange={(e) => setEditJavaPath(e.target.value)}
+                    placeholder={t("editor.javaPathPlaceholder")}
+                    disabled={saving}
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    disabled={saving}
+                    aria-label={t("editor.chooseJavaPath")}
+                    onClick={async () => {
+                      const selected = await openFileDialog({
+                        multiple: false,
+                      });
+                      if (typeof selected === "string") {
+                        setEditJavaPath(selected);
+                      }
+                    }}
+                  >
+                    <Folder />
+                  </Button>
+                </div>
+                <p className="text-xs text-zinc-400 mt-1">
+                  {t("editor.javaPathHint")}
+                </p>
+              </div>
+
               <div>
                 <label
                   htmlFor="server-address-edit"
