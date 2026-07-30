@@ -15,6 +15,9 @@ import type {
   JavaInstallation,
   LauncherConfig,
   LaunchReadiness,
+  MigrationImportReport,
+  MigrationPreview,
+  MigrationProgressEvent,
   ModInfo,
   Version,
 } from "@/types";
@@ -212,6 +215,11 @@ const importableInstances: ImportableInstance[] = [
     minecraftVersion: "1.21.1",
     modLoader: "fabric",
     modLoaderVersion: "0.16.14",
+    notes: "Automation-focused survival world.",
+    memoryOverride: { min: 3072, max: 6144 },
+    javaPathOverride: "/fixtures/java/bin/java",
+    jvmArgsOverride: "-XX:+UseG1GC",
+    iconSource: "/fixtures/prism/icons/create-live.png",
   },
   {
     sourcePath: "/fixtures/prism/instances/vanilla-lab",
@@ -223,8 +231,112 @@ const importableInstances: ImportableInstance[] = [
     minecraftVersion: "1.20.6",
     modLoader: null,
     modLoaderVersion: null,
+    notes: null,
+    memoryOverride: null,
+    javaPathOverride: null,
+    jvmArgsOverride: null,
+    iconSource: null,
   },
 ];
+
+const hmclImportableInstances: ImportableInstance[] = [
+  {
+    sourcePath: "/fixtures/hmcl/.minecraft/versions/1.20.1-fabric-isolated",
+    gameDir: "/fixtures/hmcl/.minecraft",
+    launcherType: "hmcl",
+    sourceKind: "version",
+    versionId: "1.20.1-fabric-isolated",
+    name: "1.20.1 Fabric Isolated",
+    minecraftVersion: "1.20.1",
+    modLoader: "fabric",
+    modLoaderVersion: "0.15.11",
+    notes: null,
+    memoryOverride: null,
+    javaPathOverride: null,
+    jvmArgsOverride: null,
+    iconSource: null,
+  },
+];
+
+function migrationPreview(sourcePath: string): MigrationPreview {
+  const source =
+    [...importableInstances, ...hmclImportableInstances].find(
+      (instance) => instance.sourcePath === sourcePath,
+    ) ?? importableInstances[0];
+  const hasConflict = source.name === "Create Live";
+  const includedContent: ReadonlyArray<readonly [string, number, bigint]> = [
+    ["mods", 184, 782_237_696n],
+    ["resourcepacks", 6, 37_748_736n],
+    ["shaderpacks", 2, 15_728_640n],
+    ["saves", 91, 1_224_736_768n],
+    ["config", 63, 4_718_592n],
+    ...(source.sourceKind === "version"
+      ? ([["version-metadata", 3, 18_874_368n]] as const)
+      : []),
+  ];
+  const content = [
+    ...includedContent.map(([id, fileCount, totalBytes]) => ({
+      id,
+      relativePath: id,
+      disposition: "include",
+      fileCount,
+      totalBytes,
+      reason: null,
+    })),
+    {
+      id: "logs",
+      relativePath: "logs",
+      disposition: "skip",
+      fileCount: 27,
+      totalBytes: 14_680_064n,
+      reason: "Generated session data",
+    },
+    {
+      id: "assets",
+      relativePath: "assets",
+      disposition: "skip",
+      fileCount: 820,
+      totalBytes: 523_239_424n,
+      reason: "Shared cache will be resolved by DropOut",
+    },
+    {
+      id: "unsupported-linked-content",
+      relativePath: "mods/external-library",
+      disposition: "unsupported",
+      fileCount: 1,
+      totalBytes: 0n,
+      reason: "Symbolic links are not followed during migration",
+    },
+  ];
+  const totalFiles = includedContent.reduce(
+    (total, [, count]) => total + count,
+    0,
+  );
+  const totalBytes = includedContent.reduce(
+    (total, [, , bytes]) => total + bytes,
+    0n,
+  );
+
+  return {
+    source,
+    suggestedName: hasConflict ? `${source.name} (Prism)` : source.name,
+    nameConflict: hasConflict,
+    content,
+    conflicts: hasConflict
+      ? [
+          {
+            kind: "name",
+            message: `An instance named “${source.name}” already exists.`,
+            suggestedResolution: `Use “${source.name} (Prism)” or choose another name.`,
+          },
+        ]
+      : [],
+    warnings: ["1 unsupported content group will not be copied"],
+    totalFiles,
+    totalBytes,
+    canImport: true,
+  };
+}
 
 type FixtureState = {
   activeInstanceId: string | null;
@@ -267,6 +379,7 @@ function fixturesForCurrentScenario() {
 }
 
 const listeners = new Map<string, Set<EventCallback<unknown>>>();
+const cancelledMigrationOperations = new Set<string>();
 
 function emitFixtureEvent<T>(eventName: string, payload: T) {
   for (const listener of listeners.get(eventName) ?? []) {
@@ -367,7 +480,105 @@ export async function fixtureInvoke<T>(
       case "detect_launchers":
         return fixture.name === "migration" ? detectedLaunchers : [];
       case "scan_launcher_instances":
-        return fixture.name === "migration" ? importableInstances : [];
+        return fixture.name === "migration"
+          ? String(args.instancesDir).includes("hmcl")
+            ? hmclImportableInstances
+            : importableInstances
+          : [];
+      case "preview_launcher_import":
+        return migrationPreview(String(args.sourcePath));
+      case "execute_launcher_import": {
+        const operationId = String(args.operationId);
+        const preview = migrationPreview(String(args.sourcePath));
+        const instanceName =
+          typeof args.newName === "string" && args.newName.trim()
+            ? args.newName.trim()
+            : preview.suggestedName;
+
+        queueMicrotask(() => {
+          emitFixtureEvent<MigrationProgressEvent>("migration-progress", {
+            operationId,
+            progress: {
+              completedFiles: 218,
+              totalFiles: preview.totalFiles,
+              completedBytes: 943_718_400n,
+              totalBytes: preview.totalBytes,
+              currentPath: "saves/Automation District/region/r.0.0.mca",
+            },
+          });
+        });
+
+        return new Promise<MigrationImportReport>((resolve, reject) => {
+          setTimeout(() => {
+            if (cancelledMigrationOperations.delete(operationId)) {
+              reject(
+                new Error(
+                  "Migration cancelled; copied files were rolled back.",
+                ),
+              );
+              return;
+            }
+            emitFixtureEvent<MigrationProgressEvent>("migration-progress", {
+              operationId,
+              progress: {
+                completedFiles: preview.totalFiles,
+                totalFiles: preview.totalFiles,
+                completedBytes: preview.totalBytes,
+                totalBytes: preview.totalBytes,
+                currentPath: "options.txt",
+              },
+            });
+            resolve({
+              operationId,
+              instanceId: `fixture-import-${preview.source.name.toLowerCase().replaceAll(" ", "-")}`,
+              instanceName,
+              sourcePath: preview.source.sourcePath,
+              copiedFiles: preview.totalFiles,
+              copiedBytes: preview.totalBytes,
+              skippedSymlinks: 0,
+              warnings: [],
+              compatibilityStatus: "ready-to-validate",
+              compatibilityChecks: [
+                {
+                  id: "version",
+                  status: "ready",
+                  summary: `Minecraft ${preview.source.minecraftVersion ?? preview.source.versionId} identified`,
+                  action: null,
+                },
+                {
+                  id: "loader",
+                  status: "ready",
+                  summary: preview.source.modLoader
+                    ? `${preview.source.modLoader} loader metadata preserved`
+                    : "Vanilla loader configuration preserved",
+                  action: null,
+                },
+                {
+                  id: "java",
+                  status: "ready",
+                  summary: preview.source.javaPathOverride
+                    ? "Source Java override is available"
+                    : "DropOut will resolve a compatible Java runtime",
+                  action: null,
+                },
+                {
+                  id: "memory",
+                  status: "ready",
+                  summary: preview.source.memoryOverride
+                    ? `Memory override preserved: ${preview.source.memoryOverride.min}–${preview.source.memoryOverride.max} MB`
+                    : "DropOut default memory settings will be used",
+                  action: null,
+                },
+              ],
+            });
+          }, 800);
+        });
+      }
+      case "cancel_launcher_import":
+        cancelledMigrationOperations.add(String(args.operationId));
+        return true;
+      case "rollback_launcher_import":
+        return true;
       case "import_from_launcher":
         return {
           ...readyInstance,

@@ -72,7 +72,7 @@ for (const theme of themes) {
       await expect(page.getByRole("heading", { name: heading })).toBeVisible();
 
       if (fixture === "migration") {
-        await expect(page.getByText("MultiMC compatible")).toBeVisible();
+        await expect(page.getByText("Prism / MultiMC")).toBeVisible();
       }
 
       if (fixture === "downloading") {
@@ -422,6 +422,122 @@ test("instance library exposes deterministic loading and repair states", async (
   await expect(
     page.getByRole("button", { name: "Repair Index" }),
   ).toBeVisible();
+});
+
+test("migration manifest resolves conflicts, reports copied content, and supports undo", async ({
+  page,
+}) => {
+  await page.goto("/?fixture=migration&theme=dark#/instances/import");
+  await page.getByRole("button", { name: /Prism \/ MultiMC/ }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Choose environments to move" }),
+  ).toBeVisible();
+  await page.getByRole("checkbox").first().check();
+  await page.getByRole("checkbox").nth(1).check();
+  await page.getByRole("button", { name: "Review 2 selected" }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Review the move manifest" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("The source stays byte-for-byte unchanged"),
+  ).toBeVisible();
+  await expect(
+    page.getByText("An instance named “Create Live” already exists."),
+  ).toBeVisible();
+  await expect(page.getByText("mods", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("logs", { exact: true }).first()).toBeVisible();
+  await expect(
+    page.getByText("Unsupported", { exact: true }).first(),
+  ).toBeVisible();
+  await expect(page.getByText("mods/external-library").first()).toBeVisible();
+
+  const names = page.getByRole("textbox", { name: "Name in DropOut" });
+  await expect(names.first()).toHaveValue("Create Live (Prism)");
+  await names.first().fill("Create Live Archive");
+  await page.getByRole("button", { name: "Import 2 environments" }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Copying reviewed content" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("progressbar", { name: "Migration copy progress" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Migration report" }),
+  ).toBeVisible();
+  await expect(page.getByText("2 imported · 0 failed")).toBeVisible();
+  await expect(page.getByText("Create Live Archive")).toBeVisible();
+
+  await page.getByRole("button", { name: "Undo import" }).first().click();
+  await expect(page.getByText("Import undone").first()).toBeVisible();
+  await expectAccessibilitySmoke(page);
+});
+
+test("PCL and HMCL isolated versions use the same reviewed migration flow", async ({
+  page,
+}) => {
+  await page.goto("/?fixture=migration&theme=dark#/instances/import");
+  await page.getByRole("button", { name: /PCL \/ HMCL/ }).click();
+  await expect(
+    page.getByRole("heading", { name: "Choose environments to move" }),
+  ).toBeVisible();
+  await expect(page.getByText("1.20.1 Fabric Isolated")).toBeVisible();
+  await expect(page.getByText("Version folder")).toBeVisible();
+
+  await page.getByRole("checkbox").check();
+  await page.getByRole("button", { name: "Review 1 selected" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Review the move manifest" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("version-metadata", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("logs", { exact: true })).toBeVisible();
+  await expectAccessibilitySmoke(page);
+});
+
+test("migration cancellation rolls back the active copy and the Chinese flow remains accessible", async ({
+  page,
+}) => {
+  await page.goto(
+    "/?fixture=migration&theme=dark&locale=zh-CN#/instances/import",
+  );
+  await expect(page.locator("html")).toHaveAttribute("lang", "zh-CN");
+  await expect(
+    page.getByRole("heading", { name: "从其他启动器导入" }),
+  ).toBeVisible();
+  await expectAccessibilitySmoke(page);
+
+  await page.getByRole("button", { name: /Prism \/ MultiMC/ }).click();
+  await page.getByRole("checkbox").first().check();
+  await page.getByRole("button", { name: "核对已选 1 项" }).click();
+  await expect(page.getByText("来源保持逐字节不变")).toBeVisible();
+  await expectAccessibilitySmoke(page);
+
+  await page.getByRole("button", { name: "导入 1 个环境" }).click();
+  await page.getByRole("button", { name: "取消并回滚" }).click();
+  await expect(page.getByRole("heading", { name: "迁移报告" })).toBeVisible();
+  await expect(page.getByText("成功 0 个 · 失败 1 个")).toBeVisible();
+  await expect(page.getByText(/Migration cancelled/)).toBeVisible();
+  await expectAccessibilitySmoke(page);
+});
+
+test("migration cancellation stops the remaining queue", async ({ page }) => {
+  await page.goto("/?fixture=migration&theme=dark#/instances/import");
+  await page.getByRole("button", { name: /Prism \/ MultiMC/ }).click();
+  await page.getByRole("checkbox").first().check();
+  await page.getByRole("checkbox").nth(1).check();
+  await page.getByRole("button", { name: "Review 2 selected" }).click();
+  await page.getByRole("button", { name: "Import 2 environments" }).click();
+  await page.getByRole("button", { name: "Cancel and roll back" }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Migration report" }),
+  ).toBeVisible();
+  await expect(page.getByText("0 imported · 1 failed")).toBeVisible();
+  await expect(page.getByText("Vanilla Lab", { exact: true })).toHaveCount(0);
 });
 
 test("home supports Chinese and reduced motion", async ({ page }) => {

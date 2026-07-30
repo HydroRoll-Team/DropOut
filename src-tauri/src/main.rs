@@ -3301,6 +3301,171 @@ async fn scan_launcher_instances(
 
 #[tauri::command]
 #[dropout_macros::api]
+async fn preview_launcher_import(
+    source_path: String,
+    instance_state: State<'_, core::instance::InstanceState>,
+) -> Result<core::migration::MigrationPreview, String> {
+    let existing_names = instance_state
+        .list_instances()
+        .into_iter()
+        .map(|instance| instance.name)
+        .collect::<Vec<_>>();
+    core::migration::preview_import(std::path::Path::new(&source_path), &existing_names)
+}
+
+#[tauri::command]
+#[dropout_macros::api]
+async fn execute_launcher_import(
+    window: Window,
+    operation_id: String,
+    source_path: String,
+    new_name: Option<String>,
+    operation_state: State<'_, core::migration::MigrationOperationState>,
+) -> Result<core::migration::MigrationImportReport, String> {
+    let cancelled = operation_state.begin(&operation_id)?;
+    let app_handle = window.app_handle().clone();
+    let progress_window = window.clone();
+    let task_operation_id = operation_id.clone();
+
+    let task = tauri::async_runtime::spawn_blocking(move || {
+        let instance_state = app_handle.state::<core::instance::InstanceState>();
+        let existing_names = instance_state
+            .list_instances()
+            .into_iter()
+            .map(|instance| instance.name)
+            .collect::<Vec<_>>();
+        let source = std::path::PathBuf::from(&source_path);
+        let preview = core::migration::preview_import(&source, &existing_names)?;
+        let metadata = preview.source.clone();
+        let name = new_name
+            .filter(|name| !name.trim().is_empty())
+            .unwrap_or_else(|| preview.suggested_name.clone());
+        let instance = instance_state.create_instance(name, &app_handle)?;
+
+        let copy_result = core::migration::copy_reviewed_content(
+            &source,
+            &instance.game_dir,
+            || cancelled.load(std::sync::atomic::Ordering::SeqCst),
+            |progress| {
+                let _ = progress_window.emit(
+                    "migration-progress",
+                    core::migration::MigrationProgressEvent {
+                        operation_id: task_operation_id.clone(),
+                        progress,
+                    },
+                );
+            },
+        );
+
+        let copied = match copy_result {
+            Ok(copied) => copied,
+            Err(error) => {
+                let _ = instance_state.delete_instance(&instance.id);
+                return Err(error);
+            }
+        };
+
+        let mut updated = instance.clone();
+        updated.version_id = metadata
+            .version_id
+            .clone()
+            .or(metadata.minecraft_version.clone());
+        updated.mod_loader = metadata.mod_loader.clone();
+        updated.mod_loader_version = metadata.mod_loader_version.clone();
+        updated.notes = metadata.notes.clone();
+        updated.jvm_args_override = metadata.jvm_args_override.clone();
+        updated.memory_override =
+            metadata
+                .memory_override
+                .clone()
+                .map(|memory| core::instance::MemoryOverride {
+                    min: memory.min,
+                    max: memory.max,
+                });
+        updated.java_path_override = metadata.java_path_override.clone();
+        if let Some(icon_name) = copied.imported_icon.as_ref() {
+            let imported_icon = updated.game_dir.join(icon_name);
+            if imported_icon.is_file() {
+                updated.icon_path = Some(imported_icon.to_string_lossy().to_string());
+            }
+        }
+
+        if let Err(error) = instance_state.update_instance(updated.clone()) {
+            let _ = instance_state.delete_instance(&instance.id);
+            return Err(error);
+        }
+
+        let (compatibility_status, compatibility_checks) =
+            core::migration::build_compatibility_report(&metadata, &copied);
+
+        let mut warnings = preview.warnings;
+        if copied.skipped_symlinks > 0 {
+            warnings.push(format!(
+                "{} symbolic link(s) were skipped; copy their targets manually if needed",
+                copied.skipped_symlinks
+            ));
+        }
+
+        Ok(core::migration::MigrationImportReport {
+            operation_id: task_operation_id,
+            instance_id: updated.id,
+            instance_name: updated.name,
+            source_path: source,
+            copied_files: copied.copied_files,
+            copied_bytes: copied.copied_bytes,
+            skipped_symlinks: copied.skipped_symlinks,
+            warnings,
+            compatibility_status,
+            compatibility_checks,
+        })
+    })
+    .await;
+
+    match task {
+        Ok(Ok(report)) => {
+            operation_state.complete(&operation_id, &report.instance_id);
+            Ok(report)
+        }
+        Ok(Err(error)) => {
+            operation_state.finish(&operation_id);
+            Err(error)
+        }
+        Err(error) => {
+            operation_state.finish(&operation_id);
+            Err(format!("Migration worker failed: {error}"))
+        }
+    }
+}
+
+#[tauri::command]
+#[dropout_macros::api]
+async fn cancel_launcher_import(
+    operation_id: String,
+    operation_state: State<'_, core::migration::MigrationOperationState>,
+) -> Result<bool, String> {
+    Ok(operation_state.cancel(&operation_id))
+}
+
+#[tauri::command]
+#[dropout_macros::api]
+async fn rollback_launcher_import(
+    operation_id: String,
+    operation_state: State<'_, core::migration::MigrationOperationState>,
+    instance_state: State<'_, core::instance::InstanceState>,
+) -> Result<bool, String> {
+    let Some(instance_id) = operation_state.take_completed(&operation_id) else {
+        return Ok(false);
+    };
+
+    if let Err(error) = instance_state.delete_instance(&instance_id) {
+        operation_state.complete(&operation_id, &instance_id);
+        return Err(error);
+    }
+    Ok(true)
+}
+
+#[tauri::command]
+#[dropout_macros::api]
 async fn import_from_launcher(
     window: Window,
     source_path: String,
@@ -3473,6 +3638,7 @@ fn main() {
         .manage(MsRefreshTokenState::new())
         .manage(GameProcessState::new())
         .manage(core::assistant::AssistantState::new())
+        .manage(core::migration::MigrationOperationState::default())
         .setup(|app| {
             let config_state = core::config::ConfigState::new(app.handle());
 
@@ -3615,6 +3781,10 @@ fn main() {
             // Migration
             detect_launchers,
             scan_launcher_instances,
+            preview_launcher_import,
+            execute_launcher_import,
+            cancel_launcher_import,
+            rollback_launcher_import,
             import_from_launcher,
             // Custom directory
             change_instance_directory,

@@ -192,6 +192,132 @@
     "preparing": "正在准备下载队列…",
     "files": "{{completed}} / {{total}} 个文件"
   },
+  "migration": {
+    "eyebrow": "迁移清单",
+    "title": {
+      "detect": "从其他启动器导入",
+      "select": "选择要搬走的环境",
+      "review": "核对搬家清单",
+      "transfer": "正在复制已确认内容",
+      "report": "迁移报告"
+    },
+    "description": {
+      "detect": "查找 Prism、MultiMC、PCL 或 HMCL 数据，并选择你信任的来源。",
+      "select": "选择一个或多个独立环境；完成核对前不会复制任何内容。",
+      "review": "处理名称冲突，并确认 DropOut 会带走或留下的每一类内容。",
+      "transfer": "内容将复制到新的 DropOut 实例，来源数据始终保持不变。",
+      "report": "查看兼容性说明、撤销已导入实例，或结束本次搬家。"
+    },
+    "track": {
+      "label": "迁移进度",
+      "detect": "发现",
+      "review": "核对",
+      "transfer": "传输",
+      "report": "报告"
+    },
+    "safety": {
+      "title": "只复制，不改源文件",
+      "description": "DropOut 只读取来源启动器并创建新实例，绝不会修改或删除来源文件。"
+    },
+    "chooseDialog": "选择启动器、实例或 .minecraft 目录",
+    "sources": "检测到的启动器来源",
+    "itemCount": "{{count}} 项",
+    "foundCount": "找到 {{count}} 个可导入环境",
+    "launcher": {
+      "multimc-compatible": "Prism / MultiMC",
+      "prism": "Prism Launcher",
+      "multimc": "MultiMC",
+      "pcl-hmcl": "PCL / HMCL",
+      "pcl": "PCL",
+      "hmcl": "HMCL",
+      "custom": "手动选择的目录"
+    },
+    "sourceKind": {
+      "instance": "实例",
+      "version": "版本目录",
+      "directory": "目录"
+    },
+    "metadata": {
+      "unknownVersion": "版本需要验证",
+      "vanilla": "原版",
+      "javaOverride": "保留 Java 覆盖设置",
+      "jvmOverride": "保留 JVM 参数",
+      "notes": "保留备注",
+      "icon": "保留启动器图标"
+    },
+    "empty": {
+      "launchers": "未检测到兼容启动器",
+      "launchersHint": "可选择 Prism/MultiMC 的 instances 目录，或 PCL/HMCL 的 .minecraft 目录。",
+      "instances": "该目录内没有找到实例或版本。"
+    },
+    "action": {
+      "autoScan": "重新扫描",
+      "chooseDirectory": "选择目录",
+      "selectAll": "全选",
+      "clear": "清空",
+      "review": "核对已选 {{count}} 项",
+      "start": "导入 {{count}} 个环境",
+      "cancelTransfer": "取消并回滚",
+      "finish": "完成"
+    },
+    "review": {
+      "sourceUnchanged": "来源保持逐字节不变",
+      "sourceUnchangedDescription": "只复制清单中的内容；缓存和启动器生成数据会留在原处。",
+      "conflictCount": "{{count}} 个冲突",
+      "ready": "可以复制",
+      "destinationName": "DropOut 中的名称",
+      "duplicateDestinationName": "请使用唯一的目标名称。",
+      "included": "带走",
+      "skipped": "留在原处",
+      "unsupported": "不支持",
+      "manualReview": "需要手动核对",
+      "fileSummary": "{{count}} 个 · {{size}}",
+      "noneIncluded": "没有找到支持的内容。",
+      "noneSkipped": "没有找到已知的生成内容。",
+      "notNeeded": "无需导入",
+      "total": "已核对 {{count}} 个文件 · {{size}}"
+    },
+    "transfer": {
+      "current": "正在搬运",
+      "preparing": "正在准备迁移",
+      "queue": "第 {{current}} / {{total}} 个环境",
+      "progress": "迁移复制进度",
+      "files": "{{completed}} / {{total}} 个文件",
+      "preparingFiles": "正在准备已确认的文件清单…",
+      "rollbackHint": "取消会停止当前复制、删除本次操作创建的全部目标文件，并且不再启动剩余队列；已完成的导入会保留在最终报告中。"
+    },
+    "report": {
+      "complete": "所选环境已搬入 DropOut",
+      "needsAttention": "部分环境需要处理",
+      "summary": "成功 {{imported}} 个 · 失败 {{failed}} 个",
+      "copied": "已复制 {{count}} 个文件 · {{size}}",
+      "undo": "撤销导入",
+      "undone": "已撤销导入",
+      "undoUnavailable": "该导入已无法撤销。",
+      "undoSuccess": "已移除导入实例 {{name}}",
+      "action": "下一步：{{action}}",
+      "check": {
+        "version": "游戏版本",
+        "loader": "模组加载器",
+        "java": "Java 运行时",
+        "memory": "内存",
+        "symlinks": "链接文件",
+        "icon": "实例图标"
+      },
+      "sourceSafe": "来源启动器数据只被读取。你可以继续使用原启动器，或按自己的安排稍后移除。",
+      "status": {
+        "ready-to-validate": "可以验证启动",
+        "action-required": "需要处理"
+      }
+    },
+    "error": {
+      "detect": "无法检测启动器：{{error}}",
+      "scan": "无法扫描该来源：{{error}}",
+      "preview": "无法生成迁移预览：{{error}}",
+      "cancel": "无法取消当前迁移：{{error}}",
+      "undo": "无法撤销该导入：{{error}}"
+    }
+  },
   "instances": {
     "title": "实例管理",
     "libraryEyebrow": "环境资料库",

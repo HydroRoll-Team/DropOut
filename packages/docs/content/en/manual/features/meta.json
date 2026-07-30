@@ -3,6 +3,7 @@
   "pages": [
     "index",
     "instances",
+    "migration",
     "config-editor",
     "authentication",
     "java",
