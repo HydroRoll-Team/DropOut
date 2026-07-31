@@ -615,12 +615,10 @@ impl GameAssistant {
         let mut stream = response.bytes_stream();
         let mut buffer = Vec::new();
 
-        let process_line = |line: &[u8], full_content: &mut String| -> Result<(), String> {
-            if line.iter().all(u8::is_ascii_whitespace) {
-                return Ok(());
-            }
-            let stream_response = serde_json::from_slice::<OllamaStreamResponse>(line)
-                .map_err(|error| format!("Failed to parse Ollama stream response: {error}"))?;
+        let process_line = |line: &[u8], full_content: &mut String| {
+            let Some(stream_response) = parse_ollama_stream_line(line) else {
+                return;
+            };
 
             if let Some(message) = stream_response.message {
                 full_content.push_str(&message.content);
@@ -669,15 +667,13 @@ impl GameAssistant {
                     },
                 );
             }
-
-            Ok(())
         };
 
         while let Some(chunk_result) = stream.next().await {
             match chunk_result {
                 Ok(chunk) => {
                     for line in take_complete_lines(&mut buffer, &chunk) {
-                        process_line(&line, &mut full_content)?;
+                        process_line(&line, &mut full_content);
                     }
                 }
                 Err(e) => {
@@ -686,7 +682,7 @@ impl GameAssistant {
             }
         }
         if !buffer.is_empty() {
-            process_line(&buffer, &mut full_content)?;
+            process_line(&buffer, &mut full_content);
         }
 
         Ok(full_content)
@@ -819,6 +815,15 @@ fn take_complete_lines(buffer: &mut Vec<u8>, chunk: &[u8]) -> Vec<Vec<u8>> {
     }
 
     lines
+}
+
+fn parse_ollama_stream_line(line: &[u8]) -> Option<OllamaStreamResponse> {
+    if line.iter().all(u8::is_ascii_whitespace) {
+        return None;
+    }
+
+    // Some Ollama-compatible proxies interleave diagnostics with NDJSON frames.
+    serde_json::from_slice(line).ok()
 }
 
 fn sanitize_log_line(line: &str) -> String {
@@ -959,6 +964,21 @@ mod tests {
             serde_json::from_slice(&lines[0]).expect("split JSON remains valid");
         assert_eq!(parsed.message.expect("message is present").content, "修复");
         assert!(buffer.is_empty());
+    }
+
+    #[test]
+    fn ollama_stream_parser_skips_diagnostics_without_losing_valid_frames() {
+        assert!(parse_ollama_stream_line(b"proxy: upstream connection established").is_none());
+
+        let parsed = parse_ollama_stream_line(
+            br#"{"message":{"role":"assistant","content":"continue"},"done":false}"#,
+        )
+        .expect("valid frame after diagnostics is preserved");
+
+        assert_eq!(
+            parsed.message.expect("message is present").content,
+            "continue"
+        );
     }
 
     #[test]
