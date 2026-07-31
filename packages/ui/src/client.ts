@@ -2,6 +2,7 @@ import { invoke } from "@/lib/launcher-runtime";
 import type {
   Account,
   AccountSummary,
+  AssistantLogContext,
   ContentSearchResult,
   ContentVersion,
   DetectedLauncher,
@@ -36,15 +37,23 @@ import type {
   VersionMetadata,
 } from "@/types";
 
-export function assistantChat(messages: Message[]): Promise<Message> {
+export function assistantChat(
+  messages: Message[],
+  logContext: string | null,
+): Promise<Message> {
   return invoke<Message>("assistant_chat", {
     messages,
+    logContext,
   });
 }
 
-export function assistantChatStream(messages: Message[]): Promise<string> {
+export function assistantChatStream(
+  messages: Message[],
+  logContext: string | null,
+): Promise<string> {
   return invoke<string>("assistant_chat_stream", {
     messages,
+    logContext,
   });
 }
 
@@ -235,6 +244,14 @@ export function getActiveInstance(): Promise<Instance | null> {
 
 export function getAllAccounts(): Promise<AccountSummary[]> {
   return invoke<AccountSummary[]>("get_all_accounts");
+}
+
+export function getAssistantLogContext(
+  lines: string[],
+): Promise<AssistantLogContext> {
+  return invoke<AssistantLogContext>("get_assistant_log_context", {
+    lines,
+  });
 }
 
 export function getConfigPath(): Promise<string> {

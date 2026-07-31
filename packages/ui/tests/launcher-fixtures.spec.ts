@@ -49,6 +49,16 @@ const visualScenarios = [
     route: "/settings/editor",
     heading: "Configuration studio",
   },
+  {
+    fixture: "assistant-ready",
+    route: "/assistant",
+    heading: "Diagnostic assistant",
+  },
+  {
+    fixture: "assistant-offline",
+    route: "/assistant",
+    heading: "Diagnostic assistant",
+  },
 ] as const;
 
 for (const theme of themes) {
@@ -77,6 +87,19 @@ for (const theme of themes) {
 
       if (fixture === "downloading") {
         await expect(page.getByText("Downloads")).toBeVisible();
+      }
+
+      if (fixture === "assistant-ready") {
+        await expect(page.getByText("Ready", { exact: true })).toBeVisible();
+        await expect(
+          page.getByText(/Could not initialize Fabric loader/),
+        ).toBeVisible();
+      }
+
+      if (fixture === "assistant-offline") {
+        await expect(
+          page.getByText("Unavailable", { exact: true }),
+        ).toBeVisible();
       }
 
       await page.evaluate(() => document.fonts.ready);
@@ -113,6 +136,11 @@ const accessibleRoutes = [
     fixture: "config-editor",
     route: "/settings/editor",
     heading: "Configuration studio",
+  },
+  {
+    fixture: "assistant-ready",
+    route: "/assistant",
+    heading: "Diagnostic assistant",
   },
 ] as const;
 
@@ -497,6 +525,58 @@ test("download and failure states expose actionable diagnostics", async ({
   await expect(
     page.locator('section[aria-labelledby="activity-title"]'),
   ).toBeFocused();
+});
+
+test("failed launch can open a consent-gated assistant diagnosis", async ({
+  page,
+}) => {
+  await page.goto("/?fixture=failed&theme=dark#/");
+  await page.getByRole("button", { name: "Ask diagnostic assistant" }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Diagnostic assistant" }),
+  ).toBeVisible();
+  await expect(page.getByText("Ready", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("switch", { name: "Attach to next request" }),
+  ).toBeChecked();
+  await expect(
+    page.getByRole("textbox", { name: "Message diagnostic assistant" }),
+  ).toHaveValue(/Analyze the last failed launch/);
+  await expect(
+    page.getByText(/Could not initialize Fabric loader/),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(
+    page.getByText(
+      /The attached evidence points to a Fabric mod compatibility conflict/,
+    ),
+  ).toBeVisible();
+});
+
+test("assistant keeps session evidence detached by default", async ({
+  page,
+}) => {
+  await page.goto("/?fixture=assistant-ready&theme=dark#/assistant");
+  await expect(page.getByText("Ready", { exact: true })).toBeVisible();
+
+  const attachment = page.getByRole("switch", {
+    name: "Attach to next request",
+  });
+  await expect(attachment).not.toBeChecked();
+
+  const composer = page.getByRole("textbox", {
+    name: "Message diagnostic assistant",
+  });
+  await composer.fill("What should I check first?");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+
+  await expect(
+    page.getByText(
+      "Start by checking the loader and mod versions for the active instance.",
+    ),
+  ).toBeVisible();
 });
 
 test("Java runtime download progress stays bounded and accessible", async ({

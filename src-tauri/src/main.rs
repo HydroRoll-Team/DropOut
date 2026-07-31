@@ -229,6 +229,8 @@ async fn start_game(
         instance_state.end_operation(&stale_instance_id);
     }
 
+    assistant_state.assistant.lock().unwrap().clear_logs();
+
     // Check for active account
     emit_log!(window, "Checking for active account...".to_string());
     let mut account = auth_state
@@ -2931,10 +2933,23 @@ async fn assistant_chat(
     assistant_state: State<'_, core::assistant::AssistantState>,
     config_state: State<'_, core::config::ConfigState>,
     messages: Vec<core::assistant::Message>,
+    log_context: Option<String>,
 ) -> Result<core::assistant::Message, String> {
     let assistant = assistant_state.assistant.lock().unwrap().clone();
     let config = config_state.config.lock().unwrap().clone();
-    assistant.chat(messages, &config.assistant).await
+    assistant
+        .chat(messages, &config.assistant, log_context)
+        .await
+}
+
+#[tauri::command]
+#[dropout_macros::api]
+async fn get_assistant_log_context(
+    assistant_state: State<'_, core::assistant::AssistantState>,
+    lines: Vec<String>,
+) -> Result<core::assistant::AssistantLogContext, String> {
+    let assistant = assistant_state.assistant.lock().unwrap().clone();
+    Ok(assistant.get_sanitized_log_context(&lines))
 }
 
 #[tauri::command]
@@ -3089,11 +3104,12 @@ async fn assistant_chat_stream(
     assistant_state: State<'_, core::assistant::AssistantState>,
     config_state: State<'_, core::config::ConfigState>,
     messages: Vec<core::assistant::Message>,
+    log_context: Option<String>,
 ) -> Result<String, String> {
     let assistant = assistant_state.assistant.lock().unwrap().clone();
     let config = config_state.config.lock().unwrap().clone();
     assistant
-        .chat_stream(messages, &config.assistant, &window)
+        .chat_stream(messages, &config.assistant, &window, log_context)
         .await
 }
 
@@ -3744,6 +3760,7 @@ fn main() {
             assistant_check_health,
             assistant_chat,
             assistant_chat_stream,
+            get_assistant_log_context,
             list_ollama_models,
             list_openai_models,
             // Instance management commands

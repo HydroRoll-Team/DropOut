@@ -32,6 +32,7 @@
   "nav": {
     "overview": "Overview",
     "instances": "Instances",
+    "assistant": "Assistant",
     "versions": "Versions",
     "settings": "Settings",
     "accounts": "Accounts",
@@ -54,6 +55,7 @@
     "failureDetails": "Failure details",
     "noActivity": "No session activity yet. Launch events will appear here.",
     "openLogs": "Open Minecraft logs",
+    "askAssistant": "Ask diagnostic assistant",
     "openLogsFailed": "Failed to open logs: {{error}}",
     "activateFailed": "Failed to activate instance: {{error}}",
     "actionFailed": "Action failed: {{error}}",
@@ -174,6 +176,67 @@
         "description": "Account, runtime, memory, and local game files are ready for launch.",
         "action": "Launch"
       }
+    }
+  },
+  "assistant": {
+    "eyebrow": "Recovery workspace",
+    "title": "Diagnostic assistant",
+    "description": "Turn launch output into a small, reviewable recovery plan with a local or OpenAI-compatible model.",
+    "workspace": "Active diagnostic context",
+    "noInstance": "No active instance",
+    "noModel": "No model selected",
+    "clear": "Clear conversation",
+    "thinking": "Building a recovery plan…",
+    "tokens": "{{count}} tokens generated",
+    "send": "Send",
+    "composerLabel": "Message diagnostic assistant",
+    "composerPlaceholder": "Describe what happened or ask about the attached session…",
+    "composerHint": "Enter to send · Shift+Enter for a new line",
+    "setupRequired": "Enable and configure a provider before starting a diagnosis.",
+    "providerUnavailable": "The configured provider is not responding. Check it and retry.",
+    "status": {
+      "idle": "Not checked",
+      "checking": "Checking",
+      "online": "Ready",
+      "offline": "Unavailable"
+    },
+    "empty": {
+      "title": "Start from evidence, not guesses",
+      "description": "Ask about a launch, mod set, or runtime decision. Session logs stay detached until you explicitly include them.",
+      "failureDescription": "The last failed session is ready for review. Inspect the redacted preview, then send the prepared recovery request."
+    },
+    "prompts": {
+      "failure": "Analyze the last failed launch and give me the smallest safe recovery plan.",
+      "mods": "Check the recent output for likely mod or loader compatibility problems.",
+      "memory": "Review this instance and recommend a safe Minecraft memory allocation."
+    },
+    "context": {
+      "eyebrow": "Privacy gate",
+      "title": "Session evidence",
+      "attach": "Attach to next request",
+      "lines": "{{count}} redacted log lines available",
+      "refresh": "Refresh session evidence",
+      "loading": "Reading and redacting the latest game output…",
+      "empty": "No game output has been captured in this launcher session.",
+      "privacy": "Credentials, home-directory names, email addresses, and IP addresses are redacted before this preview is created.",
+      "copy": "Copy redacted evidence",
+      "copied": "Redacted evidence copied"
+    },
+    "setup": {
+      "eyebrow": "Provider control",
+      "title": "Assistant setup",
+      "enabled": "Enable assistant",
+      "provider": "Provider",
+      "ollama": "Ollama · local",
+      "openai": "OpenAI-compatible · remote",
+      "endpoint": "Endpoint",
+      "model": "Model",
+      "apiKey": "API key",
+      "localDisclosure": "Ollama requests stay on the configured local endpoint. Session evidence is still opt-in.",
+      "remoteDisclosure": "Messages and any evidence you attach are sent to the configured remote endpoint.",
+      "saveAndCheck": "Save & check provider",
+      "saved": "Assistant settings saved",
+      "saveFailed": "Failed to save assistant settings: {{error}}"
     }
   },
   "bottomBar": {

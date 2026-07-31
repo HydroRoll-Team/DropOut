@@ -1,0 +1,47 @@
+---
+title: Diagnostic Assistant
+description: Configure local or remote troubleshooting with explicit log consent
+---
+
+# Diagnostic Assistant
+
+The diagnostic assistant turns launch output into a short recovery plan without silently uploading the current session. It supports a local Ollama endpoint and OpenAI-compatible remote endpoints.
+
+## Configure a provider
+
+Open **Assistant** in the launcher sidebar, then use **Assistant setup**:
+
+1. Enable the assistant.
+2. Choose **Ollama · local** or **OpenAI-compatible · remote**.
+3. Enter the endpoint and model name. Remote providers also require an API key.
+4. Select **Save & check provider**.
+
+The status changes to **Ready** only when the configuration is complete and the provider responds.
+
+## Diagnose a failed launch
+
+After a failed launch, select **Ask diagnostic assistant** on the Overview page. DropOut opens the recovery workspace with a prepared question and a preview of the latest session evidence.
+
+Before sending:
+
+- Review the evidence preview.
+- Keep **Attach to next request** enabled only when the shown lines are relevant.
+- Disable it to send the conversation without game logs.
+
+The attachment choice applies to each request. Conversation text is always sent to the configured provider when you select **Send**.
+
+## Privacy boundary
+
+DropOut removes common credentials, home-directory usernames, email addresses, and IP addresses before session evidence reaches the preview or a model. The preview is the evidence available for attachment; raw buffered logs are not added behind the UI.
+
+Ollama requests go to the local endpoint you configured. OpenAI-compatible requests, including any evidence you attach, leave the device and go to the configured remote endpoint. Provider retention and privacy terms still apply.
+
+## Provider unavailable
+
+If the assistant reports **Unavailable**:
+
+- For Ollama, start the service and confirm the endpoint and model name.
+- For a remote provider, confirm the endpoint, model, and API key.
+- Select **Retry** after correcting the provider, or save the setup again.
+
+The launcher and normal log inspection remain usable when the assistant is offline.

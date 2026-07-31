@@ -32,6 +32,7 @@
   "nav": {
     "overview": "概览",
     "instances": "实例",
+    "assistant": "诊断助手",
     "versions": "版本",
     "settings": "设置",
     "accounts": "账户",
@@ -54,6 +55,7 @@
     "failureDetails": "失败详情",
     "noActivity": "暂无会话活动，启动事件会显示在这里。",
     "openLogs": "打开 Minecraft 日志",
+    "askAssistant": "询问诊断助手",
     "openLogsFailed": "打开日志失败：{{error}}",
     "activateFailed": "切换实例失败：{{error}}",
     "actionFailed": "操作失败：{{error}}",
@@ -174,6 +176,67 @@
         "description": "账户、运行时、内存和本地游戏文件均已准备完成。",
         "action": "启动"
       }
+    }
+  },
+  "assistant": {
+    "eyebrow": "恢复工作台",
+    "title": "诊断助手",
+    "description": "使用本地或 OpenAI 兼容模型，把启动输出整理成简短、可核对的恢复方案。",
+    "workspace": "当前诊断上下文",
+    "noInstance": "没有当前实例",
+    "noModel": "未选择模型",
+    "clear": "清空对话",
+    "thinking": "正在生成恢复方案…",
+    "tokens": "已生成 {{count}} 个 token",
+    "send": "发送",
+    "composerLabel": "给诊断助手发送消息",
+    "composerPlaceholder": "描述发生了什么，或询问已附加的会话…",
+    "composerHint": "Enter 发送 · Shift+Enter 换行",
+    "setupRequired": "开始诊断前，请启用并配置模型提供方。",
+    "providerUnavailable": "当前模型提供方没有响应，请检查后重试。",
+    "status": {
+      "idle": "尚未检查",
+      "checking": "检查中",
+      "online": "已就绪",
+      "offline": "不可用"
+    },
+    "empty": {
+      "title": "从证据开始，不靠猜测",
+      "description": "可以询问启动、模组组合或运行时问题。除非你明确附加，否则会话日志不会发送。",
+      "failureDescription": "上次失败会话已可分析。请先核对脱敏预览，再发送预填的恢复请求。"
+    },
+    "prompts": {
+      "failure": "分析上次启动失败，并给出最小且安全的恢复方案。",
+      "mods": "检查最近输出中可能存在的模组或加载器兼容问题。",
+      "memory": "检查当前实例，并推荐安全的 Minecraft 内存分配。"
+    },
+    "context": {
+      "eyebrow": "隐私关卡",
+      "title": "会话证据",
+      "attach": "附加到下一次请求",
+      "lines": "有 {{count}} 行脱敏日志可用",
+      "refresh": "刷新会话证据",
+      "loading": "正在读取并脱敏最近的游戏输出…",
+      "empty": "本次启动器会话尚未捕获游戏输出。",
+      "privacy": "创建此预览前，会脱敏凭据、用户目录名、邮箱地址和 IP 地址。",
+      "copy": "复制脱敏证据",
+      "copied": "已复制脱敏证据"
+    },
+    "setup": {
+      "eyebrow": "模型控制",
+      "title": "助手设置",
+      "enabled": "启用助手",
+      "provider": "提供方",
+      "ollama": "Ollama · 本地",
+      "openai": "OpenAI 兼容 · 远程",
+      "endpoint": "端点",
+      "model": "模型",
+      "apiKey": "API 密钥",
+      "localDisclosure": "Ollama 请求只发送到配置的本地端点；会话证据仍需手动附加。",
+      "remoteDisclosure": "消息及你附加的任何证据都会发送到配置的远程端点。",
+      "saveAndCheck": "保存并检查提供方",
+      "saved": "助手设置已保存",
+      "saveFailed": "保存助手设置失败：{{error}}"
     }
   },
   "bottomBar": {

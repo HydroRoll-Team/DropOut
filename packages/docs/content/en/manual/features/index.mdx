@@ -31,6 +31,11 @@ DropOut is packed with features designed for both casual players and power users
     description="Isolated game environments with independent configs"
   />
   <Card
+    title="Diagnostic Assistant"
+    href="assistant"
+    description="Consent-gated launch and log troubleshooting"
+  />
+  <Card
     title="Configuration Editor"
     href="config-editor"
     description="Schema-aware Monaco JSON editing"
@@ -57,7 +62,7 @@ DropOut is packed with features designed for both casual players and power users
 | GitHub Integration | Complete | View releases and changelogs |
 | Concurrent Downloads | Complete | Multi-threaded asset downloads |
 | Resume Downloads | Complete | Resume interrupted downloads |
-| AI Assistant | Complete | Built-in troubleshooting helper |
+| Diagnostic Assistant | Complete | Local or OpenAI-compatible troubleshooting with explicit, redacted log consent |
 | Config Editor | Complete | Local, schema-aware Monaco JSON editor |
 | System Tray | Complete | Background lifecycle, recent quick launch, progress, and notifications |
 | Custom Resolution | Complete | Set game window dimensions |
@@ -146,10 +151,11 @@ Built-in [Monaco configuration editor](/en/docs/manual/features/config-editor) w
 - Copy/export functionality
 
 ### AI Assistant
-- Troubleshooting guidance
-- Error analysis
-- Configuration help
-- Documentation search
+The [diagnostic assistant](/en/docs/manual/features/assistant) provides:
+- A direct path from a failed launch to a recovery workspace
+- Local Ollama and remote OpenAI-compatible providers
+- Explicit, per-request consent before session evidence is attached
+- A redacted preview of the exact log context available to the model
 
 ### Migration Compatibility
 - Preview included, skipped, unsupported, and conflicting content before copying

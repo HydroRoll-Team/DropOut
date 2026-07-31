@@ -14,6 +14,7 @@ import {
   RefreshCw,
   ScrollText,
   Settings2,
+  Sparkles,
   Square,
   UserRound,
   Wrench,
@@ -784,6 +785,17 @@ export function HomePage() {
                   <FolderOpen aria-hidden="true" />
                   {t("home.openLogs")}
                 </Button>
+                {homeState === "failed" && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="mt-1 h-7 w-full text-[10px]"
+                    onClick={() => navigate("/assistant?source=failure")}
+                  >
+                    <Sparkles aria-hidden="true" />
+                    {t("home.askAssistant")}
+                  </Button>
+                )}
               </section>
             )}
 

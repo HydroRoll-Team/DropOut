@@ -7,6 +7,7 @@ import {
 import type {
   Account,
   AccountSummary,
+  AssistantLogContext,
   ContentSearchResult,
   DetectedLauncher,
   ImportableInstance,
@@ -21,6 +22,7 @@ import type {
   ModInfo,
   Version,
 } from "@/types";
+import type { StreamChunk } from "@/types/bindings/assistant";
 import type { GameExitedEvent } from "@/types/bindings/core";
 import type {
   JavaDownloadProgress,
@@ -474,6 +476,16 @@ export async function fixtureInvoke<T>(
       case "get_settings":
         return {
           ...fixtureState.settings,
+          assistant:
+            fixture.name === "assistant-ready" ||
+            fixture.name === "assistant-offline" ||
+            fixture.name === "failed"
+              ? {
+                  ...fixtureState.settings.assistant,
+                  enabled: true,
+                  ollamaModel: "qwen3:4b",
+                }
+              : fixtureState.settings.assistant,
           theme: getLauncherFixtureTheme() ?? fixtureState.settings.theme,
           language:
             getLauncherFixtureLocale() ?? fixtureState.settings.language,
@@ -645,6 +657,35 @@ export async function fixtureInvoke<T>(
         return undefined;
       case "start_game":
         return `Fixture: started Minecraft ${String(args.versionId)}`;
+      case "assistant_check_health":
+        return fixture.name !== "assistant-offline";
+      case "get_assistant_log_context":
+        return {
+          lineCount: 3,
+          content: [
+            "[main/ERROR] Could not initialize Fabric loader",
+            "Mod resolution failed for sodium 0.6.0",
+            "Crash report written to ~/.minecraft/crash-reports/[redacted]",
+          ].join("\n"),
+        } satisfies AssistantLogContext;
+      case "assistant_chat_stream": {
+        const response = args.logContext
+          ? "The attached evidence points to a Fabric mod compatibility conflict. Disable sodium 0.6.0, verify its Minecraft version, then retry the instance."
+          : "Start by checking the loader and mod versions for the active instance.";
+        queueMicrotask(() => {
+          emitFixtureEvent<StreamChunk>("assistant-stream", {
+            content: response.slice(0, 72),
+            done: false,
+            stats: null,
+          });
+          emitFixtureEvent<StreamChunk>("assistant-stream", {
+            content: response.slice(72),
+            done: true,
+            stats: null,
+          });
+        });
+        return response;
+      }
       case "install_version": {
         emitFixtureEvent<number>("download-start", 4);
         emitFixtureEvent<ProgressEvent>("download-progress", {
