@@ -1,0 +1,11 @@
+.git
+.codegraph
+.pnpm-store
+Cargo.lock
+artifacts
+node_modules
+packages/*/dist
+packages/*/node_modules
+packages/ui/playwright-report
+packages/ui/test-results
+target

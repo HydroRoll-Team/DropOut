@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=DropOut
+Comment=Minecraft game launcher
+Exec=dropout
+Icon=dropout
+Terminal=false
+Categories=Game;
