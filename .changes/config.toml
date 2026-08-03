@@ -12,23 +12,23 @@ refactor = "Refactors"
 [packages."@dropout/ui"]
 path = "packages/ui"
 resolver = "nodejs"
-version-mode = { pre-release.tag = "alpha" }
+version-mode = { pre-release.tag = "beta" }
 
 [packages."@dropout/docs"]
 path = "packages/docs"
 resolver = "nodejs"
-version-mode = { pre-release.tag = "alpha" }
+version-mode = { pre-release.tag = "beta" }
 
 [packages.dropout]
 path = "src-tauri"
 resolver = "rust"
-version-mode = { pre-release.tag = "alpha" }
+version-mode = { pre-release.tag = "beta" }
 assets = ["artifacts/**/*"]
 
 [packages.dropout-macros]
 path = "crates/macros"
 resolver = "rust"
-version-mode = { pre-release.tag = "alpha" }
+version-mode = { pre-release.tag = "beta" }
 
 [resolver.rust.pre-check]
 url = "https://crates.io/api/v1/crates/{{ package.name }}/{{ package.version }}"
