@@ -46,4 +46,45 @@ if "$repo_root/scripts/verify-linux-musl-package.sh" "$artifact_dir" archive-onl
   exit 1
 fi
 
+mock_bin="$fixture_root/mock-bin"
+mkdir -p "$mock_bin"
+printf '#!/bin/sh\nprintf "ELF 64-bit fixture\\n"\nexit 7\n' >"$mock_bin/file"
+printf '#!/bin/sh\nprintf "interpreter /lib/ld-musl-x86_64.so.1\\n"\n' >"$mock_bin/readelf"
+printf '#!/bin/sh\nprintf "libfixture.so => /lib/libfixture.so\\n"\n' >"$mock_bin/ldd"
+printf '#!/bin/sh\nexit 124\n' >"$mock_bin/timeout"
+chmod +x "$mock_bin/file" "$mock_bin/readelf" "$mock_bin/ldd" "$mock_bin/timeout"
+
+fake_binary="$fixture_root/fake-dropout"
+printf '#!/bin/sh\nexit 0\n' >"$fake_binary"
+chmod +x "$fake_binary"
+if PATH="$mock_bin:$PATH" "$repo_root/scripts/verify-linux-musl.sh" "$fake_binary" >/dev/null 2>&1; then
+  echo "musl verification must preserve failed inspection commands" >&2
+  exit 1
+fi
+
+printf '%s\n' \
+  '#!/bin/sh' \
+  'archive_path=' \
+  'while [ "$#" -gt 0 ]; do' \
+  '  if [ "$1" = "-czf" ]; then' \
+  '    shift' \
+  '    archive_path=$1' \
+  '  fi' \
+  '  shift' \
+  'done' \
+  '[ -n "$archive_path" ]' \
+  ': >"$archive_path"' >"$mock_bin/tar"
+printf '#!/bin/sh\nprintf "%%064d  %%s\\n" 0 "$1"\n' >"$mock_bin/sha256sum"
+chmod +x "$mock_bin/tar" "$mock_bin/sha256sum"
+
+portable_artifacts="$fixture_root/portable-artifacts"
+if ! (cd "$fixture_root" && PATH="$mock_bin:$PATH" "$repo_root/scripts/package-linux-musl.sh" "$fake_binary" "$portable_artifacts"); then
+  echo "musl packaging must resolve repository assets outside the checkout directory" >&2
+  exit 1
+fi
+set -- "$portable_artifacts"/Dropout_*_linux_x86_64-musl.tar.gz
+test "$#" -eq 1
+test -f "$1"
+test -f "$1.sha256"
+
 echo "musl release contract passed"

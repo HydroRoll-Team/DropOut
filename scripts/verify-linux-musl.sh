@@ -8,14 +8,29 @@ if [ ! -x "$binary_path" ]; then
   exit 1
 fi
 
-file "$binary_path" | tee /tmp/dropout-file.txt
-grep -q 'ELF 64-bit' /tmp/dropout-file.txt
+if ! file_output=$(file "$binary_path" 2>&1); then
+  printf '%s\n' "$file_output" >&2
+  echo "failed to inspect the musl binary format" >&2
+  exit 1
+fi
+printf '%s\n' "$file_output"
+printf '%s\n' "$file_output" | grep -q 'ELF 64-bit'
 
-readelf -l "$binary_path" | tee /tmp/dropout-readelf.txt
-grep -q '/lib/ld-musl-x86_64.so.1' /tmp/dropout-readelf.txt
+if ! readelf_output=$(readelf -l "$binary_path" 2>&1); then
+  printf '%s\n' "$readelf_output" >&2
+  echo "failed to inspect the musl ELF interpreter" >&2
+  exit 1
+fi
+printf '%s\n' "$readelf_output"
+printf '%s\n' "$readelf_output" | grep -q '/lib/ld-musl-x86_64.so.1'
 
-ldd "$binary_path" | tee /tmp/dropout-ldd.txt
-if grep -q 'not found' /tmp/dropout-ldd.txt; then
+if ! ldd_output=$(ldd "$binary_path" 2>&1); then
+  printf '%s\n' "$ldd_output" >&2
+  echo "failed to inspect musl runtime libraries" >&2
+  exit 1
+fi
+printf '%s\n' "$ldd_output"
+if printf '%s\n' "$ldd_output" | grep -q 'not found'; then
   echo "one or more musl runtime libraries are missing" >&2
   exit 1
 fi
