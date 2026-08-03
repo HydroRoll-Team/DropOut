@@ -6,6 +6,7 @@ import {
   ChevronRightIcon,
   CircleDashedIcon,
   DownloadIcon,
+  FileArchiveIcon,
   FileCheck2Icon,
   FolderOpenIcon,
   FolderSearchIcon,
@@ -192,6 +193,38 @@ export function ImportWizard({
       const result = await scanLauncherInstances(picked);
       const launcher: DetectedLauncher = {
         launcherType: "custom",
+        instancesDir: picked,
+        instanceCount: result.length,
+      };
+      setLaunchers((previous) => [launcher, ...previous]);
+      setSelectedLauncher(launcher);
+      setInstances(result);
+      setSelected(new Set());
+      setFailures([]);
+      setStep("select");
+    } catch (error) {
+      toast.error(t("migration.error.scan", { error: errorMessage(error) }));
+    }
+  };
+
+  const selectManualArchive = async () => {
+    try {
+      const picked = await openDialog({
+        directory: false,
+        multiple: false,
+        title: t("migration.archiveDialog"),
+        filters: [
+          {
+            name: t("migration.archiveFilter"),
+            extensions: ["zip", "mrpack"],
+          },
+        ],
+      });
+      if (typeof picked !== "string") return;
+
+      const result = await scanLauncherInstances(picked);
+      const launcher: DetectedLauncher = {
+        launcherType: result[0]?.launcherType ?? "portable-archive",
         instancesDir: picked,
         instanceCount: result.length,
       };
@@ -433,7 +466,7 @@ export function ImportWizard({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                 <Button
                   type="button"
                   variant="outline"
@@ -454,6 +487,14 @@ export function ImportWizard({
                 >
                   <FolderOpenIcon className="size-4" />
                   {t("migration.action.chooseDirectory")}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={selectManualArchive}
+                >
+                  <FileArchiveIcon className="size-4" />
+                  {t("migration.action.chooseArchive")}
                 </Button>
               </div>
 

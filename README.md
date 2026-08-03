@@ -192,8 +192,8 @@ The UI keeps long-lived state in `packages/ui/src/models/`, renders routes from 
 - [ ] Built-in mods manager
 - [ ] Custom game directory selection
 - [ ] Launcher auto-updater
-- [x] Basic discovery and copy-based import from PCL, HMCL, MultiMC, and Prism Launcher
-- [ ] Migration conflict previews, cancellation, rollback, and structured compatibility reports
+- [x] Reviewed, copy-only directory and archive migration from PCL, HMCL, MultiMC, and Prism Launcher
+- [x] Migration conflict previews, cancellation, rollback, and structured compatibility reports
 
 The public roadmap is tracked at <https://roadmap.sh/r/minecraft-launcher-dev>.
 

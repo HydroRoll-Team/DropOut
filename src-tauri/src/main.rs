@@ -3336,6 +3336,9 @@ async fn execute_launcher_import(
             .collect::<Vec<_>>();
         let source = std::path::PathBuf::from(&source_path);
         let preview = core::migration::preview_import(&source, &existing_names)?;
+        if !preview.can_import {
+            return Err("Migration source has no reviewed portable content to import".into());
+        }
         let metadata = preview.source.clone();
         let name = new_name
             .filter(|name| !name.trim().is_empty())

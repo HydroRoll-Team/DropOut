@@ -428,6 +428,9 @@ test("migration manifest resolves conflicts, reports copied content, and support
   page,
 }) => {
   await page.goto("/?fixture=migration&theme=dark#/instances/import");
+  await expect(
+    page.getByRole("button", { name: "Choose archive" }),
+  ).toBeVisible();
   await page.getByRole("button", { name: /Prism \/ MultiMC/ }).click();
 
   await expect(

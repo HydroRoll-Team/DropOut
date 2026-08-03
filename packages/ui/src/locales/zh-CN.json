@@ -220,6 +220,8 @@
       "description": "DropOut 只读取来源启动器并创建新实例，绝不会修改或删除来源文件。"
     },
     "chooseDialog": "选择启动器、实例或 .minecraft 目录",
+    "archiveDialog": "选择启动器配置包或存档包",
+    "archiveFilter": "启动器归档包",
     "sources": "检测到的启动器来源",
     "itemCount": "{{count}} 项",
     "foundCount": "找到 {{count}} 个可导入环境",
@@ -230,12 +232,16 @@
       "pcl-hmcl": "PCL / HMCL",
       "pcl": "PCL",
       "hmcl": "HMCL",
+      "modrinth": "Modrinth 归档包",
+      "curseforge": "CurseForge 归档包",
+      "portable-archive": "便携游戏数据包",
       "custom": "手动选择的目录"
     },
     "sourceKind": {
       "instance": "实例",
       "version": "版本目录",
-      "directory": "目录"
+      "directory": "目录",
+      "archive": "归档包"
     },
     "metadata": {
       "unknownVersion": "版本需要验证",
@@ -247,12 +253,13 @@
     },
     "empty": {
       "launchers": "未检测到兼容启动器",
-      "launchersHint": "可选择 Prism/MultiMC 的 instances 目录，或 PCL/HMCL 的 .minecraft 目录。",
+      "launchersHint": "可选择 Prism/MultiMC 的 instances 目录、PCL/HMCL 的 .minecraft 目录，或受支持的启动器归档包。",
       "instances": "该目录内没有找到实例或版本。"
     },
     "action": {
       "autoScan": "重新扫描",
       "chooseDirectory": "选择目录",
+      "chooseArchive": "选择归档包",
       "selectAll": "全选",
       "clear": "清空",
       "review": "核对已选 {{count}} 项",
@@ -302,6 +309,7 @@
         "java": "Java 运行时",
         "memory": "内存",
         "symlinks": "链接文件",
+        "archive-dependencies": "归档包依赖",
         "icon": "实例图标"
       },
       "sourceSafe": "来源启动器数据只被读取。你可以继续使用原启动器，或按自己的安排稍后移除。",

@@ -49,6 +49,7 @@ export type MigrationCopyResult = {
   copiedFiles: number;
   copiedBytes: bigint;
   skippedSymlinks: number;
+  pendingRemoteFiles: number;
   importedIcon: string | null;
 };
 

@@ -494,6 +494,9 @@ export async function fixtureInvoke<T>(
           typeof args.newName === "string" && args.newName.trim()
             ? args.newName.trim()
             : preview.suggestedName;
+        const loaderNeedsInstall = Boolean(
+          preview.source.modLoader && preview.source.sourceKind !== "version",
+        );
 
         queueMicrotask(() => {
           emitFixtureEvent<MigrationProgressEvent>("migration-progress", {
@@ -537,7 +540,9 @@ export async function fixtureInvoke<T>(
               copiedBytes: preview.totalBytes,
               skippedSymlinks: 0,
               warnings: [],
-              compatibilityStatus: "ready-to-validate",
+              compatibilityStatus: loaderNeedsInstall
+                ? "action-required"
+                : "ready-to-validate",
               compatibilityChecks: [
                 {
                   id: "version",
@@ -547,11 +552,15 @@ export async function fixtureInvoke<T>(
                 },
                 {
                   id: "loader",
-                  status: "ready",
-                  summary: preview.source.modLoader
-                    ? `${preview.source.modLoader} loader metadata preserved`
-                    : "Vanilla loader configuration preserved",
-                  action: null,
+                  status: loaderNeedsInstall ? "action-required" : "ready",
+                  summary: loaderNeedsInstall
+                    ? `${preview.source.modLoader} metadata was identified, but its launcher profile was not imported`
+                    : preview.source.modLoader
+                      ? `${preview.source.modLoader} loader profile preserved`
+                      : "Vanilla loader configuration preserved",
+                  action: loaderNeedsInstall
+                    ? `Install ${preview.source.modLoader} ${preview.source.modLoaderVersion} for Minecraft ${preview.source.minecraftVersion} before the first launch`
+                    : null,
                 },
                 {
                   id: "java",

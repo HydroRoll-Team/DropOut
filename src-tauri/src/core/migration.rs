@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;
 use std::fs;
+use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -110,6 +111,7 @@ pub struct MigrationCopyResult {
     pub copied_files: usize,
     pub copied_bytes: u64,
     pub skipped_symlinks: usize,
+    pub pending_remote_files: usize,
     pub imported_icon: Option<String>,
 }
 
@@ -236,6 +238,37 @@ pub struct ImportableInstance {
     pub icon_source: Option<PathBuf>,
 }
 
+#[derive(Debug)]
+struct ArchiveFilePlan {
+    index: usize,
+    relative_path: PathBuf,
+    display_path: String,
+    size: u64,
+}
+
+#[derive(Debug)]
+struct LauncherArchivePlan {
+    files: Vec<ArchiveFilePlan>,
+    content: Vec<MigrationContentGroup>,
+    conflicts: Vec<MigrationConflict>,
+    warnings: Vec<String>,
+    total_files: usize,
+    total_bytes: u64,
+    pending_remote_files: usize,
+}
+
+fn is_regular_directory(path: &Path) -> bool {
+    fs::symlink_metadata(path)
+        .map(|metadata| metadata.file_type().is_dir())
+        .unwrap_or(false)
+}
+
+fn is_regular_file(path: &Path) -> bool {
+    fs::symlink_metadata(path)
+        .map(|metadata| metadata.file_type().is_file())
+        .unwrap_or(false)
+}
+
 /// Scan common launcher install paths and return detected launchers.
 pub fn detect_launchers() -> Vec<DetectedLauncher> {
     let candidates = launcher_candidates();
@@ -246,7 +279,7 @@ pub fn detect_launchers() -> Vec<DetectedLauncher> {
             if !seen.insert((launcher_type.clone(), path.clone())) {
                 return None;
             }
-            if !path.is_dir() {
+            if !is_regular_directory(&path) {
                 return None;
             }
             let count = count_instances(&path);
@@ -264,6 +297,16 @@ pub fn detect_launchers() -> Vec<DetectedLauncher> {
 
 /// Scan a launcher's instances directory and parse each instance's metadata.
 pub fn scan_instances(instances_dir: &Path) -> Result<Vec<ImportableInstance>, String> {
+    if is_regular_file(instances_dir) {
+        return import_metadata(instances_dir).map(|instance| vec![instance]);
+    }
+    if !is_regular_directory(instances_dir) {
+        return Err(format!(
+            "Migration source must be a regular file or directory: {}",
+            instances_dir.display()
+        ));
+    }
+
     let mut result = Vec::new();
     let mut seen = HashSet::new();
     let mut scanned_version_roots = HashSet::new();
@@ -274,31 +317,31 @@ pub fn scan_instances(instances_dir: &Path) -> Result<Vec<ImportableInstance>, S
 
     for entry in entries.flatten() {
         let path = entry.path();
-        if !path.is_dir() {
+        if !is_regular_directory(&path) {
             continue;
         }
 
         push_if_importable(&path, &mut seen, &mut result);
 
-        if path.join("versions").is_dir() {
+        if is_regular_directory(&path.join("versions")) {
             scan_minecraft_versions_once(&path, &mut scanned_version_roots, &mut seen, &mut result);
         }
     }
 
     let nested_instances = instances_dir.join("instances");
-    if nested_instances.is_dir() {
+    if is_regular_directory(&nested_instances) {
         for entry in fs::read_dir(&nested_instances)
             .map_err(|error| error.to_string())?
             .flatten()
         {
             let path = entry.path();
-            if path.is_dir() {
+            if is_regular_directory(&path) {
                 push_if_importable(&path, &mut seen, &mut result);
             }
         }
     }
 
-    if instances_dir.join("versions").is_dir() {
+    if is_regular_directory(&instances_dir.join("versions")) {
         scan_minecraft_versions_once(
             instances_dir,
             &mut scanned_version_roots,
@@ -312,6 +355,10 @@ pub fn scan_instances(instances_dir: &Path) -> Result<Vec<ImportableInstance>, S
 }
 
 pub fn import_metadata(source_path: &Path) -> Result<ImportableInstance, String> {
+    if is_regular_file(source_path) {
+        return import_archive_metadata(source_path);
+    }
+
     if let Some(instance) = parse_importable(source_path) {
         return Ok(instance);
     }
@@ -343,6 +390,378 @@ pub fn import_metadata(source_path: &Path) -> Result<ImportableInstance, String>
         jvm_args_override: None,
         icon_source: None,
     })
+}
+
+fn import_archive_metadata(source_path: &Path) -> Result<ImportableInstance, String> {
+    let archive = inspect_launcher_archive(source_path)?;
+    let info = archive.info;
+    let launcher_type = match info.modpack_type.as_str() {
+        "multimc" => "multimc",
+        "modrinth" => "modrinth",
+        "curseforge" => "curseforge",
+        _ => "portable-archive",
+    };
+
+    Ok(ImportableInstance {
+        source_path: source_path.to_path_buf(),
+        game_dir: source_path.to_path_buf(),
+        launcher_type: launcher_type.into(),
+        source_kind: "archive".into(),
+        version_id: info.minecraft_version.clone(),
+        name: info.name,
+        minecraft_version: info.minecraft_version,
+        mod_loader: info.mod_loader,
+        mod_loader_version: info.mod_loader_version,
+        notes: None,
+        memory_override: None,
+        java_path_override: None,
+        jvm_args_override: None,
+        icon_source: None,
+    })
+}
+
+fn inspect_launcher_archive(
+    source_path: &Path,
+) -> Result<crate::core::modpack::api::ParsedModpack, String> {
+    let mut parsed = crate::core::modpack::api::inspect(source_path)?;
+    if parsed.info.modpack_type != "unknown" && !parsed.override_prefixes.is_empty() {
+        return Ok(parsed);
+    }
+
+    let file = fs::File::open(source_path).map_err(|error| error.to_string())?;
+    let mut archive = zip::ZipArchive::new(file).map_err(|error| error.to_string())?;
+    let Some(prefix) = portable_archive_prefix(&mut archive) else {
+        return Err(
+            "Unsupported launcher archive: expected a MultiMC, Modrinth, CurseForge, or portable game-data package"
+                .into(),
+        );
+    };
+
+    parsed.info.modpack_type = "portable".into();
+    parsed.override_prefixes = vec![prefix];
+    Ok(parsed)
+}
+
+fn portable_archive_prefix(archive: &mut zip::ZipArchive<fs::File>) -> Option<String> {
+    let mut wrapper_candidates = HashSet::new();
+    for index in 0..archive.len() {
+        let Ok(entry) = archive.by_index_raw(index) else {
+            continue;
+        };
+        if entry.is_dir() || archive_entry_is_symlink(&entry) {
+            continue;
+        }
+        let Some(relative) = safe_archive_relative(entry.name()) else {
+            continue;
+        };
+        if archive_file_group(&relative)
+            .is_some_and(|(disposition, _, _, _)| disposition == "include")
+        {
+            return Some(String::new());
+        }
+
+        let mut components = relative.components();
+        let Some(wrapper) = components.next().and_then(|part| part.as_os_str().to_str()) else {
+            continue;
+        };
+        let nested = components.collect::<PathBuf>();
+        if archive_file_group(&nested)
+            .is_some_and(|(disposition, _, _, _)| disposition == "include")
+        {
+            wrapper_candidates.insert(wrapper.to_string());
+        }
+    }
+    (wrapper_candidates.len() == 1).then(|| {
+        format!(
+            "{}/",
+            wrapper_candidates.into_iter().next().unwrap_or_default()
+        )
+    })
+}
+
+fn preview_archive(
+    source: ImportableInstance,
+    existing_names: &[String],
+) -> Result<MigrationPreview, String> {
+    let existing: HashSet<String> = existing_names
+        .iter()
+        .map(|name| name.trim().to_lowercase())
+        .collect();
+    let name_conflict = existing.contains(&source.name.trim().to_lowercase());
+    let suggested_name = if name_conflict {
+        unique_migration_name(&source.name, &source.launcher_type, &existing)
+    } else {
+        source.name.clone()
+    };
+    let mut plan = build_launcher_archive_plan(&source.source_path)?;
+    if name_conflict {
+        plan.conflicts.push(MigrationConflict {
+            kind: "name".into(),
+            message: format!("An instance named ‘{}’ already exists", source.name),
+            suggested_resolution: format!("Import as ‘{suggested_name}’"),
+        });
+    }
+    if source.minecraft_version.is_none() {
+        plan.warnings.push(
+            "Minecraft version could not be identified; select a version after import".into(),
+        );
+    }
+
+    Ok(MigrationPreview {
+        source,
+        suggested_name,
+        name_conflict,
+        content: plan.content,
+        conflicts: plan.conflicts,
+        warnings: plan.warnings,
+        total_files: plan.total_files,
+        total_bytes: plan.total_bytes,
+        can_import: plan.total_files > 0,
+    })
+}
+
+fn build_launcher_archive_plan(source_path: &Path) -> Result<LauncherArchivePlan, String> {
+    let parsed = inspect_launcher_archive(source_path)?;
+    let file = fs::File::open(source_path).map_err(|error| error.to_string())?;
+    let mut archive = zip::ZipArchive::new(file).map_err(|error| error.to_string())?;
+    let names = (0..archive.len())
+        .filter_map(|index| {
+            archive
+                .by_index_raw(index)
+                .ok()
+                .map(|entry| entry.name().to_string())
+        })
+        .collect::<Vec<_>>();
+    let mut prefixes = parsed.override_prefixes.clone();
+    if parsed.info.modpack_type == "multimc" {
+        prefixes = prefixes
+            .into_iter()
+            .find(|prefix| names.iter().any(|name| name.starts_with(prefix)))
+            .into_iter()
+            .collect();
+    }
+
+    let mut files = Vec::new();
+    let mut content = Vec::new();
+    let mut conflicts = Vec::new();
+    let mut warnings = Vec::new();
+    let mut destinations = HashSet::new();
+    let mut visited_entries = HashSet::new();
+    let mut total_files = 0usize;
+    let mut total_bytes = 0u64;
+
+    for prefix in prefixes {
+        for index in 0..archive.len() {
+            if visited_entries.contains(&index) {
+                continue;
+            }
+            let entry = archive
+                .by_index_raw(index)
+                .map_err(|error| error.to_string())?;
+            if entry.is_dir() {
+                continue;
+            }
+            let Some(relative_name) = entry.name().strip_prefix(&prefix) else {
+                continue;
+            };
+            if relative_name.is_empty() {
+                continue;
+            }
+            visited_entries.insert(index);
+            let size = entry.size();
+
+            if archive_entry_is_symlink(&entry) {
+                push_archive_group(
+                    &mut content,
+                    "archive-symlinks",
+                    relative_name,
+                    "unsupported",
+                    size,
+                    "Archive symbolic links are not followed",
+                );
+                continue;
+            }
+
+            let Some(relative_path) = safe_archive_relative(relative_name) else {
+                push_archive_group(
+                    &mut content,
+                    "unsafe-archive-path",
+                    relative_name,
+                    "unsupported",
+                    size,
+                    "Unsafe archive path was rejected",
+                );
+                continue;
+            };
+            let Some((disposition, group_id, display_path, reason)) =
+                archive_file_group(&relative_path)
+            else {
+                continue;
+            };
+
+            if disposition == "include" && !destinations.insert(relative_path.clone()) {
+                let display = relative_path.to_string_lossy().to_string();
+                conflicts.push(MigrationConflict {
+                    kind: "archive-path".into(),
+                    message: format!("Multiple archive entries target {display}"),
+                    suggested_resolution: "The higher-priority archive entry will be used".into(),
+                });
+                push_archive_group(
+                    &mut content,
+                    "shadowed-archive-entry",
+                    &display,
+                    "skip",
+                    size,
+                    "A higher-priority archive entry targets the same path",
+                );
+                continue;
+            }
+
+            push_archive_group(
+                &mut content,
+                &group_id,
+                &display_path,
+                disposition,
+                size,
+                reason,
+            );
+            if disposition == "include" {
+                total_files += 1;
+                total_bytes = total_bytes.saturating_add(size);
+                files.push(ArchiveFilePlan {
+                    index,
+                    display_path: relative_path.to_string_lossy().to_string(),
+                    relative_path,
+                    size,
+                });
+            }
+        }
+    }
+
+    let pending_remote_files = parsed.files.len();
+    if pending_remote_files > 0 {
+        let remote_bytes = parsed
+            .files
+            .iter()
+            .filter_map(|file| file.size)
+            .fold(0u64, u64::saturating_add);
+        content.push(MigrationContentGroup {
+            id: "archive-dependencies".into(),
+            relative_path: "manifest dependencies".into(),
+            disposition: "unsupported".into(),
+            file_count: pending_remote_files,
+            total_bytes: remote_bytes,
+            reason: Some(
+                "Remote dependencies are reported for installation after migration".into(),
+            ),
+        });
+    }
+    let unsupported_count = content
+        .iter()
+        .filter(|group| group.disposition == "unsupported")
+        .count();
+    if unsupported_count > 0 {
+        warnings.push(format!(
+            "{unsupported_count} unsupported archive content group(s) will not be copied"
+        ));
+    }
+    if total_files == 0 {
+        warnings.push("The archive contains no portable local game data to copy".into());
+    }
+
+    Ok(LauncherArchivePlan {
+        files,
+        content,
+        conflicts,
+        warnings,
+        total_files,
+        total_bytes,
+        pending_remote_files,
+    })
+}
+
+fn safe_archive_relative(name: &str) -> Option<PathBuf> {
+    if name.is_empty() || name.starts_with('/') || name.contains('\\') || name.contains('\0') {
+        return None;
+    }
+    let mut path = PathBuf::new();
+    for component in name.split('/') {
+        if component.is_empty() || component == "." || component == ".." || component.contains(':')
+        {
+            return None;
+        }
+        path.push(component);
+    }
+    Some(path)
+}
+
+fn archive_entry_is_symlink(entry: &zip::read::ZipFile<'_>) -> bool {
+    entry
+        .unix_mode()
+        .map(|mode| mode & 0o170000 == 0o120000)
+        .unwrap_or(false)
+}
+
+fn archive_file_group(path: &Path) -> Option<(&'static str, String, String, &'static str)> {
+    let mut components = path.components();
+    let first = components.next()?.as_os_str().to_str()?;
+    let only_one = components.next().is_none();
+    if MINECRAFT_GAME_DIRS.contains(&first) {
+        return Some((
+            "include",
+            first.to_string(),
+            first.to_string(),
+            "Portable game content",
+        ));
+    }
+    if only_one && MINECRAFT_GAME_FILES.contains(&first) {
+        return Some((
+            "include",
+            "settings".into(),
+            "options, servers, and icon".into(),
+            "Portable game settings",
+        ));
+    }
+    if SKIPPED_GAME_DIRS.contains(&first) {
+        return Some((
+            "skip",
+            first.to_string(),
+            first.to_string(),
+            "Launcher-managed or diagnostic data is rebuilt on demand",
+        ));
+    }
+    Some((
+        "unsupported",
+        "unsupported-archive-content".into(),
+        "unrecognized archive content".into(),
+        "Unrecognized content requires manual review",
+    ))
+}
+
+fn push_archive_group(
+    content: &mut Vec<MigrationContentGroup>,
+    id: &str,
+    relative_path: &str,
+    disposition: &str,
+    bytes: u64,
+    reason: &str,
+) {
+    if let Some(group) = content
+        .iter_mut()
+        .find(|group| group.id == id && group.disposition == disposition)
+    {
+        group.file_count += 1;
+        group.total_bytes = group.total_bytes.saturating_add(bytes);
+        return;
+    }
+    content.push(MigrationContentGroup {
+        id: id.into(),
+        relative_path: relative_path.into(),
+        disposition: disposition.into(),
+        file_count: 1,
+        total_bytes: bytes,
+        reason: Some(reason.into()),
+    });
 }
 
 fn selected_game_entry(source: &ImportableInstance, entry: &str) -> (PathBuf, bool) {
@@ -382,7 +801,10 @@ pub fn preview_import(
     existing_names: &[String],
 ) -> Result<MigrationPreview, String> {
     let source = import_metadata(source_path)?;
-    if !source.game_dir.is_dir() {
+    if source.source_kind == "archive" {
+        return preview_archive(source, existing_names);
+    }
+    if !is_regular_directory(&source.game_dir) {
         return Err(format!(
             "Game directory does not exist: {}",
             source.game_dir.display()
@@ -438,7 +860,7 @@ pub fn preview_import(
     let mut has_isolated_settings = false;
     for entry in MINECRAFT_GAME_FILES {
         let (path, isolated) = selected_game_entry(&source, entry);
-        if path.is_file() {
+        if is_regular_file(&path) {
             let (file_count, bytes) = summarize_path(&path)?;
             settings_files += file_count;
             settings_bytes = settings_bytes.saturating_add(bytes);
@@ -605,11 +1027,15 @@ where
     P: FnMut(MigrationProgress),
 {
     let preview = preview_import(source_path, &[])?;
+    if preview.source.source_kind == "archive" {
+        return copy_reviewed_archive(source_path, destination, is_cancelled, on_progress);
+    }
     let game_dir = preview.source.game_dir.clone();
     let mut result = MigrationCopyResult {
         copied_files: 0,
         copied_bytes: 0,
         skipped_symlinks: 0,
+        pending_remote_files: 0,
         imported_icon: None,
     };
     let mut created_files = Vec::new();
@@ -728,6 +1154,78 @@ where
     Ok(result)
 }
 
+fn copy_reviewed_archive<C, P>(
+    source_path: &Path,
+    destination: &Path,
+    is_cancelled: C,
+    mut on_progress: P,
+) -> Result<MigrationCopyResult, String>
+where
+    C: Fn() -> bool,
+    P: FnMut(MigrationProgress),
+{
+    let plan = build_launcher_archive_plan(source_path)?;
+    let file = fs::File::open(source_path).map_err(|error| error.to_string())?;
+    let mut archive = zip::ZipArchive::new(file).map_err(|error| error.to_string())?;
+    let mut result = MigrationCopyResult {
+        copied_files: 0,
+        copied_bytes: 0,
+        skipped_symlinks: 0,
+        pending_remote_files: plan.pending_remote_files,
+        imported_icon: None,
+    };
+    let mut created_files = Vec::new();
+
+    let copy_result = (|| -> Result<(), String> {
+        for planned in &plan.files {
+            if is_cancelled() {
+                return Err("migration-cancelled".into());
+            }
+            let mut entry = archive
+                .by_index(planned.index)
+                .map_err(|error| error.to_string())?;
+            if entry.is_dir() || archive_entry_is_symlink(&entry) {
+                continue;
+            }
+
+            let output_path = destination.join(&planned.relative_path);
+            if output_path.exists() {
+                return Err(format!("destination-conflict:{}", output_path.display()));
+            }
+            if let Some(parent) = output_path.parent() {
+                fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+            }
+            let mut output = fs::File::create(&output_path).map_err(|error| error.to_string())?;
+            created_files.push(output_path);
+            let copied = io::copy(&mut entry, &mut output).map_err(|error| error.to_string())?;
+            if copied != planned.size {
+                return Err(format!("archive-size-mismatch:{}", planned.display_path));
+            }
+            result.copied_files += 1;
+            result.copied_bytes = result.copied_bytes.saturating_add(copied);
+            on_progress(MigrationProgress {
+                completed_files: result.copied_files,
+                total_files: plan.total_files,
+                completed_bytes: result.copied_bytes,
+                total_bytes: plan.total_bytes,
+                current_path: planned.display_path.clone(),
+            });
+        }
+        Ok(())
+    })();
+
+    if let Err(error) = copy_result {
+        for path in created_files.iter().rev() {
+            let _ = fs::remove_file(path);
+        }
+        return Err(error);
+    }
+    if destination.join("icon.png").is_file() {
+        result.imported_icon = Some("icon.png".into());
+    }
+    Ok(result)
+}
+
 pub fn build_compatibility_report(
     source: &ImportableInstance,
     copied: &MigrationCopyResult,
@@ -764,14 +1262,38 @@ pub fn build_compatibility_report(
             summary: "Vanilla or inherited loader configuration".into(),
             action: None,
         },
+        Some("fabric" | "forge" | "neoforge" | "quilt") if source.source_kind == "version" => {
+            MigrationCompatibilityCheck {
+                id: "loader".into(),
+                status: "ready".into(),
+                summary: format!(
+                    "{} loader profile preserved",
+                    source.mod_loader.as_deref().unwrap_or_default()
+                ),
+                action: None,
+            }
+        }
         Some("fabric" | "forge" | "neoforge" | "quilt") => MigrationCompatibilityCheck {
             id: "loader".into(),
-            status: "ready".into(),
+            status: "action-required".into(),
             summary: format!(
-                "{} loader metadata preserved",
+                "{} metadata was identified, but its launcher profile was not imported",
                 source.mod_loader.as_deref().unwrap_or_default()
             ),
-            action: None,
+            action: Some(format!(
+                "Install {}{} for Minecraft {} before the first launch",
+                source.mod_loader.as_deref().unwrap_or_default(),
+                source
+                    .mod_loader_version
+                    .as_deref()
+                    .map(|version| format!(" {version}"))
+                    .unwrap_or_default(),
+                source
+                    .minecraft_version
+                    .as_deref()
+                    .or(source.version_id.as_deref())
+                    .unwrap_or("the imported version")
+            )),
         },
         Some(loader) => MigrationCompatibilityCheck {
             id: "loader".into(),
@@ -837,6 +1359,21 @@ pub fn build_compatibility_report(
                 copied.skipped_symlinks
             ),
             action: Some("Copy the linked targets manually if the instance needs them".into()),
+        });
+    }
+
+    if copied.pending_remote_files > 0 {
+        checks.push(MigrationCompatibilityCheck {
+            id: "archive-dependencies".into(),
+            status: "action-required".into(),
+            summary: format!(
+                "{} remote archive dependency file(s) still need installation",
+                copied.pending_remote_files
+            ),
+            action: Some(
+                "Install the reported mods and packs from the instance content browser before launch"
+                    .into(),
+            ),
         });
     }
 
@@ -955,6 +1492,9 @@ fn unique_migration_name(
         "multimc" => "MultiMC",
         "hmcl" => "HMCL",
         "pcl" => "PCL",
+        "modrinth" => "Modrinth",
+        "curseforge" => "CurseForge",
+        "portable-archive" => "Archive",
         _ => "Imported",
     };
     let base = format!("{} ({launcher})", source_name.trim());
@@ -1028,7 +1568,7 @@ fn push_if_importable(
 }
 
 fn parse_importable(path: &Path) -> Option<ImportableInstance> {
-    if path.join("instance.cfg").exists() || path.join("mmc-pack.json").exists() {
+    if is_regular_file(&path.join("instance.cfg")) || is_regular_file(&path.join("mmc-pack.json")) {
         return Some(parse_multimc_instance(path));
     }
 
@@ -1044,9 +1584,9 @@ pub fn copy_instance_files(source_path: &Path, dest_game_dir: &Path) -> Result<(
     }
 
     // MultiMC/Prism keep game files in .minecraft/ or minecraft/
-    let game_src = if source_path.join(".minecraft").is_dir() {
+    let game_src = if is_regular_directory(&source_path.join(".minecraft")) {
         source_path.join(".minecraft")
-    } else if source_path.join("minecraft").is_dir() {
+    } else if is_regular_directory(&source_path.join("minecraft")) {
         source_path.join("minecraft")
     } else {
         // Fallback: copy everything except instance.cfg and mmc-pack.json
@@ -1153,7 +1693,7 @@ fn scan_minecraft_versions(
 
     for entry in entries.flatten() {
         let path = entry.path();
-        if !path.is_dir() {
+        if !is_regular_directory(&path) {
             continue;
         }
         push_if_importable(&path, seen, result);
@@ -1271,9 +1811,9 @@ fn parse_version_json_metadata(
 }
 
 fn multimc_game_dir(path: &Path) -> PathBuf {
-    if path.join(".minecraft").is_dir() {
+    if is_regular_directory(&path.join(".minecraft")) {
         path.join(".minecraft")
-    } else if path.join("minecraft").is_dir() {
+    } else if is_regular_directory(&path.join("minecraft")) {
         path.join("minecraft")
     } else {
         path.to_path_buf()
@@ -1282,7 +1822,7 @@ fn multimc_game_dir(path: &Path) -> PathBuf {
 
 fn resolve_multimc_icon(path: &Path, game_dir: &Path, cfg: &str) -> Option<PathBuf> {
     let game_icon = game_dir.join("icon.png");
-    if game_icon.is_file() {
+    if is_regular_file(&game_icon) {
         return Some(game_icon);
     }
 
@@ -1300,13 +1840,13 @@ fn resolve_multimc_icon(path: &Path, game_dir: &Path, cfg: &str) -> Option<PathB
     let key_path = Path::new(icon_key.as_str());
     if key_path.extension().is_some() {
         let candidate = icons_dir.join(key_path);
-        return candidate.is_file().then_some(candidate);
+        return is_regular_file(&candidate).then_some(candidate);
     }
 
     ["png", "svg", "jpg", "jpeg", "webp"]
         .into_iter()
         .map(|extension| icons_dir.join(format!("{icon_key}.{extension}")))
-        .find(|candidate| candidate.is_file())
+        .find(|candidate| is_regular_file(candidate))
 }
 
 fn imported_icon_name(source: &Path) -> String {
@@ -1329,7 +1869,7 @@ fn game_dir_from_version_dir(path: &Path) -> Option<PathBuf> {
 fn minecraft_version_json(path: &Path) -> Option<PathBuf> {
     let version_id = path.file_name()?.to_string_lossy();
     let version_json = path.join(format!("{version_id}.json"));
-    version_json.exists().then_some(version_json)
+    is_regular_file(&version_json).then_some(version_json)
 }
 
 fn launcher_type_for_instance(path: &Path) -> String {
@@ -1430,14 +1970,14 @@ fn copy_minecraft_game_files(src: &Path, dst: &Path) -> Result<(), String> {
 
     for dir in MINECRAFT_GAME_DIRS {
         let src_path = src.join(dir);
-        if src_path.is_dir() {
+        if is_regular_directory(&src_path) {
             copy_dir_recursive(&src_path, &dst.join(dir))?;
         }
     }
 
     for file in MINECRAFT_GAME_FILES {
         let src_path = src.join(file);
-        if src_path.is_file() {
+        if is_regular_file(&src_path) {
             fs::copy(&src_path, dst.join(file)).map_err(|e| e.to_string())?;
         }
     }
@@ -1464,9 +2004,9 @@ fn copy_selected_version_dir(version_dir: &Path, dest_game_dir: &Path) -> Result
         }
 
         let dst_path = dest_version_dir.join(&file_name);
-        if src_path.is_dir() {
+        if is_regular_directory(&src_path) {
             copy_dir_recursive(&src_path, &dst_path)?;
-        } else {
+        } else if is_regular_file(&src_path) {
             fs::copy(&src_path, &dst_path).map_err(|e| e.to_string())?;
         }
     }
@@ -1482,13 +2022,16 @@ fn is_minecraft_game_data_entry(file_name: &OsStr) -> bool {
 }
 
 pub fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
+    if !is_regular_directory(src) {
+        return Ok(());
+    }
     fs::create_dir_all(dst).map_err(|e| e.to_string())?;
     for entry in fs::read_dir(src).map_err(|e| e.to_string())?.flatten() {
         let src_path = entry.path();
         let dst_path = dst.join(entry.file_name());
-        if src_path.is_dir() {
+        if is_regular_directory(&src_path) {
             copy_dir_recursive(&src_path, &dst_path)?;
-        } else {
+        } else if is_regular_file(&src_path) {
             fs::copy(&src_path, &dst_path).map_err(|e| e.to_string())?;
         }
     }
@@ -1499,6 +2042,7 @@ pub fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
 mod tests {
     use super::*;
     use std::cell::Cell;
+    use std::io::Write;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn test_dir(name: &str) -> PathBuf {
@@ -1530,6 +2074,242 @@ mod tests {
         walk(root, root, &mut files);
         files.sort_by(|a, b| a.0.cmp(&b.0));
         files
+    }
+
+    fn write_test_archive(path: &Path, entries: &[(&str, &str)]) {
+        let file = fs::File::create(path).unwrap();
+        let mut writer = zip::ZipWriter::new(file);
+        let options = zip::write::SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Stored)
+            .unix_permissions(0o644);
+        for (name, content) in entries {
+            writer.start_file(*name, options).unwrap();
+            writer.write_all(content.as_bytes()).unwrap();
+        }
+        writer.finish().unwrap();
+    }
+
+    #[test]
+    fn versioned_launcher_archive_fixture_matrix_stays_copy_only() {
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct ArchiveManifest {
+            schema_version: u32,
+            cases: Vec<ArchiveCase>,
+        }
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct ArchiveCase {
+            id: String,
+            file_name: String,
+            launcher_type: String,
+            entries: Vec<ArchiveEntry>,
+        }
+        #[derive(Deserialize)]
+        struct ArchiveEntry {
+            path: String,
+            content: String,
+        }
+
+        let fixture_root =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/migration/v1");
+        let manifest: ArchiveManifest = serde_json::from_str(
+            &fs::read_to_string(fixture_root.join("archive-manifest.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(manifest.schema_version, 1);
+        assert_eq!(manifest.cases.len(), 3);
+
+        for case in manifest.cases {
+            let workspace = test_dir(&format!("archive-fixture-{}", case.id));
+            let archive_path = workspace.join(case.file_name);
+            let destination = test_dir(&format!("archive-fixture-copy-{}", case.id));
+            let entries = case
+                .entries
+                .iter()
+                .map(|entry| (entry.path.as_str(), entry.content.as_str()))
+                .collect::<Vec<_>>();
+            write_test_archive(&archive_path, &entries);
+            let source_before = fs::read(&archive_path).unwrap();
+
+            let metadata = import_metadata(&archive_path).unwrap();
+            assert_eq!(metadata.source_kind, "archive");
+            assert_eq!(metadata.launcher_type, case.launcher_type);
+            let preview = preview_import(&archive_path, &[]).unwrap();
+            assert!(preview.can_import);
+            let copied =
+                copy_reviewed_content(&archive_path, &destination, || false, |_| {}).unwrap();
+            assert!(copied.copied_files > 0);
+            assert_eq!(fs::read(&archive_path).unwrap(), source_before);
+
+            fs::remove_dir_all(workspace).unwrap();
+            fs::remove_dir_all(destination).unwrap();
+        }
+    }
+
+    #[test]
+    fn imports_portable_launcher_configuration_and_save_archives_copy_only() {
+        let root = test_dir("portable-launcher-archive");
+        let archive_path = root.join("HMCL configuration and saves.zip");
+        let destination = test_dir("portable-launcher-archive-destination");
+        write_test_archive(
+            &archive_path,
+            &[
+                ("config/example.toml", "configured=true"),
+                ("saves/Fixture World/level.dat", "world"),
+                ("logs/latest.log", "diagnostic"),
+                ("../outside.txt", "unsafe"),
+            ],
+        );
+        let source_before = fs::read(&archive_path).unwrap();
+
+        let scanned = scan_instances(&archive_path).unwrap();
+        assert_eq!(scanned.len(), 1);
+        assert_eq!(scanned[0].source_kind, "archive");
+        assert_eq!(scanned[0].launcher_type, "portable-archive");
+        let preview = preview_import(&archive_path, &[]).unwrap();
+        assert!(preview.can_import);
+        assert!(preview.content.iter().any(|group| {
+            group.id == "config" && group.disposition == "include" && group.file_count == 1
+        }));
+        assert!(preview.content.iter().any(|group| {
+            group.id == "saves" && group.disposition == "include" && group.file_count == 1
+        }));
+        assert!(preview.content.iter().any(|group| {
+            group.id == "logs" && group.disposition == "skip" && group.file_count == 1
+        }));
+        assert!(preview.content.iter().any(|group| {
+            group.id == "unsafe-archive-path" && group.disposition == "unsupported"
+        }));
+
+        let copied = copy_reviewed_content(&archive_path, &destination, || false, |_| {}).unwrap();
+        assert_eq!(copied.copied_files, 2);
+        assert_eq!(copied.pending_remote_files, 0);
+        assert_eq!(
+            fs::read_to_string(destination.join("config/example.toml")).unwrap(),
+            "configured=true"
+        );
+        assert_eq!(
+            fs::read_to_string(destination.join("saves/Fixture World/level.dat")).unwrap(),
+            "world"
+        );
+        assert!(!destination.join("logs/latest.log").exists());
+        assert!(!destination.join("outside.txt").exists());
+        assert_eq!(fs::read(&archive_path).unwrap(), source_before);
+
+        fs::remove_dir_all(root).unwrap();
+        fs::remove_dir_all(destination).unwrap();
+    }
+
+    #[test]
+    fn multimc_archives_require_installing_the_detected_loader_profile() {
+        let root = test_dir("multimc-launcher-archive");
+        let archive_path = root.join("Fabric Fixture.zip");
+        let destination = test_dir("multimc-launcher-archive-destination");
+        write_test_archive(
+            &archive_path,
+            &[
+                ("Fabric Fixture/instance.cfg", "name=Fabric Fixture\n"),
+                (
+                    "Fabric Fixture/mmc-pack.json",
+                    r#"{"components":[{"uid":"net.minecraft","version":"1.21.1"},{"uid":"net.fabricmc.fabric-loader","version":"0.16.9"}]}"#,
+                ),
+                ("Fabric Fixture/.minecraft/mods/example.jar", "mod"),
+            ],
+        );
+
+        let metadata = import_metadata(&archive_path).unwrap();
+        assert_eq!(metadata.source_kind, "archive");
+        assert_eq!(metadata.launcher_type, "multimc");
+        assert_eq!(metadata.minecraft_version.as_deref(), Some("1.21.1"));
+        assert_eq!(metadata.mod_loader.as_deref(), Some("fabric"));
+        let copied = copy_reviewed_content(&archive_path, &destination, || false, |_| {}).unwrap();
+        let (status, checks) = build_compatibility_report(&metadata, &copied);
+        assert_eq!(status, "action-required");
+        assert!(checks.iter().any(|check| {
+            check.id == "loader"
+                && check.status == "action-required"
+                && check
+                    .action
+                    .as_deref()
+                    .is_some_and(|action| action.contains("fabric 0.16.9"))
+        }));
+        assert!(destination.join("mods/example.jar").is_file());
+
+        fs::remove_dir_all(root).unwrap();
+        fs::remove_dir_all(destination).unwrap();
+    }
+
+    #[test]
+    fn hmcl_curseforge_archives_report_remote_dependencies_before_launch() {
+        let root = test_dir("hmcl-curseforge-archive");
+        let archive_path = root.join("HMCL Export.zip");
+        let destination = test_dir("hmcl-curseforge-archive-destination");
+        write_test_archive(
+            &archive_path,
+            &[
+                (
+                    "manifest.json",
+                    r#"{"manifestType":"minecraftModpack","name":"HMCL Export","overrides":"overrides","minecraft":{"version":"1.20.1","modLoaders":[{"id":"forge-47.3.0","primary":true}]},"files":[{"projectID":123,"fileID":456}]}"#,
+                ),
+                ("overrides/config/example.toml", "configured=true"),
+                ("overrides/saves/Fixture World/level.dat", "world"),
+            ],
+        );
+
+        let metadata = import_metadata(&archive_path).unwrap();
+        assert_eq!(metadata.launcher_type, "curseforge");
+        assert_eq!(metadata.mod_loader.as_deref(), Some("forge"));
+        let preview = preview_import(&archive_path, &[]).unwrap();
+        assert!(preview.content.iter().any(|group| {
+            group.id == "archive-dependencies"
+                && group.disposition == "unsupported"
+                && group.file_count == 1
+        }));
+        let copied = copy_reviewed_content(&archive_path, &destination, || false, |_| {}).unwrap();
+        assert_eq!(copied.pending_remote_files, 1);
+        let (status, checks) = build_compatibility_report(&metadata, &copied);
+        assert_eq!(status, "action-required");
+        assert!(checks.iter().any(|check| {
+            check.id == "archive-dependencies"
+                && check.status == "action-required"
+                && check.action.is_some()
+        }));
+
+        fs::remove_dir_all(root).unwrap();
+        fs::remove_dir_all(destination).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlinked_game_roots_are_reported_and_never_followed() {
+        use std::os::unix::fs::symlink;
+
+        let root = test_dir("symlinked-game-root");
+        let instance = root.join("PrismLauncher/instances/Linked");
+        let external = root.join("external-game-data");
+        let destination = test_dir("symlinked-game-root-destination");
+        fs::create_dir_all(&instance).unwrap();
+        fs::create_dir_all(external.join("mods")).unwrap();
+        fs::write(instance.join("instance.cfg"), "name=Linked\n").unwrap();
+        fs::write(external.join("mods/private.jar"), "outside").unwrap();
+        symlink(&external, instance.join(".minecraft")).unwrap();
+
+        let preview = preview_import(&instance, &[]).unwrap();
+        assert_eq!(preview.total_files, 0);
+        assert!(preview.content.iter().any(|group| {
+            group.relative_path == ".minecraft" && group.disposition == "unsupported"
+        }));
+        let copied = copy_reviewed_content(&instance, &destination, || false, |_| {}).unwrap();
+        assert_eq!(copied.copied_files, 0);
+        assert!(!destination.join("mods/private.jar").exists());
+        assert_eq!(
+            fs::read_to_string(external.join("mods/private.jar")).unwrap(),
+            "outside"
+        );
+
+        fs::remove_dir_all(root).unwrap();
+        fs::remove_dir_all(destination).unwrap();
     }
 
     #[test]
@@ -1591,13 +2371,14 @@ mod tests {
             let destination = test_dir("versioned-fixture-copy");
             let copied = copy_reviewed_content(&source, &destination, || false, |_| {}).unwrap();
             let (status, checks) = build_compatibility_report(&metadata, &copied);
-            if case.minecraft_version.is_none() {
+            if case.minecraft_version.is_none()
+                || (metadata.source_kind != "version" && metadata.mod_loader.is_some())
+            {
                 assert_eq!(status, "action-required");
-                assert!(
-                    checks.iter().any(|check| {
-                        check.id == "version" && check.status == "action-required"
-                    })
-                );
+                assert!(checks.iter().any(|check| {
+                    check.status == "action-required"
+                        && (check.id == "version" || check.id == "loader")
+                }));
             } else {
                 assert_eq!(status, "ready-to-validate");
             }
@@ -1799,6 +2580,7 @@ mod tests {
             copied_files: 0,
             copied_bytes: 0,
             skipped_symlinks: 2,
+            pending_remote_files: 0,
             imported_icon: None,
         };
 
