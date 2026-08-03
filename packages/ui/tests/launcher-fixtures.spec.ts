@@ -226,8 +226,15 @@ test("primary launcher flow is keyboard operable", async ({ page }) => {
 
 test("settings reports the current launcher version", async ({ page }) => {
   await page.addInitScript(() => {
+    const existingInternals = Reflect.get(window, "__TAURI_INTERNALS__");
+    Object.assign(window, { isTauri: true });
     Object.defineProperty(window, "__TAURI_INTERNALS__", {
+      configurable: true,
+      writable: true,
       value: {
+        ...(typeof existingInternals === "object" && existingInternals !== null
+          ? existingInternals
+          : {}),
         invoke: async (command: string) => {
           if (command === "plugin:app|version") return "9.8.7-test";
           throw new Error(`Unexpected Tauri command: ${command}`);
@@ -240,6 +247,24 @@ test("settings reports the current launcher version", async ({ page }) => {
 
   await expect(page.getByText("Current version")).toBeVisible();
   await expect(page.getByText("v9.8.7-test", { exact: true })).toBeVisible();
+});
+
+test("settings avoids version errors outside the Tauri runtime", async ({
+  page,
+}) => {
+  const consoleErrors: string[] = [];
+  page.on("console", (message) => {
+    if (message.type() === "error") consoleErrors.push(message.text());
+  });
+
+  await page.goto("/?fixture=ready&theme=dark#/settings");
+  await page.getByRole("tab", { name: "Advanced" }).click();
+
+  await expect(page.getByText("Current version")).toBeVisible();
+  await expect(page.getByText("—", { exact: true })).toBeVisible();
+  expect(consoleErrors).not.toContainEqual(
+    expect.stringContaining("Failed to read app version"),
+  );
 });
 
 test("home primary action follows launcher recovery state", async ({

@@ -1,4 +1,5 @@
 import { getVersion } from "@tauri-apps/api/app";
+import { isTauri } from "@tauri-apps/api/core";
 import { toNumber } from "es-toolkit/compat";
 import { FileJsonIcon } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -51,6 +52,8 @@ export function SettingsPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (!isTauri()) return;
+
     let mounted = true;
 
     getVersion()
