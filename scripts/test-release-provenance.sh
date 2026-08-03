@@ -7,6 +7,7 @@ workflow="$repo_root/.github/workflows/semifold-ci.yaml"
 grep -q '^  attestations: write$' "$workflow"
 grep -q '^        uses: actions/attest@v4$' "$workflow"
 grep -q '^          subject-path: artifacts/\*\*/\*$' "$workflow"
+grep -q '^          pattern: "!\*.dockerbuild"$' "$workflow"
 
 for guide in \
   "$repo_root/packages/docs/content/en/manual/getting-started.mdx" \

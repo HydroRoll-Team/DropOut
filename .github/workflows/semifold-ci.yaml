@@ -243,6 +243,7 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v6
         with:
+          pattern: "!*.dockerbuild"
           path: artifacts/
           merge-multiple: true
       - name: List artifacts

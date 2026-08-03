@@ -5,6 +5,7 @@
 ### New Features
 
 - [`28bcde5`](https://github.com/HydroRoll-Team/DropOut/commit/28bcde590d624ff729f73214455902404854b37f): Add a native system tray lifecycle with readiness-aware recent launches, download progress badges, background notifications, and bilingual guidance. ([#187](https://github.com/HydroRoll-Team/DropOut/pull/187) by @HsiangNianian)
+- [`601f190`](https://github.com/HydroRoll-Team/DropOut/commit/601f19016a1e315fe8910dc15b8d1e8ddcf12bf0): Add signed build provenance for desktop artifacts and a reproducible Alpine musl archive that is checksum-verified and smoke-tested from the packaged release in a clean runtime image. ([#188](https://github.com/HydroRoll-Team/DropOut/pull/188) by @HsiangNianian)
 
 ## v0.2.0-alpha.8
 
