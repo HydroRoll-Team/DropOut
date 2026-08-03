@@ -1,3 +1,5 @@
+import { getVersion } from "@tauri-apps/api/app";
+import { isTauri } from "@tauri-apps/api/core";
 import { toNumber } from "es-toolkit/compat";
 import { FileJsonIcon } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -46,7 +48,24 @@ export function SettingsPage() {
   const updater = useUpdater();
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
+  const [appVersion, setAppVersion] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isTauri()) return;
+
+    let mounted = true;
+
+    getVersion()
+      .then((version) => {
+        if (mounted) setAppVersion(version);
+      })
+      .catch((error) => console.error("Failed to read app version", error));
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     const refresh = async () => {
@@ -645,7 +664,9 @@ export function SettingsPage() {
                         <FieldLabel>
                           {t("settings.advanced.currentVersion")}
                         </FieldLabel>
-                        <FieldDescription>v0.2.0-alpha.6</FieldDescription>
+                        <FieldDescription>
+                          {appVersion ? `v${appVersion}` : "—"}
+                        </FieldDescription>
                       </FieldContent>
                       <Button
                         variant="outline"
