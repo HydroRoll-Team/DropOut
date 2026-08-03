@@ -46,12 +46,13 @@ The musl archive targets Alpine Linux 3.22 on x86_64. Install its native WebKitG
 
 ```bash
 sudo apk add ca-certificates gtk+3.0 libayatana-appindicator librsvg openssl webkit2gtk-4.1
+sha256sum -c Dropout_*-musl.tar.gz.sha256
 tar -xzf Dropout_*-musl.tar.gz
 cd Dropout_*-musl
 ./dropout
 ```
 
-The musl archive is dynamically linked against Alpine packages. Use the AppImage or `.deb` package on glibc distributions such as Ubuntu, Debian, Fedora, or Arch Linux.
+The checksum command verifies the packaged archive before extraction. The musl archive is dynamically linked against Alpine packages. Use the AppImage or `.deb` package on glibc distributions such as Ubuntu, Debian, Fedora, or Arch Linux.
 
 ### macOS Installation
 

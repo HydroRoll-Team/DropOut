@@ -46,12 +46,13 @@ musl 压缩包面向 Alpine Linux 3.22 x86_64 系统。安装原生 WebKitGTK �
 
 ```bash
 sudo apk add ca-certificates gtk+3.0 libayatana-appindicator librsvg openssl webkit2gtk-4.1
+sha256sum -c Dropout_*-musl.tar.gz.sha256
 tar -xzf Dropout_*-musl.tar.gz
 cd Dropout_*-musl
 ./dropout
 ```
 
-musl 压缩包会动态链接 Alpine 软件包。在 Ubuntu、Debian、Fedora 或 Arch Linux 等 glibc 发行版上，请使用 AppImage 或 `.deb` 包。
+校验命令会在解压前验证发布包的完整性。musl 压缩包会动态链接 Alpine 软件包。在 Ubuntu、Debian、Fedora 或 Arch Linux 等 glibc 发行版上，请使用 AppImage 或 `.deb` 包。
 
 ### macOS 安装
 

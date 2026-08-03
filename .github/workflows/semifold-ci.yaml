@@ -191,6 +191,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Verify musl release contract
+        run: scripts/test-linux-musl-release.sh
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 

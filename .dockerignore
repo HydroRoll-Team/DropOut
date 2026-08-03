@@ -1,7 +1,6 @@
 .git
 .codegraph
 .pnpm-store
-Cargo.lock
 artifacts
 node_modules
 packages/*/dist

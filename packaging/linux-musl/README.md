@@ -8,6 +8,12 @@ Install the runtime libraries:
 sudo apk add ca-certificates gtk+3.0 libayatana-appindicator librsvg openssl webkit2gtk-4.1
 ```
 
+Verify the adjacent checksum before extracting the archive:
+
+```sh
+sha256sum -c Dropout_*-musl.tar.gz.sha256
+```
+
 Then start the launcher from the extracted directory:
 
 ```sh
