@@ -412,11 +412,11 @@ export function AssistantPage() {
       event?.preventDefault();
       if (!canSend || !draft.trim()) return;
       const prompt = draft;
+      const logContext =
+        includeContext && context.lineCount > 0 ? context.content : null;
       setDraft("");
-      await sendMessage(
-        prompt,
-        includeContext && context.lineCount > 0 ? context.content : null,
-      );
+      setIncludeContext(false);
+      await sendMessage(prompt, logContext);
     },
     [
       canSend,
@@ -427,6 +427,16 @@ export function AssistantPage() {
       sendMessage,
     ],
   );
+
+  const copyContext = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(context.content);
+      toast.success(t("assistant.context.copied"));
+    } catch (error) {
+      console.error("Failed to copy redacted assistant context:", error);
+      toast.error(t("assistant.context.copyFailed"));
+    }
+  }, [context.content, t]);
 
   const emptyCopy = useMemo(
     () =>
@@ -748,10 +758,7 @@ export function AssistantPage() {
                 size="sm"
                 className="mt-2 h-7 w-full text-[9px]"
                 disabled={!context.content}
-                onClick={() => {
-                  void navigator.clipboard.writeText(context.content);
-                  toast.success(t("assistant.context.copied"));
-                }}
+                onClick={() => void copyContext()}
               >
                 <ClipboardIcon aria-hidden="true" />
                 {t("assistant.context.copy")}

@@ -326,8 +326,11 @@ impl GameAssistant {
             .chain(additional_lines.iter())
             .filter_map(|line| {
                 let trimmed = line.trim();
-                (!trimmed.is_empty() && seen.insert(trimmed.to_string()))
-                    .then(|| sanitize_log_line(trimmed))
+                if trimmed.is_empty() {
+                    return None;
+                }
+                let sanitized = sanitize_log_line(trimmed);
+                seen.insert(sanitized.clone()).then_some(sanitized)
             })
             .collect::<Vec<_>>();
         if lines.len() > self.max_log_lines {
@@ -1073,6 +1076,18 @@ mod tests {
         assert!(!context.content.contains("sk-test-value"));
         assert!(!context.content.contains("2001:db8"));
         assert_eq!(context.content.matches("[redacted-ip]").count(), 3);
+    }
+
+    #[test]
+    fn assistant_context_deduplicates_after_redaction() {
+        let mut assistant = GameAssistant::new();
+        assistant.add_log("Authorization: Bearer first-secret".to_string());
+        assistant.add_log("Authorization: Bearer second-secret".to_string());
+
+        let context = assistant.get_sanitized_log_context(&[]);
+
+        assert_eq!(context.line_count, 1);
+        assert_eq!(context.content, "Authorization: Bearer [redacted]");
     }
 
     #[test]

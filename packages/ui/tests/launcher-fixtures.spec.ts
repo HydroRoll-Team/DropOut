@@ -554,6 +554,9 @@ test("failed launch can open a consent-gated assistant diagnosis", async ({
       /The attached evidence points to a Fabric mod compatibility conflict/,
     ),
   ).toBeVisible();
+  await expect(
+    page.getByRole("switch", { name: "Attach to next request" }),
+  ).not.toBeChecked();
 });
 
 test("assistant keeps session evidence detached by default", async ({
@@ -584,6 +587,27 @@ test("assistant keeps session evidence detached by default", async ({
   await expect(
     page.getByRole("status").filter({ hasText: "Assistant response complete" }),
   ).toBeAttached();
+  await expect(attachment).not.toBeChecked();
+});
+
+test("assistant reports a redacted-evidence clipboard failure", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: () => Promise.reject(new Error("clipboard denied")),
+      },
+    });
+  });
+  await page.goto("/?fixture=assistant-ready&theme=dark#/assistant");
+  await expect(page.getByText("Ready", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Copy redacted evidence" }).click();
+  await expect(
+    page.getByText("Could not copy redacted evidence"),
+  ).toBeVisible();
 });
 
 test("clearing a streaming answer cannot leak stale chunks into the next request", async ({

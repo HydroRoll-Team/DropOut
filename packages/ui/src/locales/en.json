@@ -221,7 +221,8 @@
       "empty": "No game output has been captured in this launcher session.",
       "privacy": "Credentials, home-directory names, email addresses, and IP addresses are redacted before this preview is created.",
       "copy": "Copy redacted evidence",
-      "copied": "Redacted evidence copied"
+      "copied": "Redacted evidence copied",
+      "copyFailed": "Could not copy redacted evidence"
     },
     "setup": {
       "eyebrow": "Provider control",
