@@ -1,0 +1,41 @@
+---
+title: System Tray
+description: Keep launches, downloads, and game status available without leaving the launcher window open
+---
+
+# System Tray
+
+DropOut can stay available in the system tray while its main window is hidden. Enable it under **Settings → Advanced → System Tray**. Changes apply immediately; restarting the launcher is not required.
+
+## Choose lifecycle behavior
+
+The system tray master switch controls three independent preferences:
+
+- **Close window to tray** hides DropOut when you use the window close button. Use **Quit DropOut** in the tray menu when you intend to stop the launcher.
+- **Start minimized to tray** opens DropOut in the background when it is started by you or your desktop session.
+- **Minimize after launching Minecraft** hides the launcher only after the game process starts successfully. Launch failures remain visible for recovery.
+
+Turning off the master switch removes the tray icon and restores normal window-close behavior without changing the three saved preferences.
+
+## Use the tray menu
+
+The tray menu provides:
+
+- **Show / hide window**;
+- **Quick launch** for up to three recently played instances that have a selected Minecraft version;
+- **Downloads**, including bounded progress and a shortcut to the download monitor;
+- **Quit DropOut**, which always exits explicitly.
+
+Quick launch uses the same account, Java, file-readiness, memory, single-game, and error handling as the Home launch command. A ready instance starts immediately. Otherwise DropOut reveals the matching recovery state; missing game files start the reviewed install flow instead of launching an incomplete instance. A successful tray launch updates the recent-instance order.
+
+On Windows, double-click the tray icon to show or hide the window. On macOS, click the icon. Linux desktop environments expose the same action through the tray context menu because tray click events are not consistently available there.
+
+## Background notifications
+
+While the tray is enabled, DropOut sends desktop notifications when:
+
+- all active download work completes;
+- Minecraft exits unexpectedly;
+- a launcher update is available.
+
+The tray icon shows a progress badge during active downloads. Its tooltip and supported desktop panels provide the same bounded status. Disable the system tray master switch to stop these background notifications.

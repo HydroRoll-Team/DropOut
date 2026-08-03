@@ -147,6 +147,9 @@ const settings: LauncherConfig = {
   mirrorSource: "official",
   language: "en",
   enableSystemTray: false,
+  closeToTray: true,
+  startMinimizedToTray: false,
+  minimizeToTrayAfterLaunch: true,
   firstLaunchCompleted: true,
   jvmPreset: "g1gc",
   githubProxy: "",
@@ -357,11 +360,19 @@ function fixturesForCurrentScenario() {
     ? []
     : name === "instances-single"
       ? [readyInstance]
-      : name === "instances-20" || name === "instances-grid"
-        ? createLibraryInstances(20)
-        : name === "instances-100"
-          ? createLibraryInstances(100)
-          : [readyInstance, vanillaInstance];
+      : name === "memory-invalid"
+        ? [
+            {
+              ...readyInstance,
+              memoryOverride: { min: 8192, max: 2048 },
+            },
+            vanillaInstance,
+          ]
+        : name === "instances-20" || name === "instances-grid"
+          ? createLibraryInstances(20)
+          : name === "instances-100"
+            ? createLibraryInstances(100)
+            : [readyInstance, vanillaInstance];
   const activeInstance =
     instances.find(
       (instance) => instance.id === fixtureState.activeInstanceId,
@@ -380,11 +391,20 @@ function fixturesForCurrentScenario() {
 
 const listeners = new Map<string, Set<EventCallback<unknown>>>();
 const cancelledMigrationOperations = new Set<string>();
+const invokedCommands: string[] = [];
 
-function emitFixtureEvent<T>(eventName: string, payload: T) {
+export function emitFixtureEvent<T>(eventName: string, payload: T) {
   for (const listener of listeners.get(eventName) ?? []) {
     listener({ event: eventName, id: 0, payload });
   }
+}
+
+export function resetFixtureCommandLog() {
+  invokedCommands.length = 0;
+}
+
+export function getFixtureCommandLog() {
+  return [...invokedCommands];
 }
 
 export async function fixtureListen<T>(
@@ -421,6 +441,7 @@ export async function fixtureInvoke<T>(
   command: string,
   args: Record<string, unknown> = {},
 ): Promise<T> {
+  invokedCommands.push(command);
   const fixture = fixturesForCurrentScenario();
 
   if (
@@ -468,6 +489,7 @@ export async function fixtureInvoke<T>(
         return {
           versionInstalled:
             fixture.name !== "downloading" &&
+            fixture.name !== "files-missing" &&
             requestedInstance?.versionId !== null,
           requiredJavaMajor: 21n,
           java:
@@ -615,6 +637,11 @@ export async function fixtureInvoke<T>(
         return undefined;
       case "save_settings":
         fixtureState.settings = args.config as LauncherConfig;
+        return undefined;
+      case "update_tray_download_status":
+      case "refresh_system_tray":
+      case "show_system_notification":
+      case "show_main_window":
         return undefined;
       case "start_game":
         return `Fixture: started Minecraft ${String(args.versionId)}`;

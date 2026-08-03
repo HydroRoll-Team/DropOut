@@ -267,6 +267,187 @@ test("settings avoids version errors outside the Tauri runtime", async ({
   );
 });
 
+test("system tray lifecycle settings are progressive and save immediately", async ({
+  page,
+}, testInfo) => {
+  await page.goto("/?fixture=ready&theme=dark#/settings");
+  await page.getByRole("tab", { name: "Advanced" }).click();
+
+  const enableTray = page.getByRole("switch", {
+    name: "Enable system tray",
+  });
+  const closeToTray = page.getByRole("switch", {
+    name: "Close window to tray",
+  });
+  const startMinimized = page.getByRole("switch", {
+    name: "Start minimized to tray",
+  });
+  const minimizeAfterLaunch = page.getByRole("switch", {
+    name: "Minimize after launching Minecraft",
+  });
+
+  await expect(enableTray).not.toBeChecked();
+  await expect(closeToTray).toBeDisabled();
+  await expect(startMinimized).toBeDisabled();
+  await expect(minimizeAfterLaunch).toBeDisabled();
+
+  await enableTray.click();
+
+  await expect(enableTray).toBeChecked();
+  await expect(closeToTray).toBeEnabled();
+  await expect(closeToTray).toBeChecked();
+  await expect(startMinimized).toBeEnabled();
+  await expect(minimizeAfterLaunch).toBeEnabled();
+  await expect(minimizeAfterLaunch).toBeChecked();
+
+  const checkUpdates = page.getByRole("button", { name: "Check for Updates" });
+  await checkUpdates.scrollIntoViewIfNeeded();
+  await expect(checkUpdates).toBeVisible();
+  await expect
+    .poll(() =>
+      page
+        .locator("main")
+        .evaluate((element) => [element.scrollLeft, element.scrollTop]),
+    )
+    .toEqual([0, 0]);
+  if (testInfo.project.name === "minimum-window") {
+    await expect
+      .poll(() =>
+        page
+          .locator('[data-slot="scroll-area-viewport"]')
+          .evaluate((element) => element.scrollTop),
+      )
+      .toBeGreaterThan(0);
+  }
+});
+
+async function triggerTrayQuickLaunch(page: Page) {
+  await page.evaluate(async () => {
+    const fixtureModule = "/src/fixtures/launcher.ts";
+    const fixture = await import(fixtureModule);
+    fixture.resetFixtureCommandLog();
+    fixture.emitFixtureEvent("tray-quick-launch", {
+      instanceId: "fixture-fabric-1211",
+      instanceName: "Copper Valley",
+      versionId: "1.21.1",
+    });
+  });
+}
+
+async function fixtureCommandLog(page: Page): Promise<string[]> {
+  return page.evaluate(async () => {
+    const fixtureModule = "/src/fixtures/launcher.ts";
+    const fixture = await import(fixtureModule);
+    return fixture.getFixtureCommandLog();
+  });
+}
+
+const trayRecoveryScenarios = [
+  {
+    fixture: "not-ready",
+    heading: "Compatible Java required",
+    requiredCommands: ["get_launch_readiness", "show_main_window"],
+  },
+  {
+    fixture: "no-account",
+    heading: "Sign in to continue",
+    requiredCommands: ["show_main_window"],
+  },
+  {
+    fixture: "memory-invalid",
+    heading: "Fix the memory allocation",
+    requiredCommands: ["get_launch_readiness", "show_main_window"],
+  },
+  {
+    fixture: "launching",
+    heading: "Starting Copper Valley",
+    requiredCommands: ["show_main_window"],
+  },
+] as const;
+
+for (const { fixture, heading, requiredCommands } of trayRecoveryScenarios) {
+  test(`tray quick launch opens recovery for ${fixture}`, async ({ page }) => {
+    await page.goto(`/?fixture=${fixture}&theme=dark#/`);
+    await expect(page.getByRole("heading", { name: heading })).toBeVisible();
+
+    await triggerTrayQuickLaunch(page);
+    await expect
+      .poll(() => fixtureCommandLog(page))
+      .toEqual(expect.arrayContaining([...requiredCommands]));
+    expect(await fixtureCommandLog(page)).not.toContain("start_game");
+  });
+}
+
+test("tray recovery returns to Home before revealing readiness guidance", async ({
+  page,
+}) => {
+  await page.goto("/?fixture=not-ready&theme=dark#/settings");
+  await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+
+  await triggerTrayQuickLaunch(page);
+
+  await expect(
+    page.getByRole("heading", { name: "Compatible Java required" }),
+  ).toBeVisible();
+  expect(await fixtureCommandLog(page)).not.toContain("start_game");
+});
+
+test("tray quick launch installs missing files instead of starting an incomplete instance", async ({
+  page,
+}) => {
+  await page.goto("/?fixture=files-missing&theme=dark#/");
+  await expect(
+    page.getByRole("heading", { name: "Game files need attention" }),
+  ).toBeVisible();
+
+  await triggerTrayQuickLaunch(page);
+  await expect
+    .poll(() => fixtureCommandLog(page))
+    .toEqual(
+      expect.arrayContaining([
+        "get_launch_readiness",
+        "install_version",
+        "show_main_window",
+      ]),
+    );
+  expect(await fixtureCommandLog(page)).not.toContain("start_game");
+});
+
+test("tray quick launch reveals an active download without starting duplicate work", async ({
+  page,
+}) => {
+  await page.goto("/?fixture=downloading&theme=dark#/");
+  await expect(
+    page.getByRole("heading", { name: "Preparing Copper Valley" }),
+  ).toBeVisible();
+
+  await triggerTrayQuickLaunch(page);
+  await expect
+    .poll(() => fixtureCommandLog(page))
+    .toContain("show_main_window");
+  const commands = await fixtureCommandLog(page);
+  expect(commands).not.toContain("install_version");
+  expect(commands).not.toContain("start_game");
+});
+
+test("tray quick launch starts a fully ready instance", async ({ page }) => {
+  await page.goto("/?fixture=ready&theme=dark#/");
+  await expect(
+    page.getByRole("heading", { name: "Copper Valley is ready" }),
+  ).toBeVisible();
+
+  await triggerTrayQuickLaunch(page);
+  await expect
+    .poll(() => fixtureCommandLog(page))
+    .toEqual(
+      expect.arrayContaining([
+        "set_active_instance",
+        "get_launch_readiness",
+        "start_game",
+      ]),
+    );
+});
+
 test("home primary action follows launcher recovery state", async ({
   page,
 }) => {

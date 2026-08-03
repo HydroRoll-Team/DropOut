@@ -31,6 +31,7 @@ import type {
   ModInfo,
   PastebinResponse,
   PendingJavaDownload,
+  TrayDownloadStatus,
   Version,
   VersionMetadata,
 } from "@/types";
@@ -492,6 +493,10 @@ export function refreshJavaCatalog(): Promise<JavaCatalog> {
   return invoke<JavaCatalog>("refresh_java_catalog");
 }
 
+export function refreshSystemTray(): Promise<void> {
+  return invoke<void>("refresh_system_tray");
+}
+
 export function removeAccount(uuid: string): Promise<void> {
   return invoke<void>("remove_account", {
     uuid,
@@ -564,6 +569,20 @@ export function setActiveInstance(instanceId: string): Promise<void> {
   });
 }
 
+export function showMainWindow(): Promise<void> {
+  return invoke<void>("show_main_window");
+}
+
+export function showSystemNotification(
+  title: string,
+  body: string,
+): Promise<void> {
+  return invoke<void>("show_system_notification", {
+    title,
+    body,
+  });
+}
+
 export function startGame(
   instanceId: string,
   versionId: string,
@@ -601,6 +620,14 @@ export function toggleMod(
 export function updateInstance(instance: Instance): Promise<void> {
   return invoke<void>("update_instance", {
     instance,
+  });
+}
+
+export function updateTrayDownloadStatus(
+  status: TrayDownloadStatus,
+): Promise<void> {
+  return invoke<void>("update_tray_download_status", {
+    status,
   });
 }
 

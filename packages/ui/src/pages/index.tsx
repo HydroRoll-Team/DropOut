@@ -3,6 +3,7 @@ import { Outlet, useLocation } from "react-router";
 import { GuidedTour } from "@/components/guided-tour";
 import { ParticleBackground } from "@/components/particle-background";
 import { Sidebar } from "@/components/sidebar";
+import { TrayController } from "@/components/tray-controller";
 import { UpdateDialog, useUpdater } from "@/components/updater";
 import { useAuthStore } from "@/models/auth";
 import { useDownloadStore } from "@/models/downloads";
@@ -105,6 +106,7 @@ export function IndexPage() {
       />
 
       <GuidedTour />
+      <TrayController />
     </div>
   );
 }

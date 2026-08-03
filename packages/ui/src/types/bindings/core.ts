@@ -57,6 +57,12 @@ export type MigrationResult = {
 
 export type PastebinResponse = { url: string };
 
+export type TrayDownloadStatus = {
+  active: boolean;
+  percentage: number;
+  status: string | null;
+};
+
 /**
  * Version metadata for display in the UI
  */
