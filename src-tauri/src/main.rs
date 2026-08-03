@@ -851,13 +851,11 @@ async fn start_game(
 
     // 7e. Instance-level JVM args override
     if let Some(jvm_override) = &instance.jvm_args_override {
-        if !jvm_override.trim().is_empty() {
-            for arg in jvm_override.split_whitespace() {
-                // Insert JVM args before the main class (find it and insert before)
-                // These are already at end of args after game args, but that's ok for overrides
-                args.push(arg.to_string());
-            }
-        }
+        core::memory::insert_instance_jvm_arguments(
+            &mut args,
+            &version_details.main_class,
+            jvm_override,
+        );
     }
 
     emit_log!(
@@ -1205,7 +1203,7 @@ fn parse_jvm_arguments(
                     arg = arg.replace(key, val);
                 }
                 // Skip memory args as we set them explicitly
-                if !arg.starts_with("-Xmx") && !arg.starts_with("-Xms") {
+                if !core::memory::is_heap_argument(&arg) {
                     args.push(arg);
                 }
             } else if let Some(obj) = item.as_object() {
@@ -1229,7 +1227,7 @@ fn parse_jvm_arguments(
                             for (key, replacement) in &replacements {
                                 arg = arg.replace(key, replacement);
                             }
-                            if !arg.starts_with("-Xmx") && !arg.starts_with("-Xms") {
+                            if !core::memory::is_heap_argument(&arg) {
                                 args.push(arg);
                             }
                         } else if let Some(arr) = val.as_array() {
@@ -1239,7 +1237,7 @@ fn parse_jvm_arguments(
                                     for (key, replacement) in &replacements {
                                         arg = arg.replace(key, replacement);
                                     }
-                                    if !arg.starts_with("-Xmx") && !arg.starts_with("-Xms") {
+                                    if !core::memory::is_heap_argument(&arg) {
                                         args.push(arg);
                                     }
                                 }

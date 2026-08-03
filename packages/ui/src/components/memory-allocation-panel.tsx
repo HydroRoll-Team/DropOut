@@ -30,6 +30,15 @@ function formatMemory(megabytes: number) {
   return `${new Intl.NumberFormat().format(megabytes)} MB`;
 }
 
+function parseMemoryInput(value: string, minimum: number, maximum: number) {
+  if (value.trim() === "") return null;
+
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+
+  return Math.max(minimum, Math.min(maximum, Math.round(parsed)));
+}
+
 export function MemoryAllocationPanel({
   config,
   recommendation,
@@ -278,14 +287,14 @@ export function MemoryAllocationPanel({
                 value={config.minMemory}
                 min={256}
                 max={config.maxMemory}
-                onChange={(event) =>
-                  onManualChange({
-                    minMemory: Math.max(
-                      256,
-                      Math.min(config.maxMemory, Number(event.target.value)),
-                    ),
-                  })
-                }
+                onChange={(event) => {
+                  const minMemory = parseMemoryInput(
+                    event.target.value,
+                    256,
+                    config.maxMemory,
+                  );
+                  if (minMemory !== null) onManualChange({ minMemory });
+                }}
                 onBlur={() => void onManualSave()}
               />
             </div>
@@ -301,14 +310,14 @@ export function MemoryAllocationPanel({
                 value={config.maxMemory}
                 min={config.minMemory}
                 max={32768}
-                onChange={(event) =>
-                  onManualChange({
-                    maxMemory: Math.min(
-                      32768,
-                      Math.max(config.minMemory, Number(event.target.value)),
-                    ),
-                  })
-                }
+                onChange={(event) => {
+                  const maxMemory = parseMemoryInput(
+                    event.target.value,
+                    config.minMemory,
+                    32768,
+                  );
+                  if (maxMemory !== null) onManualChange({ maxMemory });
+                }}
                 onBlur={() => void onManualSave()}
               />
             </div>

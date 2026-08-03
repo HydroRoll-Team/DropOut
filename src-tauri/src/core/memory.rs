@@ -253,6 +253,31 @@ pub fn count_mod_files(mods_dir: &Path) -> u32 {
         .min(u32::MAX as usize) as u32
 }
 
+pub fn is_heap_argument(argument: &str) -> bool {
+    argument.starts_with("-Xmx") || argument.starts_with("-Xms")
+}
+
+pub fn sanitize_instance_jvm_arguments(arguments: &str) -> Vec<String> {
+    arguments
+        .split_whitespace()
+        .filter(|argument| !is_heap_argument(argument))
+        .map(str::to_string)
+        .collect()
+}
+
+pub fn insert_instance_jvm_arguments(args: &mut Vec<String>, main_class: &str, arguments: &str) {
+    let custom_jvm_args = sanitize_instance_jvm_arguments(arguments);
+    if custom_jvm_args.is_empty() {
+        return;
+    }
+
+    let main_class_pos = args
+        .iter()
+        .position(|argument| argument == main_class)
+        .unwrap_or(args.len());
+    args.splice(main_class_pos..main_class_pos, custom_jvm_args);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -378,5 +403,32 @@ mod tests {
         assert_eq!(count_mod_files(&test_dir), 3);
 
         fs::remove_dir_all(test_dir).unwrap();
+    }
+
+    #[test]
+    fn instance_jvm_arguments_cannot_override_resolved_heap() {
+        let mut arguments = vec![
+            "-Xmx4096M".to_string(),
+            "-Xms1024M".to_string(),
+            "net.minecraft.client.main.Main".to_string(),
+            "--username".to_string(),
+        ];
+        insert_instance_jvm_arguments(
+            &mut arguments,
+            "net.minecraft.client.main.Main",
+            "-Ddropout.profile=fast -Xmx16G -Xms8G -XX:+UseZGC",
+        );
+
+        assert_eq!(
+            arguments,
+            vec![
+                "-Xmx4096M",
+                "-Xms1024M",
+                "-Ddropout.profile=fast",
+                "-XX:+UseZGC",
+                "net.minecraft.client.main.Main",
+                "--username",
+            ]
+        );
     }
 }

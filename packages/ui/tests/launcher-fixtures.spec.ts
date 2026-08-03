@@ -1031,4 +1031,9 @@ test("automatic memory exposes live headroom and a manual fallback", async ({
   await panel.getByRole("switch", { name: "Automatic memory" }).click();
   await expect(panel.getByLabel("Min Memory (MB)")).toBeVisible();
   await expect(panel.getByLabel("Max Memory (MB)")).toBeVisible();
+
+  const minimumMemory = panel.getByLabel("Min Memory (MB)");
+  await minimumMemory.fill("");
+  await minimumMemory.blur();
+  await expect(minimumMemory).toHaveValue("1024");
 });
