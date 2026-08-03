@@ -266,8 +266,7 @@ fn progress_badged_icon(
     tauri::image::Image::new_owned(rgba, width, height)
 }
 
-pub fn refresh_tray(app: &AppHandle) -> Result<(), String> {
-    let config = current_config(app);
+fn refresh_tray_with_config(app: &AppHandle, config: &LauncherConfig) -> Result<(), String> {
     let labels = tray_labels(&config.language);
     let menu = app.state::<TrayMenuState>();
     let targets = current_launch_targets(app);
@@ -343,6 +342,21 @@ pub fn refresh_tray(app: &AppHandle) -> Result<(), String> {
         .map_err(|error| error.to_string())?;
     }
 
+    Ok(())
+}
+
+pub fn refresh_tray(app: &AppHandle) -> Result<(), String> {
+    let config = current_config(app);
+    refresh_tray_with_config(app, &config)
+}
+
+pub(crate) fn best_effort_refresh(
+    refresh_result: Result<(), String>,
+    context: &str,
+) -> Result<(), String> {
+    if let Err(error) = refresh_result {
+        log::warn!("Failed to refresh the system tray after {context}: {error}");
+    }
     Ok(())
 }
 
@@ -478,10 +492,11 @@ pub fn update_tray_download_status(
         completed
     };
 
-    refresh_tray(&app)?;
+    let config = current_config(&app);
+    refresh_tray_with_config(&app, &config)?;
 
-    if completed && current_config(&app).enable_system_tray {
-        let labels = tray_labels(&current_config(&app).language);
+    if completed && config.enable_system_tray {
+        let labels = tray_labels(&config.language);
         let _ = app
             .notification()
             .builder()
@@ -534,8 +549,9 @@ pub fn notify_game_crash(app: &AppHandle, version_id: &str, exit_code: Option<i3
 #[cfg(test)]
 mod tests {
     use super::{
-        TrayDownloadStatus, download_status_label, progress_badged_icon, recent_launch_targets,
-        should_hide_on_close, should_minimize_after_launch, should_start_minimized, tray_labels,
+        TrayDownloadStatus, best_effort_refresh, download_status_label, progress_badged_icon,
+        recent_launch_targets, should_hide_on_close, should_minimize_after_launch,
+        should_start_minimized, tray_labels,
     };
     use crate::core::config::LauncherConfig;
     use crate::core::instance::Instance;
@@ -631,5 +647,17 @@ mod tests {
         assert!(should_hide_on_close(&config));
         assert!(should_start_minimized(&config));
         assert!(should_minimize_after_launch(&config));
+    }
+
+    #[test]
+    fn persisted_config_is_not_reported_as_failed_when_tray_refresh_fails() {
+        assert!(best_effort_refresh(Ok(()), "saving settings").is_ok());
+        assert!(
+            best_effort_refresh(
+                Err("tray backend unavailable".to_string()),
+                "saving settings"
+            )
+            .is_ok()
+        );
     }
 }

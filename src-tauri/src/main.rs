@@ -1824,8 +1824,7 @@ async fn save_settings(
     config.sanitize();
     *state.config.lock().unwrap() = config;
     state.save()?;
-    desktop::refresh_tray(&app)?;
-    Ok(())
+    desktop::best_effort_refresh(desktop::refresh_tray(&app), "saving settings")
 }
 
 #[tauri::command]
@@ -1864,9 +1863,7 @@ async fn save_raw_config(
 
     // Update in-memory state
     *state.config.lock().unwrap() = new_config;
-    desktop::refresh_tray(&app)?;
-
-    Ok(())
+    desktop::best_effort_refresh(desktop::refresh_tray(&app), "saving raw configuration")
 }
 
 #[tauri::command]
