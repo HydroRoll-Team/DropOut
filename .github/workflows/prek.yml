@@ -46,6 +46,9 @@ jobs:
         uses: j178/prek-action@v1
         continue-on-error: true
 
+      - name: Test release workflow contract
+        run: node --test scripts/release-workflow.test.mjs
+
       - name: Check for changes
         id: check_changes
         if: steps.prek.outcome == 'failure'

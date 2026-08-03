@@ -36,10 +36,6 @@ url = "https://crates.io/api/v1/crates/{{ package.name }}/{{ package.version }}"
 [resolver.rust.pre-check.extra-headers]
 User-Agent = "Semifold 0.2.10"
 
-[[resolver.rust.publish]]
-command = "bash"
-args = ["-lc", "root=$(git rev-parse --show-toplevel) && pnpm --dir \"$root\" exec tsx scripts/release-aur.ts"]
-
 [[resolver.rust.post-version]]
 command = "bash"
 args = ["-lc", "root=$(git rev-parse --show-toplevel) && pnpm --dir \"$root\" bump-tauri"]

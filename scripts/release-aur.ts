@@ -137,6 +137,21 @@ execSync(`git -C aur config user.email "i@jyunko.cn"`, {
   stdio: "inherit",
 });
 
+try {
+  execSync("git diff --cached --quiet", { cwd: "aur", stdio: "inherit" });
+  console.log("AUR package is already up to date.");
+  process.exit(0);
+} catch (error) {
+  if (
+    typeof error !== "object" ||
+    error === null ||
+    !("status" in error) ||
+    error.status !== 1
+  ) {
+    throw error;
+  }
+}
+
 // Test AUR package (skip in CI)
 if (!process.env.CI) {
   execSync("makepkg -f", {

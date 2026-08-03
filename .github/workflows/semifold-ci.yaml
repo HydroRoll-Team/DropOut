@@ -9,7 +9,6 @@ env:
   CARGO_TERM_COLOR: always
   CLICOLOR_FORCE: 1
   CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
-  AUR_SSH_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
 
 permissions:
   id-token: write
@@ -163,7 +162,7 @@ jobs:
             target/${{ matrix.target }}/release/bundle/appimage/*.AppImage
             target/${{ matrix.target }}/release/bundle/deb/*.deb
             target/${{ matrix.target }}/release/bundle/appimage/*.rpm
-          retention-days: 1
+          retention-days: 7
 
       - name: Upload Artifact (Windows)
         if: runner.os == 'Windows'
@@ -205,8 +204,6 @@ jobs:
           node-version: 22
           cache: "pnpm"
           cache-dependency-path: "pnpm-lock.yaml"
-      - name: Install Makepkg
-        run: sudo apt-get update && sudo apt-get install -y makepkg pacman
       - name: Install Node.js Dependencies
         run: pnpm install
       - name: Download build artifacts
@@ -222,3 +219,34 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+
+  publish-aur:
+    name: Publish AUR
+    if: github.event_name == 'push' && github.ref_name == 'main'
+    runs-on: ubuntu-latest
+    needs: [release]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: "pnpm"
+          cache-dependency-path: "pnpm-lock.yaml"
+      - name: Install Makepkg
+        run: sudo apt-get update && sudo apt-get install -y makepkg pacman
+      - name: Install Node.js Dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Download Linux build artifacts
+        uses: actions/download-artifact@v6
+        with:
+          pattern: linux-*-artifacts
+          path: artifacts/
+          merge-multiple: true
+      - name: Publish AUR package
+        run: pnpm exec tsx scripts/release-aur.ts
+        env:
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
