@@ -16,10 +16,10 @@ import type {
   JavaInstallation,
   LauncherConfig,
   LaunchReadiness,
+  MemoryAllocation,
   MigrationImportReport,
   MigrationPreview,
   MigrationProgressEvent,
-  MemoryAllocation,
   ModInfo,
   Version,
 } from "@/types";
@@ -561,14 +561,14 @@ export async function fixtureInvoke<T>(
           ? criticalMemory
           : fixture.name === "memory-invalid"
             ? invalidMemory
-          : fixture.name === "memory-settings"
-            ? healthyMemory
-            : {
-                ...healthyMemory,
-                appliedMinMb: 1_024,
-                appliedMaxMb: 3_456,
-                source: "automatic",
-              };
+            : fixture.name === "memory-settings"
+              ? healthyMemory
+              : {
+                  ...healthyMemory,
+                  appliedMinMb: 1_024,
+                  appliedMaxMb: 3_456,
+                  source: "automatic",
+                };
       case "detect_launchers":
         return fixture.name === "migration" ? detectedLaunchers : [];
       case "scan_launcher_instances":
