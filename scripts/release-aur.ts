@@ -8,6 +8,7 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { version as pkgver } from "../src-tauri/tauri.conf.json";
+import { hasStagedChanges } from "./release-aur-helpers.mjs";
 
 function getSHA256Sum(filePath: string) {
   const response = execSync(`sha256sum ${filePath}`);
@@ -136,6 +137,15 @@ execSync(`git -C aur config user.name "HsiangNianian"`, { stdio: "inherit" });
 execSync(`git -C aur config user.email "i@jyunko.cn"`, {
   stdio: "inherit",
 });
+
+const changedFiles = execSync("git diff --cached --name-only", {
+  cwd: "aur",
+  encoding: "utf8",
+});
+if (!hasStagedChanges(changedFiles)) {
+  console.log("AUR package is already up to date.");
+  process.exit(0);
+}
 
 // Test AUR package (skip in CI)
 if (!process.env.CI) {

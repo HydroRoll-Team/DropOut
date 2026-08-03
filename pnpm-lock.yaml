@@ -58,6 +58,12 @@ importers:
       '@types/node':
         specifier: ^24.10.9
         version: 24.10.9
+      js-yaml:
+        specifier: 4.2.0
+        version: 4.2.0
+      smol-toml:
+        specifier: ^1.7.1
+        version: 1.7.1
       tsx:
         specifier: ^4.21.0
         version: 4.21.0
@@ -4810,6 +4816,10 @@ packages:
 
   sisteransi@1.0.5:
     resolution: {integrity: sha512-bLGGlR1QxBcynn2d5YmDX4MGjlZvy2MRBDRNHLJ8VI6l6+9FUiyTFNJ0IveOSP0bcXgVDPRcfGqA0pjaqUpfVg==}
+
+  smol-toml@1.7.1:
+    resolution: {integrity: sha512-PPlsspAZ4jbMBu5DMFhfUGDQLu/vrL4SyBROVS37x8ynnVmFIs1VPBz1Co8Xks3TvpIaZXmU85y4DrQ+UyVFoQ==}
+    engines: {node: '>= 18'}
 
   solid-js@1.9.10:
     resolution: {integrity: sha512-Coz956cos/EPDlhs6+jsdTxKuJDPT7B5SVIWgABwROyxjY7Xbr8wkzD68Et+NxnV7DLJ3nJdAC2r9InuV/4Jew==}
@@ -10216,6 +10226,8 @@ snapshots:
   signal-exit@4.1.0: {}
 
   sisteransi@1.0.5: {}
+
+  smol-toml@1.7.1: {}
 
   solid-js@1.9.10:
     dependencies:
