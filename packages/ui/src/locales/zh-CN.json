@@ -85,6 +85,11 @@
       "vanilla": "原版",
       "notConfigured": "未配置",
       "checking": "检查中…",
+      "memory": {
+        "automatic": "最大 {{max}} · 自动",
+        "global-manual": "最大 {{max}} · 手动",
+        "instance-override": "最大 {{max}} · 实例"
+      },
       "javaRequired": "需要 Java {{version}}",
       "javaMissing": "没有兼容运行时",
       "downloadProgress": "下载中 · {{percentage}}%",
@@ -137,7 +142,7 @@
       "memory-invalid": {
         "eyebrow": "内存配置阻塞",
         "title": "修正内存分配",
-        "description": "最大内存必须大于或等于最小内存。",
+        "description": "当前堆内存配置无效，或无法安全装入当前可用内存。",
         "action": "修复内存"
       },
       "downloading": {
@@ -600,6 +605,10 @@
     "javaPathPlaceholder": "使用自动 Java 选择",
     "javaPathHint": "留空时使用 DropOut 管理或检测到的兼容运行时。",
     "chooseJavaPath": "选择 Java 可执行文件",
+    "memoryOverride": "为此实例自定义内存",
+    "memoryOverrideHint": "此固定范围的优先级高于启动器的自动内存策略。",
+    "memoryInheritedHint": "使用全局自动或手动内存策略。",
+    "memoryRangeError": "最大内存必须大于或等于至少 256 MB 的最小内存。",
     "minMemory": "最小内存 (MB)",
     "maxMemory": "最大内存 (MB)",
     "jvmArgs": "JVM 参数（高级）"
@@ -641,7 +650,50 @@
       "zgc": "ZGC（需 Java 21+）",
       "shenandoah": "Shenandoah",
       "minMemory": "最小内存 (MB)",
-      "maxMemory": "最大内存 (MB)"
+      "maxMemory": "最大内存 (MB)",
+      "memoryTitle": "启动内存策略",
+      "memoryDescription": "DropOut 会在每次启动前读取当前可用内存，按活动实例的模组规模分配堆内存，并为系统保留运行空间。",
+      "automaticMemory": "自动内存",
+      "automaticMemoryHint": "根据实时可用内存和活动实例的模组数量重新计算。",
+      "manualMemory": "手动内存",
+      "manualMemoryHint": "为没有独立覆盖的实例使用固定堆内存。",
+      "instanceOverrideNotice": "活动实例正在使用固定覆盖值，因此下次启动不会采用全局自动值。",
+      "refreshMemory": "刷新内存采样",
+      "memoryUnavailable": "无法读取内存信息",
+      "readingMemory": "正在读取系统内存…",
+      "availableMemory": "当前可用",
+      "totalMemory": "已安装 {{total}}",
+      "launchHeap": "下次启动堆内存",
+      "heapRange": "初始 {{min}} · 最大 {{max}}",
+      "systemReserve": "系统预留",
+      "systemReserveHint": "不会分配给游戏堆",
+      "availableShare": "可用物理内存",
+      "modCount": "{{count}} 个模组",
+      "source": {
+        "automatic": "自动计算",
+        "global-manual": "全局手动",
+        "instance-override": "实例覆盖"
+      },
+      "workload": {
+        "vanilla": "原版",
+        "light": "轻量模组",
+        "moderate": "模组实例",
+        "heavy": "大型模组实例"
+      },
+      "pressure": {
+        "healthy": {
+          "title": "启动余量充足",
+          "description": "目标堆内存可以安全分配，且不会占用系统预留空间。"
+        },
+        "constrained": {
+          "title": "已降低堆内存以保护系统",
+          "description": "当前空闲内存较少，DropOut 已自动下调本次建议值。"
+        },
+        "critical": {
+          "title": "内存压力过高，启动已阻塞",
+          "description": "请关闭占用内存较高的应用，或降低实例的手动覆盖值。"
+        }
+      }
     },
     "java": {
       "title": "Java 安装",

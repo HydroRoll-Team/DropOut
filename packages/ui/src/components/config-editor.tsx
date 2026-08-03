@@ -40,6 +40,7 @@ import { FieldError } from "./ui/field";
 import { Spinner } from "./ui/spinner";
 
 const launcherConfigSchema: ZodType<LauncherConfig> = z.object({
+  autoMemory: z.boolean(),
   minMemory: z.number(),
   maxMemory: z.number(),
   javaPath: z.string(),

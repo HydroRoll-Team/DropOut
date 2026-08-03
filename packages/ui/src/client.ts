@@ -24,6 +24,7 @@ import type {
   JavaInstallation,
   LauncherConfig,
   LaunchReadiness,
+  MemoryAllocation,
   Message,
   MigrationImportReport,
   MigrationPreview,
@@ -327,6 +328,14 @@ export function getLaunchReadiness(
   return invoke<LaunchReadiness>("get_launch_readiness", {
     instanceId,
     versionId,
+  });
+}
+
+export function getMemoryRecommendation(
+  instanceId: string | null,
+): Promise<MemoryAllocation> {
+  return invoke<MemoryAllocation>("get_memory_recommendation", {
+    instanceId,
   });
 }
 

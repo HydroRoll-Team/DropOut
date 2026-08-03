@@ -147,21 +147,21 @@ java/
 
 ### Memory Allocation
 
-Configure JVM memory in Settings:
+Automatic memory is enabled by default in **Settings → General → JVM Optimization**. Before every launch, DropOut:
 
-**Minimum Memory:**
-- Default: 1024 MB
-- Recommended: 2048 MB for vanilla
-- Recommended: 4096+ MB for modded
+1. samples currently available physical memory;
+2. counts enabled `.jar`, `.zip`, and `.litemod` files in the active instance;
+3. selects a workload target for vanilla, light, moderate, or heavy modded play;
+4. protects 15% of installed RAM for the system, with a 1.5–4 GB reserve; and
+5. lowers the heap in 256 MB steps when the full target does not safely fit.
 
-**Maximum Memory:**
-- Default: 4096 MB
-- Adjust based on your system RAM
-- Leave 4GB for OS and other apps
+The settings panel shows the live sample, next-launch heap, protected reserve, workload, and pressure status. The home readiness check uses the same calculation as the real launch command. Critical pressure blocks launch instead of allowing a likely system-wide out-of-memory failure.
+
+Turn off **Automatic memory** to set a fixed global `Xms`/`Xmx` range. An instance can also enable **Custom memory for this instance**; that instance override has priority over both global modes. Clearing the override makes the instance inherit the global policy again.
 
 **Format:**
 ```bash
--Xms1024M -Xmx4096M
+-Xms1024M -Xmx3072M
 ```
 
 ### Custom JVM Arguments

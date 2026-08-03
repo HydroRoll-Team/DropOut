@@ -41,6 +41,10 @@ export type FeatureFlags = {
 };
 
 export type LauncherConfig = {
+  /**
+   * Recalculate the heap from current free RAM and instance workload before each launch.
+   */
+  autoMemory: boolean;
   minMemory: number;
   maxMemory: number;
   javaPath: string;

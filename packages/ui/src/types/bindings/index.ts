@@ -11,5 +11,6 @@ export * from "./game-version";
 export * from "./instance";
 export * from "./java";
 export * from "./manifest";
+export * from "./memory";
 export * from "./migration";
 export * from "./mods";

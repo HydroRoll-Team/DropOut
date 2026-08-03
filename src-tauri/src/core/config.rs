@@ -83,6 +83,8 @@ impl Default for FeatureFlags {
 #[ts(export, export_to = "config.ts")]
 #[serde(default)]
 pub struct LauncherConfig {
+    /// Recalculate the heap from current free RAM and instance workload before each launch.
+    pub auto_memory: bool,
     pub min_memory: u32, // in MB
     pub max_memory: u32, // in MB
     pub java_path: String,
@@ -160,6 +162,7 @@ fn default_github_proxy() -> String {
 impl Default for LauncherConfig {
     fn default() -> Self {
         Self {
+            auto_memory: true,
             min_memory: 1024,
             max_memory: 2048,
             java_path: "java".to_string(),
@@ -235,7 +238,7 @@ impl ConfigState {
 
 #[cfg(test)]
 mod tests {
-    use super::LauncherConfig;
+    use super::*;
 
     #[test]
     fn legacy_config_gets_safe_tray_lifecycle_defaults() {
@@ -251,5 +254,14 @@ mod tests {
         assert!(config.close_to_tray);
         assert!(!config.start_minimized_to_tray);
         assert!(config.minimize_to_tray_after_launch);
+    }
+
+    #[test]
+    fn legacy_config_enables_automatic_memory_by_default() {
+        let config: LauncherConfig = serde_json::from_str(r#"{"maxMemory":4096}"#).unwrap();
+
+        assert!(config.auto_memory);
+        assert_eq!(config.max_memory, 4096);
+        assert_eq!(config.min_memory, LauncherConfig::default().min_memory);
     }
 }

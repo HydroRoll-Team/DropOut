@@ -35,6 +35,8 @@ export const launcherFixtureNames = [
   "assistant-offline",
   "assistant-race",
   "assistant-tts",
+  "memory-pressure",
+  "memory-settings",
 ] as const;
 
 export type LauncherFixtureName = (typeof launcherFixtureNames)[number];

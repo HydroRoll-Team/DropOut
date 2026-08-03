@@ -85,6 +85,11 @@
       "vanilla": "Vanilla",
       "notConfigured": "Not configured",
       "checking": "Checking…",
+      "memory": {
+        "automatic": "{{max}} max · Auto",
+        "global-manual": "{{max}} max · Manual",
+        "instance-override": "{{max}} max · Instance"
+      },
       "javaRequired": "Java {{version}} required",
       "javaMissing": "No compatible runtime",
       "downloadProgress": "Downloading · {{percentage}}%",
@@ -137,7 +142,7 @@
       "memory-invalid": {
         "eyebrow": "Memory blocked",
         "title": "Fix the memory allocation",
-        "description": "Maximum memory must be greater than or equal to the minimum allocation.",
+        "description": "The selected heap is invalid or does not fit in currently available memory.",
         "action": "Fix memory"
       },
       "downloading": {
@@ -600,6 +605,10 @@
     "javaPathPlaceholder": "Use automatic Java selection",
     "javaPathHint": "Leave empty to use DropOut's compatible managed or detected runtime.",
     "chooseJavaPath": "Choose Java executable",
+    "memoryOverride": "Custom memory for this instance",
+    "memoryOverrideHint": "This fixed range takes priority over the launcher's automatic memory policy.",
+    "memoryInheritedHint": "Uses the global automatic or manual memory policy.",
+    "memoryRangeError": "Maximum memory must be greater than or equal to a minimum of 256 MB.",
     "minMemory": "Minimum Memory (MB)",
     "maxMemory": "Maximum Memory (MB)",
     "jvmArgs": "JVM Arguments (Advanced)"
@@ -641,7 +650,50 @@
       "zgc": "ZGC (Java 21+)",
       "shenandoah": "Shenandoah",
       "minMemory": "Min Memory (MB)",
-      "maxMemory": "Max Memory (MB)"
+      "maxMemory": "Max Memory (MB)",
+      "memoryTitle": "Launch memory policy",
+      "memoryDescription": "DropOut samples free RAM before every launch, sizes the heap for the active instance, and keeps working memory available for the system.",
+      "automaticMemory": "Automatic memory",
+      "automaticMemoryHint": "Recalculate from live RAM and the active instance's mod count.",
+      "manualMemory": "Manual memory",
+      "manualMemoryHint": "Keep a fixed heap for instances without their own override.",
+      "instanceOverrideNotice": "The active instance uses a fixed override, so its next launch bypasses the global automatic value.",
+      "refreshMemory": "Refresh memory sample",
+      "memoryUnavailable": "Memory information is unavailable",
+      "readingMemory": "Reading system memory…",
+      "availableMemory": "Available now",
+      "totalMemory": "{{total}} installed",
+      "launchHeap": "Next launch heap",
+      "heapRange": "{{min}} initial · {{max}} maximum",
+      "systemReserve": "System reserve",
+      "systemReserveHint": "Protected from the game heap",
+      "availableShare": "Available physical memory",
+      "modCount": "{{count}} mods",
+      "source": {
+        "automatic": "Automatic",
+        "global-manual": "Global manual",
+        "instance-override": "Instance override"
+      },
+      "workload": {
+        "vanilla": "Vanilla",
+        "light": "Light modded",
+        "moderate": "Modded",
+        "heavy": "Heavy modded"
+      },
+      "pressure": {
+        "healthy": {
+          "title": "Healthy launch headroom",
+          "description": "The target heap fits without consuming the protected system reserve."
+        },
+        "constrained": {
+          "title": "Heap reduced to protect the system",
+          "description": "DropOut lowered the recommendation because less memory is free right now."
+        },
+        "critical": {
+          "title": "Launch blocked by memory pressure",
+          "description": "Close memory-heavy apps or lower a manual override before launching."
+        }
+      }
     },
     "java": {
       "title": "Java Installations",

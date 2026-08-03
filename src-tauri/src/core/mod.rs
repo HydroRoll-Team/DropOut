@@ -11,6 +11,7 @@ pub mod instance;
 pub mod java;
 pub mod manifest;
 pub mod maven;
+pub mod memory;
 pub mod migration;
 pub mod mirror;
 pub mod modpack;

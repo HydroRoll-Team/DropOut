@@ -84,11 +84,13 @@ export function resolveHomeLaunchState(
   if (!input.probe.java) return "java-missing";
   if (!input.probe.versionInstalled) return "files-missing";
 
-  const memory = input.activeInstance.memoryOverride ?? {
-    min: input.config?.minMemory ?? 0,
-    max: input.config?.maxMemory ?? 0,
-  };
-  if (memory.min <= 0 || memory.max < memory.min) return "memory-invalid";
+  if (
+    input.probe.memory.appliedMinMb <= 0 ||
+    input.probe.memory.appliedMaxMb < input.probe.memory.appliedMinMb ||
+    input.probe.memory.pressure === "critical"
+  ) {
+    return "memory-invalid";
+  }
 
   return "ready";
 }

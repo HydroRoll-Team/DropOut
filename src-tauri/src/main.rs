@@ -169,6 +169,7 @@ async fn start_game(
     window: Window,
     auth_state: State<'_, core::auth::AccountState>,
     config_state: State<'_, core::config::ConfigState>,
+    memory_state: State<'_, core::memory::MemoryState>,
     assistant_state: State<'_, core::assistant::AssistantState>,
     game_process_state: State<'_, GameProcessState>,
     instance_state: State<'_, core::instance::InstanceState>,
@@ -278,10 +279,6 @@ async fn start_game(
 
     let launch_result: Result<String, String> = async {
     emit_log!(window, format!("Java path: {}", config.java_path));
-    emit_log!(
-        window,
-        format!("Memory: {}MB - {}MB", config.min_memory, config.max_memory)
-    );
 
     let resolved_paths = instance_state.resolve_paths(&instance_id, &config, &app_handle)?;
     let game_dir = resolved_paths.root.clone();
@@ -332,6 +329,25 @@ async fn start_game(
     let instance = instance_state
         .get_instance(&instance_id)
         .ok_or_else(|| format!("Instance {} not found", instance_id))?;
+
+    let mut memory = resolve_memory_for_instance(&config, &instance, &memory_state)?;
+    if memory.pressure == core::memory::MemoryPressure::Critical {
+        return Err(format!(
+            "Not enough available memory to safely launch: {} MB available, {} MB requested",
+            memory.available_memory_mb, memory.applied_max_mb
+        ));
+    }
+    emit_log!(
+        window,
+        format!(
+            "Memory: {}MB - {}MB ({:?}, {} mods, {}MB available)",
+            memory.applied_min_mb,
+            memory.applied_max_mb,
+            memory.source,
+            memory.mod_count,
+            memory.available_memory_mb
+        )
+    );
 
     let java_installation = resolve_java_path(
         &config,
@@ -631,6 +647,24 @@ async fn start_game(
     let classpath = classpath_entries.join(cp_separator);
 
     // 7. Prepare Arguments
+    // Downloads and runtime preparation can take minutes. Refresh the snapshot
+    // before turning the allocation into JVM arguments so launch safety is based
+    // on the memory that is actually available now.
+    memory = resolve_memory_for_instance(&config, &instance, &memory_state)?;
+    if memory.pressure == core::memory::MemoryPressure::Critical {
+        return Err(format!(
+            "Not enough available memory to safely launch: {} MB available, {} MB requested",
+            memory.available_memory_mb, memory.applied_max_mb
+        ));
+    }
+    emit_log!(
+        window,
+        format!(
+            "Memory rechecked before launch: {}MB - {}MB ({}MB available)",
+            memory.applied_min_mb, memory.applied_max_mb, memory.available_memory_mb
+        )
+    );
+
     let mut args = Vec::new();
     let natives_path = natives_dir.to_string_lossy().to_string();
 
@@ -649,8 +683,8 @@ async fn start_game(
     }
 
     // Add memory settings (these override any defaults)
-    args.push(format!("-Xmx{}M", config.max_memory));
-    args.push(format!("-Xms{}M", config.min_memory));
+    args.push(format!("-Xmx{}M", memory.applied_max_mb));
+    args.push(format!("-Xms{}M", memory.applied_min_mb));
 
     // JVM GC preset args
     match config.jvm_preset.as_str() {
@@ -835,23 +869,11 @@ async fn start_game(
 
     // 7e. Instance-level JVM args override
     if let Some(jvm_override) = &instance.jvm_args_override {
-        if !jvm_override.trim().is_empty() {
-            for arg in jvm_override.split_whitespace() {
-                // Insert JVM args before the main class (find it and insert before)
-                // These are already at end of args after game args, but that's ok for overrides
-                args.push(arg.to_string());
-            }
-        }
-    }
-
-    // 7f. Instance-level memory override
-    if let Some(mem) = &instance.memory_override {
-        // Remove existing memory args and replace
-        args.retain(|a| !a.starts_with("-Xmx") && !a.starts_with("-Xms"));
-        // Re-insert before main class
-        let main_class_pos = args.iter().position(|a| a == &version_details.main_class).unwrap_or(args.len());
-        args.insert(main_class_pos, format!("-Xms{}M", mem.min));
-        args.insert(main_class_pos, format!("-Xmx{}M", mem.max));
+        core::memory::insert_instance_jvm_arguments(
+            &mut args,
+            &version_details.main_class,
+            jvm_override,
+        );
     }
 
     emit_log!(
@@ -1199,7 +1221,7 @@ fn parse_jvm_arguments(
                     arg = arg.replace(key, val);
                 }
                 // Skip memory args as we set them explicitly
-                if !arg.starts_with("-Xmx") && !arg.starts_with("-Xms") {
+                if !core::memory::is_heap_argument(&arg) {
                     args.push(arg);
                 }
             } else if let Some(obj) = item.as_object() {
@@ -1223,7 +1245,7 @@ fn parse_jvm_arguments(
                             for (key, replacement) in &replacements {
                                 arg = arg.replace(key, replacement);
                             }
-                            if !arg.starts_with("-Xmx") && !arg.starts_with("-Xms") {
+                            if !core::memory::is_heap_argument(&arg) {
                                 args.push(arg);
                             }
                         } else if let Some(arr) = val.as_array() {
@@ -1233,7 +1255,7 @@ fn parse_jvm_arguments(
                                     for (key, replacement) in &replacements {
                                         arg = arg.replace(key, replacement);
                                     }
-                                    if !arg.starts_with("-Xmx") && !arg.starts_with("-Xms") {
+                                    if !core::memory::is_heap_argument(&arg) {
                                         args.push(arg);
                                     }
                                 }
@@ -2239,6 +2261,69 @@ struct LaunchReadiness {
     version_installed: bool,
     required_java_major: Option<u64>,
     java: Option<core::java::JavaInstallation>,
+    memory: core::memory::MemoryAllocation,
+}
+
+fn resolve_memory_for_instance(
+    config: &core::config::LauncherConfig,
+    instance: &core::instance::Instance,
+    memory_state: &core::memory::MemoryState,
+) -> Result<core::memory::MemoryAllocation, String> {
+    let snapshot = memory_state.snapshot()?;
+    let mod_count = core::memory::count_mod_files(&instance.game_dir.join("mods"));
+    let is_modded = mod_count > 0
+        || instance
+            .mod_loader
+            .as_deref()
+            .is_some_and(|loader| !loader.eq_ignore_ascii_case("vanilla"));
+    let instance_override = instance
+        .memory_override
+        .as_ref()
+        .map(|memory| (memory.min, memory.max));
+
+    Ok(core::memory::resolve_memory_allocation(
+        snapshot,
+        mod_count,
+        is_modded,
+        config.auto_memory,
+        (config.min_memory, config.max_memory),
+        instance_override,
+    ))
+}
+
+/// Preview the memory policy for an instance using a fresh system-memory sample.
+/// When no ID is supplied, the active instance is used; an empty library gets a vanilla baseline.
+#[tauri::command]
+#[dropout_macros::api]
+async fn get_memory_recommendation(
+    config_state: State<'_, core::config::ConfigState>,
+    instance_state: State<'_, core::instance::InstanceState>,
+    memory_state: State<'_, core::memory::MemoryState>,
+    instance_id: Option<String>,
+) -> Result<core::memory::MemoryAllocation, String> {
+    let config = config_state.config.lock().unwrap().clone();
+    let instance = if let Some(instance_id) = instance_id {
+        Some(
+            instance_state
+                .get_instance(&instance_id)
+                .ok_or_else(|| format!("Instance {} not found", instance_id))?,
+        )
+    } else {
+        instance_state.get_active_instance()
+    };
+
+    if let Some(instance) = instance {
+        resolve_memory_for_instance(&config, &instance, &memory_state)
+    } else {
+        Ok(core::memory::resolve_memory_allocation(
+            memory_state.snapshot()?,
+            0,
+            false,
+            config.auto_memory,
+            (config.min_memory, config.max_memory),
+            None,
+        ))
+    }
 }
 
 /// Delete a version (remove version directory)
@@ -2372,6 +2457,7 @@ async fn get_launch_readiness(
     window: Window,
     config_state: State<'_, core::config::ConfigState>,
     instance_state: State<'_, core::instance::InstanceState>,
+    memory_state: State<'_, core::memory::MemoryState>,
     instance_id: String,
     version_id: String,
 ) -> Result<LaunchReadiness, String> {
@@ -2411,11 +2497,13 @@ async fn get_launch_readiness(
     )
     .await
     .ok();
+    let memory = resolve_memory_for_instance(&config, &instance, &memory_state)?;
 
     Ok(LaunchReadiness {
         version_installed,
         required_java_major,
         java,
+        memory,
     })
 }
 
@@ -3674,6 +3762,7 @@ fn main() {
         .manage(GameProcessState::new())
         .manage(core::assistant::AssistantState::new())
         .manage(core::migration::MigrationOperationState::default())
+        .manage(core::memory::MemoryState::new())
         .setup(|app| {
             let config_state = core::config::ConfigState::new(app.handle());
             app.manage(config_state);
@@ -3752,6 +3841,7 @@ fn main() {
             get_version_java_version,
             get_version_metadata,
             get_launch_readiness,
+            get_memory_recommendation,
             delete_version,
             login_offline,
             get_active_account,
