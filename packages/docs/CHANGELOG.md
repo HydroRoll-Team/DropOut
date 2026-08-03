@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.0-alpha.5
+
+### New Features
+
+- [`28bcde5`](https://github.com/HydroRoll-Team/DropOut/commit/28bcde590d624ff729f73214455902404854b37f): Add a native system tray lifecycle with readiness-aware recent launches, download progress badges, background notifications, and bilingual guidance. ([#187](https://github.com/HydroRoll-Team/DropOut/pull/187) by @HsiangNianian)
+
 ## v0.1.0-alpha.4
 
 ### New Features
