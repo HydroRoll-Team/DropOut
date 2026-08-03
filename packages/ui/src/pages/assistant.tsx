@@ -356,7 +356,7 @@ export function AssistantPage() {
   }, [checkHealth, config, recentLogs, refreshContext, searchParams, t]);
 
   useEffect(() => {
-    void messages.length;
+    if (messages.length === 0) return;
     transcriptEndRef.current?.scrollIntoView({ block: "nearest" });
   }, [messages]);
 

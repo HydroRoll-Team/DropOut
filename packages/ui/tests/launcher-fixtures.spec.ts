@@ -92,6 +92,11 @@ for (const theme of themes) {
       if (fixture === "assistant-ready") {
         await expect(page.getByText("Ready", { exact: true })).toBeVisible();
         await expect(
+          page.getByRole("heading", {
+            name: "Start from evidence, not guesses",
+          }),
+        ).toBeInViewport();
+        await expect(
           page.getByText(/Could not initialize Fabric loader/),
         ).toBeVisible();
       }
