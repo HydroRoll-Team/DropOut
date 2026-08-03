@@ -13,14 +13,23 @@ DropOut 是一个使用 Tauri v2 构建的现代化、可复现、开发者级�
 
 从 [HydroRoll Team 发布页面](https://github.com/HydroRoll-Team/DropOut/releases)下载适合你平台的最新预发布版本。Alpha 版本用于测试，升级前请先导出重要实例。
 
-| 平台           | 发布产物              |
-| -------------- | --------------------- |
-| Linux x86_64   | `.deb`、`.AppImage`   |
-| Linux ARM64    | `.deb`、`.AppImage`   |
-| macOS x86_64   | `.dmg`                |
-| macOS ARM64    | `.dmg`                |
-| Windows x86_64 | NSIS `.exe` 安装程序  |
-| Windows ARM64  | NSIS `.exe` 安装程序  |
+| 平台                     | 发布产物               |
+| ------------------------ | ---------------------- |
+| Linux x86_64（glibc）    | `.deb`、`.AppImage`    |
+| Linux ARM64（glibc）     | `.deb`、`.AppImage`    |
+| Alpine Linux x86_64      | `-musl.tar.gz` 压缩包  |
+| macOS x86_64             | `.dmg`                 |
+| macOS ARM64              | `.dmg`                 |
+| Windows x86_64           | NSIS `.exe` 安装程序   |
+| Windows ARM64            | NSIS `.exe` 安装程序   |
+
+所有受支持的桌面发布产物都会生成带签名的 GitHub 构建来源证明。下载后，可验证该文件是否确实由本仓库的发布工作流生成：
+
+```bash
+gh attestation verify ./downloaded-asset -R HydroRoll-Team/DropOut
+```
+
+请将 `./downloaded-asset` 替换为安装包或压缩包路径。验证成功代表产物摘要和短期 Sigstore 签名均已通过，然后再继续安装。
 
 ### Linux 安装
 
@@ -38,6 +47,20 @@ sudo apt-get install -f
 chmod +x Dropout_*.AppImage
 ./Dropout_*.AppImage
 ```
+
+#### 使用 Alpine Linux musl 压缩包
+
+musl 压缩包面向 Alpine Linux 3.22 x86_64 系统。安装原生 WebKitGTK 运行依赖后，解压并启动其中的二进制文件：
+
+```bash
+sudo apk add ca-certificates gtk+3.0 libayatana-appindicator librsvg openssl webkit2gtk-4.1
+sha256sum -c Dropout_*-musl.tar.gz.sha256
+tar -xzf Dropout_*-musl.tar.gz
+cd Dropout_*-musl
+./dropout
+```
+
+校验命令会在解压前验证发布包的完整性。musl 压缩包会动态链接 Alpine 软件包。在 Ubuntu、Debian、Fedora 或 Arch Linux 等 glibc 发行版上，请使用 AppImage 或 `.deb` 包。
 
 ### macOS 安装
 
@@ -134,7 +157,7 @@ DropOut 使用与真实启动命令相同的后端规则计算 Java 和文件状
 
 ### 最低要求
 
-- **操作系统**: Windows 10+、macOS 11+ 或 Linux（基于 Debian）
+- **操作系统**: Windows 10+、macOS 11+、glibc Linux，或 Alpine Linux 3.22 x86_64
 - **内存**: 4GB（推荐 8GB 用于模组 Minecraft）
 - **存储**: 启动器 + 游戏文件需要 2GB
 - **Java**: 如果找不到，DropOut 会自动安装

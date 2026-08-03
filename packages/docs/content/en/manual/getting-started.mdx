@@ -13,14 +13,23 @@ DropOut is a modern, reproducible, and developer-grade Minecraft launcher built 
 
 Download the latest prerelease for your platform from the [HydroRoll Team releases](https://github.com/HydroRoll-Team/DropOut/releases) page. Alpha builds are intended for testing, so export important instances before upgrading.
 
-| Platform       | Release asset        |
-| -------------- | -------------------- |
-| Linux x86_64   | `.deb`, `.AppImage`  |
-| Linux ARM64    | `.deb`, `.AppImage`  |
-| macOS x86_64   | `.dmg`               |
-| macOS ARM64    | `.dmg`               |
-| Windows x86_64 | NSIS `.exe` installer |
-| Windows ARM64  | NSIS `.exe` installer |
+| Platform                 | Release asset          |
+| ------------------------ | ---------------------- |
+| Linux x86_64 (glibc)     | `.deb`, `.AppImage`    |
+| Linux ARM64 (glibc)      | `.deb`, `.AppImage`    |
+| Alpine Linux x86_64      | `-musl.tar.gz` archive |
+| macOS x86_64             | `.dmg`                 |
+| macOS ARM64              | `.dmg`                 |
+| Windows x86_64           | NSIS `.exe` installer  |
+| Windows ARM64            | NSIS `.exe` installer  |
+
+Every supported desktop asset has signed GitHub build provenance. After downloading an asset, verify that it was produced by this repository's release workflow:
+
+```bash
+gh attestation verify ./downloaded-asset -R HydroRoll-Team/DropOut
+```
+
+Replace `./downloaded-asset` with the installer or archive path. A successful result verifies the artifact digest and its short-lived Sigstore signature before installation.
 
 ### Linux Installation
 
@@ -38,6 +47,20 @@ sudo apt-get install -f
 chmod +x Dropout_*.AppImage
 ./Dropout_*.AppImage
 ```
+
+#### Using the Alpine Linux musl archive
+
+The musl archive targets Alpine Linux 3.22 on x86_64. Install its native WebKitGTK runtime dependencies, extract it, and launch the included binary:
+
+```bash
+sudo apk add ca-certificates gtk+3.0 libayatana-appindicator librsvg openssl webkit2gtk-4.1
+sha256sum -c Dropout_*-musl.tar.gz.sha256
+tar -xzf Dropout_*-musl.tar.gz
+cd Dropout_*-musl
+./dropout
+```
+
+The checksum command verifies the packaged archive before extraction. The musl archive is dynamically linked against Alpine packages. Use the AppImage or `.deb` package on glibc distributions such as Ubuntu, Debian, Fedora, or Arch Linux.
 
 ### macOS Installation
 
@@ -146,7 +169,7 @@ DropOut calculates the Java and file checks with the same backend rules used by 
 
 ### Minimum Requirements
 
-- **OS**: Windows 10+, macOS 11+, or Linux (Debian-based)
+- **OS**: Windows 10+, macOS 11+, glibc Linux, or Alpine Linux 3.22 x86_64
 - **RAM**: 4GB (8GB recommended for modded Minecraft)
 - **Storage**: 2GB for launcher + game files
 - **Java**: Auto-installed by DropOut if not found

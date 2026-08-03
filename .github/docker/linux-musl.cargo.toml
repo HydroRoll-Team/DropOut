@@ -1,0 +1,15 @@
+# Alpine/musl CI runs in a constrained container. These package-specific
+# overrides leave every other release target on the workspace's opt-level 3.
+[env]
+TS_RS_EXPORT_DIR = { value = "./packages/ui/src/types/bindings", relative = true }
+TS_RS_LARGE_INT = "number"
+
+[target.x86_64-unknown-linux-musl]
+rustflags = ["-C", "target-feature=-crt-static"]
+
+[profile.release.package.gtk]
+opt-level = 1
+
+[profile.release.package.dropout]
+opt-level = 1
+codegen-units = 16
