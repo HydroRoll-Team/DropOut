@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.0-alpha.4
+
+### New Features
+
+- [`7e006c2`](https://github.com/HydroRoll-Team/DropOut/commit/7e006c2b1a390142fb078fe64b9d0a149770ce20): Add reviewed, copy-only Prism, MultiMC, PCL, and HMCL migration with cross-platform discovery, launcher configuration/save archives, metadata and isolated-version preservation, cancellation, rollback, loader-aware compatibility reports, traversal-safe extraction, versioned fixtures, and bilingual guidance. ([#186](https://github.com/HydroRoll-Team/DropOut/pull/186) by @HsiangNianian)
+
 ## v0.1.0-alpha.3
 
 ### New Features
