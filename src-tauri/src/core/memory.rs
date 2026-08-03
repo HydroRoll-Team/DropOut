@@ -144,11 +144,14 @@ fn workload_target(mod_count: u32, is_modded: bool) -> u32 {
 
 fn manual_pressure(
     snapshot: MemorySnapshot,
+    min_memory_mb: u32,
     max_memory_mb: u32,
     reserve_mb: u32,
 ) -> MemoryPressure {
     let available_mb = to_u32(snapshot.available_mb);
-    if available_mb.saturating_mul(10) < max_memory_mb.saturating_mul(9) {
+    if min_memory_mb > available_mb || max_memory_mb > available_mb {
+        MemoryPressure::Critical
+    } else if available_mb.saturating_mul(10) < max_memory_mb.saturating_mul(9) {
         MemoryPressure::Critical
     } else if available_mb.saturating_sub(max_memory_mb) < reserve_mb {
         MemoryPressure::Constrained
@@ -221,7 +224,12 @@ pub fn resolve_memory_allocation(
         allocation.pressure = if min_memory_mb == 0 || max_memory_mb < min_memory_mb {
             MemoryPressure::Critical
         } else {
-            manual_pressure(snapshot, max_memory_mb, allocation.reserved_memory_mb)
+            manual_pressure(
+                snapshot,
+                min_memory_mb,
+                max_memory_mb,
+                allocation.reserved_memory_mb,
+            )
         };
         allocation.source = source;
     }
@@ -387,6 +395,44 @@ mod tests {
         assert_eq!(allocation.applied_max_mb, 8_192);
         assert_eq!(allocation.source, MemoryAllocationSource::GlobalManual);
         assert_eq!(allocation.pressure, MemoryPressure::Critical);
+    }
+
+    #[test]
+    fn manual_allocation_above_available_memory_is_critical() {
+        let allocation = resolve_memory_allocation(
+            MemorySnapshot {
+                total_mb: 8_192,
+                available_mb: 4_096,
+            },
+            0,
+            false,
+            false,
+            (4_500, 4_500),
+            None,
+        );
+
+        assert_eq!(allocation.applied_min_mb, 4_500);
+        assert_eq!(allocation.applied_max_mb, 4_500);
+        assert_eq!(allocation.available_memory_mb, 4_096);
+        assert_eq!(allocation.pressure, MemoryPressure::Critical);
+    }
+
+    #[test]
+    fn memory_policy_hot_path_stays_below_regression_budget() {
+        let started = std::time::Instant::now();
+        let snapshot = MemorySnapshot {
+            total_mb: 32_768,
+            available_mb: 24_576,
+        };
+
+        for mod_count in 0..100_000 {
+            std::hint::black_box(recommend_memory(snapshot, mod_count % 500, true));
+        }
+
+        assert!(
+            started.elapsed() < std::time::Duration::from_secs(2),
+            "100,000 memory policy evaluations exceeded the 2 second regression budget"
+        );
     }
 
     #[test]

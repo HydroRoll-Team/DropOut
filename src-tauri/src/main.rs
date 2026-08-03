@@ -330,7 +330,7 @@ async fn start_game(
         .get_instance(&instance_id)
         .ok_or_else(|| format!("Instance {} not found", instance_id))?;
 
-    let memory = resolve_memory_for_instance(&config, &instance, &memory_state)?;
+    let mut memory = resolve_memory_for_instance(&config, &instance, &memory_state)?;
     if memory.pressure == core::memory::MemoryPressure::Critical {
         return Err(format!(
             "Not enough available memory to safely launch: {} MB available, {} MB requested",
@@ -647,6 +647,24 @@ async fn start_game(
     let classpath = classpath_entries.join(cp_separator);
 
     // 7. Prepare Arguments
+    // Downloads and runtime preparation can take minutes. Refresh the snapshot
+    // before turning the allocation into JVM arguments so launch safety is based
+    // on the memory that is actually available now.
+    memory = resolve_memory_for_instance(&config, &instance, &memory_state)?;
+    if memory.pressure == core::memory::MemoryPressure::Critical {
+        return Err(format!(
+            "Not enough available memory to safely launch: {} MB available, {} MB requested",
+            memory.available_memory_mb, memory.applied_max_mb
+        ));
+    }
+    emit_log!(
+        window,
+        format!(
+            "Memory rechecked before launch: {}MB - {}MB ({}MB available)",
+            memory.applied_min_mb, memory.applied_max_mb, memory.available_memory_mb
+        )
+    );
+
     let mut args = Vec::new();
     let natives_path = natives_dir.to_string_lossy().to_string();
 
