@@ -5,6 +5,7 @@
     "instances",
     "migration",
     "system-tray",
+    "assistant",
     "config-editor",
     "authentication",
     "java",

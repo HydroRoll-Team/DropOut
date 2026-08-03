@@ -137,6 +137,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       lastError: null,
       lastErrorInstanceId: null,
       lastExit: null,
+      recentLogs: [],
     });
     get().appendLog("launcher", `Preparing Minecraft ${versionId}`);
 

@@ -17,6 +17,13 @@ const router = createHashRouter([
         },
       },
       {
+        path: "assistant",
+        lazy: async () => {
+          const { AssistantPage } = await import("./assistant");
+          return { Component: AssistantPage };
+        },
+      },
+      {
         path: "settings",
         lazy: async () => {
           const { SettingsPage } = await import("./settings");

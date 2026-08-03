@@ -2,6 +2,7 @@ import { invoke } from "@/lib/launcher-runtime";
 import type {
   Account,
   AccountSummary,
+  AssistantLogContext,
   ContentSearchResult,
   ContentVersion,
   DetectedLauncher,
@@ -36,15 +37,35 @@ import type {
   VersionMetadata,
 } from "@/types";
 
-export function assistantChat(messages: Message[]): Promise<Message> {
-  return invoke<Message>("assistant_chat", {
-    messages,
+export function assistantBeginStreamRequest(): Promise<string> {
+  return invoke<string>("assistant_begin_stream_request");
+}
+
+export function assistantCancelStreamRequest(requestId: string): Promise<void> {
+  return invoke<void>("assistant_cancel_stream_request", {
+    requestId,
   });
 }
 
-export function assistantChatStream(messages: Message[]): Promise<string> {
+export function assistantChat(
+  messages: Message[],
+  logContext: string | null,
+): Promise<Message> {
+  return invoke<Message>("assistant_chat", {
+    messages,
+    logContext,
+  });
+}
+
+export function assistantChatStream(
+  messages: Message[],
+  logContext: string | null,
+  requestId: string,
+): Promise<string> {
   return invoke<string>("assistant_chat_stream", {
     messages,
+    logContext,
+    requestId,
   });
 }
 
@@ -235,6 +256,14 @@ export function getActiveInstance(): Promise<Instance | null> {
 
 export function getAllAccounts(): Promise<AccountSummary[]> {
   return invoke<AccountSummary[]>("get_all_accounts");
+}
+
+export function getAssistantLogContext(
+  lines: string[],
+): Promise<AssistantLogContext> {
+  return invoke<AssistantLogContext>("get_assistant_log_context", {
+    lines,
+  });
 }
 
 export function getConfigPath(): Promise<string> {

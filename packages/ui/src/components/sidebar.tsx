@@ -4,6 +4,7 @@ import {
   LogOutIcon,
   PlusIcon,
   Settings,
+  SparklesIcon,
   Trash2Icon,
   UserIcon,
 } from "lucide-react";
@@ -195,6 +196,11 @@ export function Sidebar() {
       >
         <NavItem Icon={Home} label={t("nav.overview")} to="/" />
         <NavItem Icon={Folder} label={t("nav.instances")} to="/instances" />
+        <NavItem
+          Icon={SparklesIcon}
+          label={t("nav.assistant")}
+          to="/assistant"
+        />
         <NavItem Icon={Settings} label={t("nav.settings")} to="/settings" />
       </nav>
 

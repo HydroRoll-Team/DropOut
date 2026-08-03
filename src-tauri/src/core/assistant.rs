@@ -1,10 +1,20 @@
 use super::config::AssistantConfig;
 use futures::StreamExt;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::collections::VecDeque;
-use std::sync::{Arc, Mutex};
+use std::collections::{HashSet, VecDeque};
+use std::future::Future;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
+use std::time::Duration;
 use tauri::{Emitter, Window};
+use tokio::sync::Notify;
 use ts_rs::TS;
+
+const ASSISTANT_CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
+const ASSISTANT_REQUEST_TIMEOUT: Duration = Duration::from_secs(300);
+const ASSISTANT_HEALTH_TIMEOUT: Duration = Duration::from_secs(8);
+const ASSISTANT_STREAM_IDLE_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -123,9 +133,18 @@ pub struct GenerationStats {
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "assistant.ts")]
 pub struct StreamChunk {
+    pub request_id: String,
     pub content: String,
     pub done: bool,
     pub stats: Option<GenerationStats>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "assistant.ts")]
+pub struct AssistantLogContext {
+    pub content: String,
+    pub line_count: usize,
 }
 
 // Ollama streaming response (each line is a JSON object)
@@ -173,16 +192,118 @@ pub struct OpenAIStreamResponse {
 #[derive(Clone)]
 pub struct GameAssistant {
     client: reqwest::Client,
+    health_timeout: Duration,
+    stream_idle_timeout: Duration,
+    next_stream_request_id: Arc<AtomicU64>,
+    active_stream_request_id: Arc<AtomicU64>,
+    stream_change: Arc<Notify>,
     pub log_buffer: VecDeque<String>,
     pub max_log_lines: usize,
 }
 
 impl GameAssistant {
     pub fn new() -> Self {
+        Self::with_timeouts(
+            ASSISTANT_CONNECT_TIMEOUT,
+            ASSISTANT_HEALTH_TIMEOUT,
+            ASSISTANT_STREAM_IDLE_TIMEOUT,
+        )
+    }
+
+    fn with_timeouts(
+        connect_timeout: Duration,
+        health_timeout: Duration,
+        stream_idle_timeout: Duration,
+    ) -> Self {
         Self {
-            client: reqwest::Client::new(),
+            client: reqwest::Client::builder()
+                .connect_timeout(connect_timeout)
+                .timeout(ASSISTANT_REQUEST_TIMEOUT)
+                .build()
+                .expect("assistant HTTP client configuration is valid"),
+            health_timeout,
+            stream_idle_timeout,
+            next_stream_request_id: Arc::new(AtomicU64::new(0)),
+            active_stream_request_id: Arc::new(AtomicU64::new(0)),
+            stream_change: Arc::new(Notify::new()),
             log_buffer: VecDeque::new(),
             max_log_lines: 100,
+        }
+    }
+
+    pub fn begin_stream_request(&self) -> u64 {
+        let request_id = self
+            .next_stream_request_id
+            .fetch_add(1, Ordering::AcqRel)
+            .saturating_add(1);
+        self.active_stream_request_id
+            .store(request_id, Ordering::Release);
+        self.stream_change.notify_waiters();
+        request_id
+    }
+
+    pub fn cancel_stream_request(&self, request_id: u64) {
+        if self
+            .active_stream_request_id
+            .compare_exchange(request_id, 0, Ordering::AcqRel, Ordering::Acquire)
+            .is_ok()
+        {
+            self.stream_change.notify_waiters();
+        }
+    }
+
+    pub fn finish_stream_request(&self, request_id: u64) {
+        self.cancel_stream_request(request_id);
+    }
+
+    pub fn is_stream_request_active(&self, request_id: u64) -> bool {
+        request_id != 0 && self.active_stream_request_id.load(Ordering::Acquire) == request_id
+    }
+
+    fn ensure_stream_request_active(&self, request_id: u64) -> Result<(), String> {
+        self.is_stream_request_active(request_id)
+            .then_some(())
+            .ok_or_else(|| "Assistant request cancelled".to_string())
+    }
+
+    async fn next_stream_item<S>(
+        &self,
+        stream: &mut S,
+        request_id: u64,
+    ) -> Result<Option<S::Item>, String>
+    where
+        S: futures::Stream + Unpin,
+    {
+        let changed = self.stream_change.notified();
+        tokio::pin!(changed);
+        changed.as_mut().enable();
+        self.ensure_stream_request_active(request_id)?;
+        tokio::select! {
+            item = stream.next() => Ok(item),
+            _ = &mut changed => {
+                self.ensure_stream_request_active(request_id)?;
+                Err("Assistant stream changed unexpectedly".to_string())
+            }
+            _ = tokio::time::sleep(self.stream_idle_timeout) => {
+                Err("Assistant stream timed out waiting for data".to_string())
+            }
+        }
+    }
+
+    async fn await_stream_stage<F, T>(&self, future: F, request_id: u64) -> Result<T, String>
+    where
+        F: Future<Output = T>,
+    {
+        let changed = self.stream_change.notified();
+        tokio::pin!(changed);
+        changed.as_mut().enable();
+        self.ensure_stream_request_active(request_id)?;
+        tokio::select! {
+            output = future => Ok(output),
+            _ = &mut changed => {
+                self.ensure_stream_request_active(request_id)?;
+                Err("Assistant stream changed unexpectedly".to_string())
+            }
         }
     }
 
@@ -193,19 +314,85 @@ impl GameAssistant {
         self.log_buffer.push_back(line);
     }
 
-    pub fn get_log_context(&self) -> String {
-        self.log_buffer
+    pub fn clear_logs(&mut self) {
+        self.log_buffer.clear();
+    }
+
+    pub fn get_sanitized_log_context(&self, additional_lines: &[String]) -> AssistantLogContext {
+        let mut seen = HashSet::new();
+        let mut lines = self
+            .log_buffer
             .iter()
-            .cloned()
-            .collect::<Vec<_>>()
-            .join("\n")
+            .chain(additional_lines.iter())
+            .filter_map(|line| {
+                let trimmed = line.trim();
+                if trimmed.is_empty() {
+                    return None;
+                }
+                let sanitized = sanitize_log_line(trimmed);
+                seen.insert(sanitized.clone()).then_some(sanitized)
+            })
+            .collect::<Vec<_>>();
+        if lines.len() > self.max_log_lines {
+            lines.drain(..lines.len() - self.max_log_lines);
+        }
+        let line_count = lines.len();
+        let content = lines.join("\n");
+
+        AssistantLogContext {
+            line_count,
+            content,
+        }
+    }
+
+    fn validate_config(config: &AssistantConfig) -> Result<(), String> {
+        if !config.enabled {
+            return Err("Assistant is disabled".to_string());
+        }
+
+        match config.llm_provider.as_str() {
+            "ollama" => {
+                if config.ollama_endpoint.trim().is_empty() {
+                    return Err("Ollama endpoint is not configured".to_string());
+                }
+                if config.ollama_model.trim().is_empty() {
+                    return Err("Ollama model is not configured".to_string());
+                }
+            }
+            "openai" => {
+                if config.openai_endpoint.trim().is_empty() {
+                    return Err("OpenAI-compatible endpoint is not configured".to_string());
+                }
+                if config.openai_model.trim().is_empty() {
+                    return Err("OpenAI-compatible model is not configured".to_string());
+                }
+                if config
+                    .openai_api_key
+                    .as_deref()
+                    .is_none_or(|key| key.trim().is_empty())
+                {
+                    return Err("OpenAI-compatible API key is not configured".to_string());
+                }
+            }
+            provider => return Err(format!("Unknown LLM provider: {provider}")),
+        }
+
+        Ok(())
     }
 
     pub async fn check_health(&self, config: &AssistantConfig) -> bool {
+        if Self::validate_config(config).is_err() {
+            return false;
+        }
+
         if config.llm_provider == "ollama" {
             match self
                 .client
-                .get(format!("{}/api/tags", config.ollama_endpoint))
+                .get(format!(
+                    "{}/api/tags",
+                    config.ollama_endpoint.trim_end_matches('/')
+                ))
+                .timeout(self.health_timeout)
                 .send()
                 .await
             {
@@ -213,8 +400,23 @@ impl GameAssistant {
                 Err(_) => false,
             }
         } else if config.llm_provider == "openai" {
-            // For OpenAI, just check if API key is set
-            config.openai_api_key.is_some() && !config.openai_api_key.as_ref().unwrap().is_empty()
+            let Some(api_key) = config.openai_api_key.as_deref() else {
+                return false;
+            };
+            match self
+                .client
+                .get(format!(
+                    "{}/models",
+                    config.openai_endpoint.trim_end_matches('/')
+                ))
+                .header("Authorization", format!("Bearer {api_key}"))
+                .timeout(self.health_timeout)
+                .send()
+                .await
+            {
+                Ok(response) => response.status().is_success(),
+                Err(_) => false,
+            }
         } else {
             false
         }
@@ -224,10 +426,16 @@ impl GameAssistant {
         &self,
         mut messages: Vec<Message>,
         config: &AssistantConfig,
+        log_context: Option<String>,
     ) -> Result<Message, String> {
+        Self::validate_config(config)?;
+
         // Inject system prompt and log context
         if !messages.iter().any(|m| m.role == "system") {
-            let context = self.get_log_context();
+            let context = log_context
+                .as_deref()
+                .map(sanitize_log_text)
+                .unwrap_or_default();
             let mut system_content = config.system_prompt.clone();
 
             // Add language instruction if not auto
@@ -277,7 +485,10 @@ impl GameAssistant {
 
         let response = self
             .client
-            .post(format!("{}/api/chat", config.ollama_endpoint))
+            .post(format!(
+                "{}/api/chat",
+                config.ollama_endpoint.trim_end_matches('/')
+            ))
             .json(&request)
             .send()
             .await
@@ -313,7 +524,10 @@ impl GameAssistant {
 
         let response = self
             .client
-            .post(format!("{}/chat/completions", config.openai_endpoint))
+            .post(format!(
+                "{}/chat/completions",
+                config.openai_endpoint.trim_end_matches('/')
+            ))
             .header("Authorization", format!("Bearer {}", api_key))
             .header("Content-Type", "application/json")
             .json(&request)
@@ -343,7 +557,7 @@ impl GameAssistant {
     pub async fn list_ollama_models(&self, endpoint: &str) -> Result<Vec<ModelInfo>, String> {
         let response = self
             .client
-            .get(format!("{}/api/tags", endpoint))
+            .get(format!("{}/api/tags", endpoint.trim_end_matches('/')))
             .send()
             .await
             .map_err(|e| format!("Failed to connect to Ollama: {}", e))?;
@@ -399,7 +613,10 @@ impl GameAssistant {
 
         let response = self
             .client
-            .get(format!("{}/models", config.openai_endpoint))
+            .get(format!(
+                "{}/models",
+                config.openai_endpoint.trim_end_matches('/')
+            ))
             .header("Authorization", format!("Bearer {}", api_key))
             .send()
             .await
@@ -440,10 +657,18 @@ impl GameAssistant {
         mut messages: Vec<Message>,
         config: &AssistantConfig,
         window: &Window,
+        log_context: Option<String>,
+        request_id: u64,
     ) -> Result<String, String> {
+        Self::validate_config(config)?;
+        self.ensure_stream_request_active(request_id)?;
+
         // Inject system prompt and log context
         if !messages.iter().any(|m| m.role == "system") {
-            let context = self.get_log_context();
+            let context = log_context
+                .as_deref()
+                .map(sanitize_log_text)
+                .unwrap_or_default();
             let mut system_content = config.system_prompt.clone();
 
             if config.response_language != "auto" {
@@ -470,9 +695,11 @@ impl GameAssistant {
         }
 
         if config.llm_provider == "ollama" {
-            self.chat_stream_ollama(messages, config, window).await
+            self.chat_stream_ollama(messages, config, window, request_id)
+                .await
         } else if config.llm_provider == "openai" {
-            self.chat_stream_openai(messages, config, window).await
+            self.chat_stream_openai(messages, config, window, request_id)
+                .await
         } else {
             Err(format!("Unknown LLM provider: {}", config.llm_provider))
         }
@@ -483,6 +710,7 @@ impl GameAssistant {
         messages: Vec<Message>,
         config: &AssistantConfig,
         window: &Window,
+        request_id: u64,
     ) -> Result<String, String> {
         let request = OllamaChatRequest {
             model: config.ollama_model.clone(),
@@ -491,11 +719,17 @@ impl GameAssistant {
         };
 
         let response = self
-            .client
-            .post(format!("{}/api/chat", config.ollama_endpoint))
-            .json(&request)
-            .send()
-            .await
+            .await_stream_stage(
+                self.client
+                    .post(format!(
+                        "{}/api/chat",
+                        config.ollama_endpoint.trim_end_matches('/')
+                    ))
+                    .json(&request)
+                    .send(),
+                request_id,
+            )
+            .await?
             .map_err(|e| format!("Ollama request failed: {}", e))?;
 
         if !response.status().is_success() {
@@ -504,74 +738,79 @@ impl GameAssistant {
 
         let mut full_content = String::new();
         let mut stream = response.bytes_stream();
+        let mut buffer = Vec::new();
 
-        while let Some(chunk_result) = stream.next().await {
+        let process_line = |line: &[u8], full_content: &mut String| {
+            let Some(stream_response) = parse_ollama_stream_line(line) else {
+                return;
+            };
+
+            if let Some(message) = stream_response.message {
+                full_content.push_str(&message.content);
+                let _ = window.emit(
+                    "assistant-stream",
+                    StreamChunk {
+                        request_id: request_id.to_string(),
+                        content: message.content,
+                        done: false,
+                        stats: None,
+                    },
+                );
+            }
+            if stream_response.done {
+                let stats = match (
+                    stream_response.total_duration,
+                    stream_response.load_duration,
+                    stream_response.prompt_eval_count,
+                    stream_response.prompt_eval_duration,
+                    stream_response.eval_count,
+                    stream_response.eval_duration,
+                ) {
+                    (
+                        Some(total_duration),
+                        Some(load_duration),
+                        Some(prompt_eval_count),
+                        Some(prompt_eval_duration),
+                        Some(eval_count),
+                        Some(eval_duration),
+                    ) => Some(GenerationStats {
+                        total_duration,
+                        load_duration,
+                        prompt_eval_count,
+                        prompt_eval_duration,
+                        eval_count,
+                        eval_duration,
+                    }),
+                    _ => None,
+                };
+
+                let _ = window.emit(
+                    "assistant-stream",
+                    StreamChunk {
+                        request_id: request_id.to_string(),
+                        content: String::new(),
+                        done: true,
+                        stats,
+                    },
+                );
+            }
+        };
+
+        while let Some(chunk_result) = self.next_stream_item(&mut stream, request_id).await? {
+            self.ensure_stream_request_active(request_id)?;
             match chunk_result {
                 Ok(chunk) => {
-                    let text = String::from_utf8_lossy(&chunk);
-                    // Ollama returns newline-delimited JSON
-                    for line in text.lines() {
-                        if line.trim().is_empty() {
-                            continue;
-                        }
-                        if let Ok(stream_response) =
-                            serde_json::from_str::<OllamaStreamResponse>(line)
-                        {
-                            if let Some(msg) = stream_response.message {
-                                full_content.push_str(&msg.content);
-                                let _ = window.emit(
-                                    "assistant-stream",
-                                    StreamChunk {
-                                        content: msg.content,
-                                        done: stream_response.done,
-                                        stats: None,
-                                    },
-                                );
-                            }
-                            if stream_response.done {
-                                let stats = if let (
-                                    Some(total),
-                                    Some(load),
-                                    Some(prompt_cnt),
-                                    Some(prompt_dur),
-                                    Some(eval_cnt),
-                                    Some(eval_dur),
-                                ) = (
-                                    stream_response.total_duration,
-                                    stream_response.load_duration,
-                                    stream_response.prompt_eval_count,
-                                    stream_response.prompt_eval_duration,
-                                    stream_response.eval_count,
-                                    stream_response.eval_duration,
-                                ) {
-                                    Some(GenerationStats {
-                                        total_duration: total,
-                                        load_duration: load,
-                                        prompt_eval_count: prompt_cnt,
-                                        prompt_eval_duration: prompt_dur,
-                                        eval_count: eval_cnt,
-                                        eval_duration: eval_dur,
-                                    })
-                                } else {
-                                    None
-                                };
-
-                                let _ = window.emit(
-                                    "assistant-stream",
-                                    StreamChunk {
-                                        content: String::new(),
-                                        done: true,
-                                        stats,
-                                    },
-                                );
-                            }
-                        }
+                    for line in take_complete_lines(&mut buffer, &chunk) {
+                        process_line(&line, &mut full_content);
                     }
                 }
                 Err(e) => {
                     return Err(format!("Stream error: {}", e));
                 }
             }
+        }
+        if !buffer.is_empty() {
+            process_line(&buffer, &mut full_content);
         }
 
         Ok(full_content)
@@ -582,6 +821,7 @@ impl GameAssistant {
         messages: Vec<Message>,
         config: &AssistantConfig,
         window: &Window,
+        request_id: u64,
     ) -> Result<String, String> {
         let api_key = config
             .openai_api_key
@@ -595,13 +835,19 @@ impl GameAssistant {
         };
 
         let response = self
-            .client
-            .post(format!("{}/chat/completions", config.openai_endpoint))
-            .header("Authorization", format!("Bearer {}", api_key))
-            .header("Content-Type", "application/json")
-            .json(&request)
-            .send()
-            .await
+            .await_stream_stage(
+                self.client
+                    .post(format!(
+                        "{}/chat/completions",
+                        config.openai_endpoint.trim_end_matches('/')
+                    ))
+                    .header("Authorization", format!("Bearer {}", api_key))
+                    .header("Content-Type", "application/json")
+                    .json(&request)
+                    .send(),
+                request_id,
+            )
+            .await?
             .map_err(|e| format!("OpenAI request failed: {}", e))?;
 
         if !response.status().is_success() {
@@ -612,62 +858,70 @@ impl GameAssistant {
 
         let mut full_content = String::new();
         let mut stream = response.bytes_stream();
-        let mut buffer = String::new();
+        let mut buffer = Vec::new();
 
-        while let Some(chunk_result) = stream.next().await {
+        let process_line = |line: &[u8], full_content: &mut String| -> Result<(), String> {
+            let line = std::str::from_utf8(line)
+                .map_err(|error| format!("Invalid UTF-8 in OpenAI-compatible stream: {error}"))?
+                .trim();
+            if line.is_empty() {
+                return Ok(());
+            }
+            if line == "data: [DONE]" {
+                let _ = window.emit(
+                    "assistant-stream",
+                    StreamChunk {
+                        request_id: request_id.to_string(),
+                        content: String::new(),
+                        done: true,
+                        stats: None,
+                    },
+                );
+                return Ok(());
+            }
+
+            let Some(data) = line.strip_prefix("data: ") else {
+                return Ok(());
+            };
+            let stream_response =
+                serde_json::from_str::<OpenAIStreamResponse>(data).map_err(|error| {
+                    format!("Failed to parse OpenAI-compatible stream response: {error}")
+                })?;
+            if let Some(choice) = stream_response.choices.first() {
+                if let Some(content) = &choice.delta.content {
+                    full_content.push_str(content);
+                    let _ = window.emit(
+                        "assistant-stream",
+                        StreamChunk {
+                            request_id: request_id.to_string(),
+                            content: content.clone(),
+                            done: false,
+                            stats: None,
+                        },
+                    );
+                }
+                if choice.finish_reason.is_some() {
+                    let _ = window.emit(
+                        "assistant-stream",
+                        StreamChunk {
+                            request_id: request_id.to_string(),
+                            content: String::new(),
+                            done: true,
+                            stats: None,
+                        },
+                    );
+                }
+            }
+
+            Ok(())
+        };
+
+        while let Some(chunk_result) = self.next_stream_item(&mut stream, request_id).await? {
+            self.ensure_stream_request_active(request_id)?;
             match chunk_result {
                 Ok(chunk) => {
-                    buffer.push_str(&String::from_utf8_lossy(&chunk));
-
-                    // Process complete lines
-                    while let Some(pos) = buffer.find('\n') {
-                        let line = buffer[..pos].to_string();
-                        buffer = buffer[pos + 1..].to_string();
-
-                        let line = line.trim();
-                        if line.is_empty() || line == "data: [DONE]" {
-                            if line == "data: [DONE]" {
-                                let _ = window.emit(
-                                    "assistant-stream",
-                                    StreamChunk {
-                                        content: String::new(),
-                                        done: true,
-                                        stats: None,
-                                    },
-                                );
-                            }
-                            continue;
-                        }
-
-                        if let Some(data) = line.strip_prefix("data: ") {
-                            if let Ok(stream_response) =
-                                serde_json::from_str::<OpenAIStreamResponse>(data)
-                            {
-                                if let Some(choice) = stream_response.choices.first() {
-                                    if let Some(content) = &choice.delta.content {
-                                        full_content.push_str(content);
-                                        let _ = window.emit(
-                                            "assistant-stream",
-                                            StreamChunk {
-                                                content: content.clone(),
-                                                done: false,
-                                                stats: None,
-                                            },
-                                        );
-                                    }
-                                    if choice.finish_reason.is_some() {
-                                        let _ = window.emit(
-                                            "assistant-stream",
-                                            StreamChunk {
-                                                content: String::new(),
-                                                done: true,
-                                                stats: None,
-                                            },
-                                        );
-                                    }
-                                }
-                            }
-                        }
+                    for line in take_complete_lines(&mut buffer, &chunk) {
+                        process_line(&line, &mut full_content)?;
                     }
                 }
                 Err(e) => {
@@ -675,8 +929,321 @@ impl GameAssistant {
                 }
             }
         }
+        if !buffer.is_empty() {
+            process_line(&buffer, &mut full_content)?;
+        }
 
         Ok(full_content)
+    }
+}
+
+fn take_complete_lines(buffer: &mut Vec<u8>, chunk: &[u8]) -> Vec<Vec<u8>> {
+    buffer.extend_from_slice(chunk);
+    let mut lines = Vec::new();
+
+    while let Some(newline) = buffer.iter().position(|byte| *byte == b'\n') {
+        let mut line = buffer.drain(..=newline).collect::<Vec<_>>();
+        line.pop();
+        if line.last() == Some(&b'\r') {
+            line.pop();
+        }
+        lines.push(line);
+    }
+
+    lines
+}
+
+fn parse_ollama_stream_line(line: &[u8]) -> Option<OllamaStreamResponse> {
+    if line.iter().all(u8::is_ascii_whitespace) {
+        return None;
+    }
+
+    // Some Ollama-compatible proxies interleave diagnostics with NDJSON frames.
+    serde_json::from_slice(line).ok()
+}
+
+fn sanitize_log_line(line: &str) -> String {
+    static BEARER: OnceLock<Regex> = OnceLock::new();
+    static SECRET_FIELD: OnceLock<Regex> = OnceLock::new();
+    static JWT: OnceLock<Regex> = OnceLock::new();
+    static UNIX_HOME: OnceLock<Regex> = OnceLock::new();
+    static WINDOWS_HOME: OnceLock<Regex> = OnceLock::new();
+    static EMAIL: OnceLock<Regex> = OnceLock::new();
+    static IPV4: OnceLock<Regex> = OnceLock::new();
+    static IPV6: OnceLock<Regex> = OnceLock::new();
+
+    let bearer = BEARER.get_or_init(|| {
+        Regex::new(r"(?i)(authorization\s*[:=]\s*bearer\s+)[^\s,;]+")
+            .expect("valid bearer-token regex")
+    });
+    let secret_field = SECRET_FIELD.get_or_init(|| {
+        Regex::new(
+            r#"(?i)((?:access[_ -]?token|refresh[_ -]?token|api[_ -]?key|password)\s*[:=]\s*)[\"']?[^\s,;\"']+"#,
+        )
+        .expect("valid secret-field regex")
+    });
+    let jwt = JWT.get_or_init(|| {
+        Regex::new(r"eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}")
+            .expect("valid JWT regex")
+    });
+    let unix_home = UNIX_HOME.get_or_init(|| {
+        Regex::new(r"(?:/Users|/home)/[^/\s]+").expect("valid Unix home-directory regex")
+    });
+    let windows_home = WINDOWS_HOME.get_or_init(|| {
+        Regex::new(r"(?i)[A-Z]:\\Users\\[^\\\s]+").expect("valid Windows home-directory regex")
+    });
+    let email = EMAIL.get_or_init(|| {
+        Regex::new(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}").expect("valid email regex")
+    });
+    let ipv4 =
+        IPV4.get_or_init(|| Regex::new(r"\b(?:\d{1,3}\.){3}\d{1,3}\b").expect("valid IPv4 regex"));
+    let ipv6 = IPV6.get_or_init(|| {
+        Regex::new(r"(?i)\[[0-9a-f:]+\](?::[0-9]{1,5})?|(?:[0-9a-f]{0,4}:){2,7}[0-9a-f]{0,4}")
+            .expect("valid IPv6 candidate regex")
+    });
+
+    let sanitized = bearer.replace_all(line, "$1[redacted]");
+    let sanitized = secret_field.replace_all(&sanitized, "$1[redacted]");
+    let sanitized = jwt.replace_all(&sanitized, "[redacted-token]");
+    let sanitized = unix_home.replace_all(&sanitized, "~");
+    let sanitized = windows_home.replace_all(&sanitized, "~");
+    let sanitized = email.replace_all(&sanitized, "[redacted-email]");
+    let sanitized = ipv4.replace_all(&sanitized, "[redacted-ip]");
+    ipv6.replace_all(&sanitized, |captures: &regex::Captures<'_>| {
+        let candidate = captures.get(0).expect("full IPv6 match").as_str();
+        let address = candidate
+            .strip_prefix('[')
+            .and_then(|value| value.split_once(']').map(|(address, _)| address))
+            .unwrap_or(candidate);
+        if address.parse::<std::net::Ipv6Addr>().is_ok() {
+            "[redacted-ip]".to_string()
+        } else {
+            candidate.to_string()
+        }
+    })
+    .into_owned()
+}
+
+fn sanitize_log_text(context: &str) -> String {
+    context
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim();
+            (!trimmed.is_empty()).then(|| sanitize_log_line(trimmed))
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn assistant_context_is_empty_until_a_game_emits_logs() {
+        let assistant = GameAssistant::new();
+
+        assert_eq!(
+            assistant.get_sanitized_log_context(&[]).line_count,
+            0,
+            "an idle launcher must not invent diagnostic context"
+        );
+        assert!(assistant.get_sanitized_log_context(&[]).content.is_empty());
+    }
+
+    #[test]
+    fn assistant_context_redacts_credentials_and_player_identifiers() {
+        let mut assistant = GameAssistant::new();
+        assistant.add_log(
+            "Authorization: Bearer secret-token /Users/alice/.minecraft user@example.com 203.0.113.8"
+                .to_string(),
+        );
+        assistant.add_log("api_key=sk-test-value C:\\Users\\Alice\\AppData".to_string());
+        assistant
+            .add_log("servers: 2001:db8::42 and [2001:db8:85a3::8a2e:370:7334]:25565".to_string());
+
+        let context = assistant.get_sanitized_log_context(&[]);
+
+        assert_eq!(context.line_count, 3);
+        assert!(context.content.contains("Bearer [redacted]"));
+        assert!(context.content.contains("api_key=[redacted]"));
+        assert!(context.content.contains("~/.minecraft"));
+        assert!(context.content.contains("~\\AppData"));
+        assert!(context.content.contains("[redacted-email]"));
+        assert!(context.content.contains("[redacted-ip]"));
+        assert!(!context.content.contains("secret-token"));
+        assert!(!context.content.contains("alice"));
+        assert!(!context.content.contains("sk-test-value"));
+        assert!(!context.content.contains("2001:db8"));
+        assert_eq!(context.content.matches("[redacted-ip]").count(), 3);
+    }
+
+    #[test]
+    fn assistant_context_deduplicates_after_redaction() {
+        let mut assistant = GameAssistant::new();
+        assistant.add_log("Authorization: Bearer first-secret".to_string());
+        assistant.add_log("Authorization: Bearer second-secret".to_string());
+
+        let context = assistant.get_sanitized_log_context(&[]);
+
+        assert_eq!(context.line_count, 1);
+        assert_eq!(context.content, "Authorization: Bearer [redacted]");
+    }
+
+    #[test]
+    fn assistant_context_combines_frontend_failures_without_duplicate_lines() {
+        let mut assistant = GameAssistant::new();
+        assistant.add_log("Process exited with code 1".to_string());
+        let frontend_lines = vec![
+            "Could not resolve Fabric mods".to_string(),
+            "Process exited with code 1".to_string(),
+        ];
+
+        let context = assistant.get_sanitized_log_context(&frontend_lines);
+
+        assert_eq!(context.line_count, 2);
+        assert_eq!(
+            context.content,
+            "Process exited with code 1\nCould not resolve Fabric mods"
+        );
+    }
+
+    #[test]
+    fn clearing_logs_starts_a_new_diagnostic_session() {
+        let mut assistant = GameAssistant::new();
+        assistant.add_log("old session".to_string());
+
+        assistant.clear_logs();
+
+        assert!(assistant.get_sanitized_log_context(&[]).content.is_empty());
+    }
+
+    #[test]
+    fn streaming_line_buffer_preserves_split_json_and_utf8() {
+        let payload =
+            "{\"message\":{\"role\":\"assistant\",\"content\":\"修复\"},\"done\":false}\n";
+        let bytes = payload.as_bytes();
+        let split = payload.find('复').expect("fixture contains multibyte text") + 1;
+        let mut buffer = Vec::new();
+
+        assert!(take_complete_lines(&mut buffer, &bytes[..split]).is_empty());
+        let lines = take_complete_lines(&mut buffer, &bytes[split..]);
+
+        assert_eq!(lines.len(), 1);
+        let parsed: OllamaStreamResponse =
+            serde_json::from_slice(&lines[0]).expect("split JSON remains valid");
+        assert_eq!(parsed.message.expect("message is present").content, "修复");
+        assert!(buffer.is_empty());
+    }
+
+    #[test]
+    fn ollama_stream_parser_skips_diagnostics_without_losing_valid_frames() {
+        assert!(parse_ollama_stream_line(b"proxy: upstream connection established").is_none());
+
+        let parsed = parse_ollama_stream_line(
+            br#"{"message":{"role":"assistant","content":"continue"},"done":false}"#,
+        )
+        .expect("valid frame after diagnostics is preserved");
+
+        assert_eq!(
+            parsed.message.expect("message is present").content,
+            "continue"
+        );
+    }
+
+    #[test]
+    fn assistant_requires_explicit_enablement_and_complete_provider_config() {
+        let mut config = AssistantConfig::default();
+        config.enabled = false;
+        assert_eq!(
+            GameAssistant::validate_config(&config),
+            Err("Assistant is disabled".to_string())
+        );
+
+        config.enabled = true;
+        config.ollama_model.clear();
+        assert_eq!(
+            GameAssistant::validate_config(&config),
+            Err("Ollama model is not configured".to_string())
+        );
+    }
+
+    #[test]
+    fn newer_stream_requests_cancel_stale_generations() {
+        let assistant = GameAssistant::new();
+        let first = assistant.begin_stream_request();
+        assert!(assistant.is_stream_request_active(first));
+
+        let second = assistant.begin_stream_request();
+        assert!(!assistant.is_stream_request_active(first));
+        assert!(assistant.is_stream_request_active(second));
+
+        assistant.cancel_stream_request(second);
+        assert!(!assistant.is_stream_request_active(second));
+    }
+
+    #[tokio::test]
+    async fn health_check_times_out_on_a_stalled_provider() {
+        use std::time::{Duration, Instant};
+        use tokio::net::TcpListener;
+
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let stalled_server = tokio::spawn(async move {
+            let _connection = listener.accept().await.unwrap();
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        });
+        let mut config = AssistantConfig::default();
+        config.ollama_endpoint = format!("http://{address}");
+        let assistant = GameAssistant::with_timeouts(
+            Duration::from_millis(50),
+            Duration::from_millis(100),
+            Duration::from_millis(50),
+        );
+
+        let started = Instant::now();
+        assert!(!assistant.check_health(&config).await);
+        assert!(started.elapsed() < Duration::from_millis(500));
+        stalled_server.abort();
+    }
+
+    #[tokio::test]
+    async fn stalled_streams_time_out_and_cancelled_streams_wake_immediately() {
+        use futures::stream;
+        use std::time::Duration;
+
+        let assistant = GameAssistant::with_timeouts(
+            Duration::from_millis(50),
+            Duration::from_millis(100),
+            Duration::from_millis(30),
+        );
+        let timed_out_request = assistant.begin_stream_request();
+        let mut stalled = stream::pending::<()>();
+        assert_eq!(
+            assistant
+                .next_stream_item(&mut stalled, timed_out_request)
+                .await,
+            Err("Assistant stream timed out waiting for data".to_string())
+        );
+
+        let cancelled_request = assistant.begin_stream_request();
+        let worker_assistant = assistant.clone();
+        let worker = tokio::spawn(async move {
+            let mut stalled = stream::pending::<()>();
+            worker_assistant
+                .next_stream_item(&mut stalled, cancelled_request)
+                .await
+        });
+        tokio::task::yield_now().await;
+        assistant.cancel_stream_request(cancelled_request);
+
+        assert_eq!(
+            tokio::time::timeout(Duration::from_millis(100), worker)
+                .await
+                .expect("cancellation wakes the stream waiter")
+                .unwrap(),
+            Err("Assistant request cancelled".to_string())
+        );
     }
 }
 

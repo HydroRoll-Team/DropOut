@@ -229,6 +229,8 @@ async fn start_game(
         instance_state.end_operation(&stale_instance_id);
     }
 
+    assistant_state.assistant.lock().unwrap().clear_logs();
+
     // Check for active account
     emit_log!(window, "Checking for active account...".to_string());
     let mut account = auth_state
@@ -2931,10 +2933,23 @@ async fn assistant_chat(
     assistant_state: State<'_, core::assistant::AssistantState>,
     config_state: State<'_, core::config::ConfigState>,
     messages: Vec<core::assistant::Message>,
+    log_context: Option<String>,
 ) -> Result<core::assistant::Message, String> {
     let assistant = assistant_state.assistant.lock().unwrap().clone();
     let config = config_state.config.lock().unwrap().clone();
-    assistant.chat(messages, &config.assistant).await
+    assistant
+        .chat(messages, &config.assistant, log_context)
+        .await
+}
+
+#[tauri::command]
+#[dropout_macros::api]
+async fn get_assistant_log_context(
+    assistant_state: State<'_, core::assistant::AssistantState>,
+    lines: Vec<String>,
+) -> Result<core::assistant::AssistantLogContext, String> {
+    let assistant = assistant_state.assistant.lock().unwrap().clone();
+    Ok(assistant.get_sanitized_log_context(&lines))
 }
 
 #[tauri::command]
@@ -3089,12 +3104,48 @@ async fn assistant_chat_stream(
     assistant_state: State<'_, core::assistant::AssistantState>,
     config_state: State<'_, core::config::ConfigState>,
     messages: Vec<core::assistant::Message>,
+    log_context: Option<String>,
+    request_id: String,
 ) -> Result<String, String> {
     let assistant = assistant_state.assistant.lock().unwrap().clone();
     let config = config_state.config.lock().unwrap().clone();
-    assistant
-        .chat_stream(messages, &config.assistant, &window)
-        .await
+    let request_id = request_id
+        .parse::<u64>()
+        .map_err(|_| "Invalid assistant request ID".to_string())?;
+    let result = assistant
+        .chat_stream(
+            messages,
+            &config.assistant,
+            &window,
+            log_context,
+            request_id,
+        )
+        .await;
+    assistant.finish_stream_request(request_id);
+    result
+}
+
+#[tauri::command]
+#[dropout_macros::api]
+async fn assistant_begin_stream_request(
+    assistant_state: State<'_, core::assistant::AssistantState>,
+) -> Result<String, String> {
+    let assistant = assistant_state.assistant.lock().unwrap().clone();
+    Ok(assistant.begin_stream_request().to_string())
+}
+
+#[tauri::command]
+#[dropout_macros::api]
+async fn assistant_cancel_stream_request(
+    assistant_state: State<'_, core::assistant::AssistantState>,
+    request_id: String,
+) -> Result<(), String> {
+    let assistant = assistant_state.assistant.lock().unwrap().clone();
+    let request_id = request_id
+        .parse::<u64>()
+        .map_err(|_| "Invalid assistant request ID".to_string())?;
+    assistant.cancel_stream_request(request_id);
+    Ok(())
 }
 
 /// Migrate instance caches to shared global caches
@@ -3743,7 +3794,10 @@ fn main() {
             upload_to_pastebin,
             assistant_check_health,
             assistant_chat,
+            assistant_begin_stream_request,
+            assistant_cancel_stream_request,
             assistant_chat_stream,
+            get_assistant_log_context,
             list_ollama_models,
             list_openai_models,
             // Instance management commands

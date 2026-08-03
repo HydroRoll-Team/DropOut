@@ -70,7 +70,13 @@ export function bootstrapLauncherFixture() {
         { id: 2, source: "launcher", message: "Minecraft exited with code 0" },
       ],
     });
-  } else if (fixtureName === "failed") {
+  } else if (
+    fixtureName === "failed" ||
+    fixtureName === "assistant-ready" ||
+    fixtureName === "assistant-offline" ||
+    fixtureName === "assistant-race" ||
+    fixtureName === "assistant-tts"
+  ) {
     useGameStore.setState({
       lastError: "Minecraft 1.21.1 exited with code 1",
       lastErrorInstanceId: "fixture-fabric-1211",
