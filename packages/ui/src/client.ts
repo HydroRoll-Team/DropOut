@@ -37,6 +37,16 @@ import type {
   VersionMetadata,
 } from "@/types";
 
+export function assistantBeginStreamRequest(): Promise<string> {
+  return invoke<string>("assistant_begin_stream_request");
+}
+
+export function assistantCancelStreamRequest(requestId: string): Promise<void> {
+  return invoke<void>("assistant_cancel_stream_request", {
+    requestId,
+  });
+}
+
 export function assistantChat(
   messages: Message[],
   logContext: string | null,
@@ -50,10 +60,12 @@ export function assistantChat(
 export function assistantChatStream(
   messages: Message[],
   logContext: string | null,
+  requestId: string,
 ): Promise<string> {
   return invoke<string>("assistant_chat_stream", {
     messages,
     logContext,
+    requestId,
   });
 }
 

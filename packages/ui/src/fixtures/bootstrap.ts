@@ -73,7 +73,9 @@ export function bootstrapLauncherFixture() {
   } else if (
     fixtureName === "failed" ||
     fixtureName === "assistant-ready" ||
-    fixtureName === "assistant-offline"
+    fixtureName === "assistant-offline" ||
+    fixtureName === "assistant-race" ||
+    fixtureName === "assistant-tts"
   ) {
     useGameStore.setState({
       lastError: "Minecraft 1.21.1 exited with code 1",

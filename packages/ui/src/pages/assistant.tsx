@@ -287,6 +287,28 @@ function AssistantSetup() {
           </p>
         </div>
 
+        <div className="border-border/70 flex items-center justify-between gap-3 border p-2.5">
+          <span className="min-w-0">
+            <span className="block text-xs font-semibold">
+              {t("assistant.setup.tts")}
+            </span>
+            <span className="text-muted-foreground mt-0.5 block text-[9px] leading-relaxed">
+              {t("assistant.setup.ttsDisclosure")}
+            </span>
+          </span>
+          <Switch
+            aria-label={t("assistant.setup.tts")}
+            checked={draft.ttsEnabled}
+            onCheckedChange={(ttsEnabled) =>
+              setDraft({
+                ...draft,
+                ttsEnabled,
+                ttsProvider: ttsEnabled ? "system" : "disabled",
+              })
+            }
+          />
+        </div>
+
         <Button
           className="w-full"
           size="sm"
@@ -318,11 +340,10 @@ export function AssistantPage() {
   const sendMessage = useAssistantStore((state) => state.sendMessage);
   const clearHistory = useAssistantStore((state) => state.clearHistory);
   const [draft, setDraft] = useState("");
-  const [includeContext, setIncludeContext] = useState(
-    searchParams.get("source") === "failure",
-  );
+  const [includeContext, setIncludeContext] = useState(false);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const initializedRef = useRef(false);
+  const spokenMessageIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (initializedRef.current || !config) return;
@@ -352,6 +373,39 @@ export function AssistantPage() {
       ? assistantConfig.ollamaModel
       : assistantConfig.openaiModel
     : "—";
+
+  useEffect(() => {
+    if (!assistantConfig?.ttsEnabled || isProcessing) return;
+    if (
+      !("speechSynthesis" in window) ||
+      !("SpeechSynthesisUtterance" in window)
+    ) {
+      return;
+    }
+    const latest = messages.at(-1);
+    if (
+      !latest ||
+      latest.role !== "assistant" ||
+      latest.failed ||
+      !latest.content ||
+      spokenMessageIdRef.current === latest.id
+    ) {
+      return;
+    }
+
+    spokenMessageIdRef.current = latest.id;
+    const utterance = new SpeechSynthesisUtterance(latest.content);
+    utterance.lang = config?.language === "zh-CN" ? "zh-CN" : "en-US";
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+  }, [assistantConfig?.ttsEnabled, config?.language, isProcessing, messages]);
+
+  useEffect(
+    () => () => {
+      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    },
+    [],
+  );
 
   const submit = useCallback(
     async (event?: FormEvent) => {
@@ -445,7 +499,7 @@ export function AssistantPage() {
             <ScrollArea className="min-h-0 flex-1">
               <div
                 className="flex min-h-[330px] flex-col gap-4 p-4"
-                aria-live="polite"
+                data-testid="assistant-transcript"
               >
                 {messages.length === 0 ? (
                   <div className="m-auto max-w-lg py-8 text-center">
@@ -534,6 +588,14 @@ export function AssistantPage() {
                 <div ref={transcriptEndRef} />
               </div>
             </ScrollArea>
+            <p className="sr-only" role="status" aria-live="polite">
+              {isProcessing
+                ? t("assistant.thinking")
+                : messages.at(-1)?.role === "assistant" &&
+                    messages.at(-1)?.content
+                  ? t("assistant.responseReady")
+                  : ""}
+            </p>
 
             {!canSend && (
               <div className="border-border/70 bg-amber-500/8 text-amber-900 dark:text-amber-100 mx-3 mt-3 flex items-center gap-2 border px-3 py-2 text-[10px]">

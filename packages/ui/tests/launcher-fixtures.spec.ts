@@ -539,7 +539,7 @@ test("failed launch can open a consent-gated assistant diagnosis", async ({
   await expect(page.getByText("Ready", { exact: true })).toBeVisible();
   await expect(
     page.getByRole("switch", { name: "Attach to next request" }),
-  ).toBeChecked();
+  ).not.toBeChecked();
   await expect(
     page.getByRole("textbox", { name: "Message diagnostic assistant" }),
   ).toHaveValue(/Analyze the last failed launch/);
@@ -547,6 +547,7 @@ test("failed launch can open a consent-gated assistant diagnosis", async ({
     page.getByText(/Could not initialize Fabric loader/),
   ).toBeVisible();
 
+  await page.getByRole("switch", { name: "Attach to next request" }).click();
   await page.getByRole("button", { name: "Send", exact: true }).click();
   await expect(
     page.getByText(
@@ -560,6 +561,9 @@ test("assistant keeps session evidence detached by default", async ({
 }) => {
   await page.goto("/?fixture=assistant-ready&theme=dark#/assistant");
   await expect(page.getByText("Ready", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("assistant-transcript")).not.toHaveAttribute(
+    "aria-live",
+  );
 
   const attachment = page.getByRole("switch", {
     name: "Attach to next request",
@@ -577,6 +581,81 @@ test("assistant keeps session evidence detached by default", async ({
       "Start by checking the loader and mod versions for the active instance.",
     ),
   ).toBeVisible();
+  await expect(
+    page.getByRole("status").filter({ hasText: "Assistant response complete" }),
+  ).toBeAttached();
+});
+
+test("clearing a streaming answer cannot leak stale chunks into the next request", async ({
+  page,
+}) => {
+  await page.goto("/?fixture=assistant-race&theme=dark#/assistant");
+  await expect(page.getByText("Ready", { exact: true })).toBeVisible();
+
+  const composer = page.getByRole("textbox", {
+    name: "Message diagnostic assistant",
+  });
+  await composer.fill("first request");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Clear conversation", exact: true })
+    .click();
+
+  await composer.fill("second request");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(page.getByText("Fixture answer: second request")).toBeVisible();
+  await page.waitForTimeout(650);
+  await expect(page.getByText("Fixture answer: first request")).toHaveCount(0);
+});
+
+test("opt-in system speech reads only a completed assistant response", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const spoken: string[] = [];
+    Object.defineProperty(window, "__dropoutSpokenTexts", { value: spoken });
+    Object.defineProperty(window, "SpeechSynthesisUtterance", {
+      value: class {
+        text: string;
+        lang = "";
+
+        constructor(text: string) {
+          this.text = text;
+        }
+      },
+    });
+    Object.defineProperty(window, "speechSynthesis", {
+      value: {
+        cancel: () => undefined,
+        speak: (utterance: { text: string }) => spoken.push(utterance.text),
+      },
+    });
+  });
+  await page.goto("/?fixture=assistant-tts&theme=dark#/assistant");
+  await expect(page.getByText("Ready", { exact: true })).toBeVisible();
+
+  const composer = page.getByRole("textbox", {
+    name: "Message diagnostic assistant",
+  });
+  await composer.fill("Explain the current objective");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(
+    page.getByText(
+      "Start by checking the loader and mod versions for the active instance.",
+    ),
+  ).toBeVisible();
+
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as unknown as { __dropoutSpokenTexts: string[] })
+            .__dropoutSpokenTexts,
+      ),
+    )
+    .toEqual([
+      "Start by checking the loader and mod versions for the active instance.",
+    ]);
 });
 
 test("Java runtime download progress stays bounded and accessible", async ({

@@ -27,7 +27,7 @@ pub struct AssistantConfig {
     pub response_language: String,
     // TTS settings
     pub tts_enabled: bool,
-    pub tts_provider: String, // "disabled", "piper", "edge"
+    pub tts_provider: String, // "disabled" or "system"
 }
 
 impl Default for AssistantConfig {

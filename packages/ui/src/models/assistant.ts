@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import {
+  assistantBeginStreamRequest,
+  assistantCancelStreamRequest,
   assistantChatStream,
   assistantCheckHealth,
   getAssistantLogContext,
@@ -31,6 +33,7 @@ interface AssistantState {
   contextError: string | null;
   lastError: string | null;
   streamUnlisten: UnlistenFn | null;
+  activeBackendRequestId: string | null;
 
   checkHealth: () => Promise<void>;
   refreshContext: (lines: string[]) => Promise<void>;
@@ -40,6 +43,7 @@ interface AssistantState {
 
 let nextMessageId = 1;
 let activeRequestId = 0;
+let activeHealthProbeId = 0;
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
@@ -58,13 +62,17 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
   contextError: null,
   lastError: null,
   streamUnlisten: null,
+  activeBackendRequestId: null,
 
   checkHealth: async () => {
+    const probeId = ++activeHealthProbeId;
     set({ providerHealth: "checking" });
     try {
       const online = await assistantCheckHealth();
+      if (probeId !== activeHealthProbeId) return;
       set({ providerHealth: online ? "online" : "offline" });
     } catch (error) {
+      if (probeId !== activeHealthProbeId) return;
       console.error("Failed to check assistant provider:", error);
       set({ providerHealth: "offline" });
     }
@@ -88,6 +96,10 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
 
     const requestId = ++activeRequestId;
     stopListening(get().streamUnlisten);
+    const previousBackendRequestId = get().activeBackendRequestId;
+    if (previousBackendRequestId) {
+      void assistantCancelStreamRequest(previousBackendRequestId);
+    }
 
     const userMessage: AssistantMessage = {
       id: nextMessageId++,
@@ -106,14 +118,23 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
       isProcessing: true,
       lastError: null,
       streamUnlisten: null,
+      activeBackendRequestId: null,
     });
 
     try {
+      const backendRequestId = await assistantBeginStreamRequest();
+      if (requestId !== activeRequestId) {
+        void assistantCancelStreamRequest(backendRequestId);
+        return;
+      }
+      set({ activeBackendRequestId: backendRequestId });
+
       const unlisten = await listen<StreamChunk>(
         "assistant-stream",
         (event) => {
           if (requestId !== activeRequestId) return;
           const chunk = event.payload;
+          if (chunk.requestId !== backendRequestId) return;
 
           set((state) => ({
             messages: state.messages.map((message) =>
@@ -130,7 +151,11 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
           if (chunk.done) {
             const listener = get().streamUnlisten;
             stopListening(listener);
-            set({ isProcessing: false, streamUnlisten: null });
+            set({
+              isProcessing: false,
+              streamUnlisten: null,
+              activeBackendRequestId: null,
+            });
           }
         },
       );
@@ -147,6 +172,7 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
           content: messageContent,
         })),
         logContext,
+        backendRequestId,
       );
 
       if (requestId !== activeRequestId) return;
@@ -165,7 +191,11 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
 
       const listener = get().streamUnlisten;
       stopListening(listener);
-      set({ isProcessing: false, streamUnlisten: null });
+      set({
+        isProcessing: false,
+        streamUnlisten: null,
+        activeBackendRequestId: null,
+      });
     } catch (error) {
       if (requestId !== activeRequestId) return;
       const message = errorMessage(error);
@@ -181,18 +211,25 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
         providerHealth: "offline",
         lastError: message,
         streamUnlisten: null,
+        activeBackendRequestId: null,
       }));
     }
   },
 
   clearHistory: () => {
     activeRequestId += 1;
+    activeHealthProbeId += 1;
     stopListening(get().streamUnlisten);
+    const backendRequestId = get().activeBackendRequestId;
+    if (backendRequestId) {
+      void assistantCancelStreamRequest(backendRequestId);
+    }
     set({
       messages: [],
       isProcessing: false,
       lastError: null,
       streamUnlisten: null,
+      activeBackendRequestId: null,
     });
   },
 }));

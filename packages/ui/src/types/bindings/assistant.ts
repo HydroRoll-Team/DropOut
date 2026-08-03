@@ -21,6 +21,7 @@ export type ModelInfo = {
 };
 
 export type StreamChunk = {
+  requestId: string;
   content: string;
   done: boolean;
   stats: GenerationStats | null;
