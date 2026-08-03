@@ -9,12 +9,30 @@ if grep -qx 'Cargo.lock' "$repo_root/.dockerignore"; then
   echo "Cargo.lock must be included in reproducible musl builds" >&2
   exit 1
 fi
+if ! git -C "$repo_root" ls-files --error-unmatch Cargo.lock >/dev/null 2>&1; then
+  echo "Cargo.lock must be tracked for reproducible musl builds" >&2
+  exit 1
+fi
 
 grep -q 'AS verify-runtime' "$dockerfile"
 grep -q 'verify-linux-musl-package.sh /artifacts' "$dockerfile"
 grep -q 'COPY --from=verify-runtime /artifacts/ /' "$dockerfile"
 grep -q '^TS_RS_EXPORT_DIR = ' "$musl_cargo_config"
 grep -q '^TS_RS_LARGE_INT = "number"$' "$musl_cargo_config"
+
+cargo_version=$(awk '
+  /^\[package\]$/ { in_package = 1; next }
+  in_package && /^version = / { gsub(/version = |"/, ""); print; exit }
+' "$repo_root/src-tauri/Cargo.toml")
+lock_version=$(awk '
+  $0 == "name = \"dropout\"" { found_package = 1; next }
+  found_package && /^version = / { gsub(/version = |"/, ""); print; exit }
+' "$repo_root/Cargo.lock")
+tauri_version=$(node -p "require(process.argv[1]).version" "$repo_root/src-tauri/tauri.conf.json")
+if [ "$cargo_version" != "$lock_version" ] || [ "$cargo_version" != "$tauri_version" ]; then
+  echo "release versions disagree: Cargo.toml=$cargo_version Cargo.lock=$lock_version tauri.conf.json=$tauri_version" >&2
+  exit 1
+fi
 
 fixture_root=$(mktemp -d)
 cleanup() {
