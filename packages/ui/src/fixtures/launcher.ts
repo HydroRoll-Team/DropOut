@@ -182,6 +182,15 @@ const criticalMemory: MemoryAllocation = {
   pressure: "critical",
 };
 
+const invalidMemory: MemoryAllocation = {
+  ...healthyMemory,
+  appliedMinMb: 8_192,
+  appliedMaxMb: 2_048,
+  headroomMb: 0,
+  pressure: "critical",
+  source: "instance-override",
+};
+
 const javaInstallations: JavaInstallation[] = [
   {
     path: "/fixtures/java/bin/java",
@@ -540,12 +549,18 @@ export async function fixtureInvoke<T>(
               ? null
               : javaInstallations[0],
           memory:
-            fixture.name === "memory-pressure" ? criticalMemory : healthyMemory,
+            fixture.name === "memory-pressure"
+              ? criticalMemory
+              : fixture.name === "memory-invalid"
+                ? invalidMemory
+                : healthyMemory,
         } satisfies LaunchReadiness;
       }
       case "get_memory_recommendation":
         return fixture.name === "memory-pressure"
           ? criticalMemory
+          : fixture.name === "memory-invalid"
+            ? invalidMemory
           : fixture.name === "memory-settings"
             ? healthyMemory
             : {
