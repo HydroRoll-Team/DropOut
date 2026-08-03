@@ -1036,4 +1036,15 @@ test("automatic memory exposes live headroom and a manual fallback", async ({
   await minimumMemory.fill("");
   await minimumMemory.blur();
   await expect(minimumMemory).toHaveValue("1024");
+
+  await minimumMemory.selectText();
+  await minimumMemory.pressSequentially("2048");
+  await minimumMemory.blur();
+  await expect(minimumMemory).toHaveValue("2048");
+
+  const maximumMemory = panel.getByLabel("Max Memory (MB)");
+  await maximumMemory.selectText();
+  await maximumMemory.pressSequentially("6144");
+  await maximumMemory.blur();
+  await expect(maximumMemory).toHaveValue("6144");
 });

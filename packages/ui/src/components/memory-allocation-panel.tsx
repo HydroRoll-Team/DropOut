@@ -5,6 +5,7 @@ import {
   MemoryStick,
   RefreshCw,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +51,45 @@ export function MemoryAllocationPanel({
   onRefresh,
 }: Props) {
   const { t } = useTranslation();
+  const [minMemoryInput, setMinMemoryInput] = useState(
+    String(config.minMemory),
+  );
+  const [maxMemoryInput, setMaxMemoryInput] = useState(
+    String(config.maxMemory),
+  );
+
+  useEffect(() => {
+    setMinMemoryInput(String(config.minMemory));
+  }, [config.minMemory]);
+
+  useEffect(() => {
+    setMaxMemoryInput(String(config.maxMemory));
+  }, [config.maxMemory]);
+
+  const commitMinMemory = async () => {
+    const minMemory = parseMemoryInput(minMemoryInput, 256, config.maxMemory);
+    if (minMemory === null) {
+      setMinMemoryInput(String(config.minMemory));
+      return;
+    }
+
+    setMinMemoryInput(String(minMemory));
+    if (minMemory !== config.minMemory) onManualChange({ minMemory });
+    await onManualSave();
+  };
+
+  const commitMaxMemory = async () => {
+    const maxMemory = parseMemoryInput(maxMemoryInput, config.minMemory, 32768);
+    if (maxMemory === null) {
+      setMaxMemoryInput(String(config.maxMemory));
+      return;
+    }
+
+    setMaxMemoryInput(String(maxMemory));
+    if (maxMemory !== config.maxMemory) onManualChange({ maxMemory });
+    await onManualSave();
+  };
+
   const pressure = recommendation?.pressure ?? "healthy";
   const availableRatio = recommendation
     ? Math.min(
@@ -284,18 +324,11 @@ export function MemoryAllocationPanel({
                 type="number"
                 name="min-memory"
                 className="mt-1.5"
-                value={config.minMemory}
+                value={minMemoryInput}
                 min={256}
                 max={config.maxMemory}
-                onChange={(event) => {
-                  const minMemory = parseMemoryInput(
-                    event.target.value,
-                    256,
-                    config.maxMemory,
-                  );
-                  if (minMemory !== null) onManualChange({ minMemory });
-                }}
-                onBlur={() => void onManualSave()}
+                onChange={(event) => setMinMemoryInput(event.target.value)}
+                onBlur={() => void commitMinMemory()}
               />
             </div>
             <div>
@@ -307,18 +340,11 @@ export function MemoryAllocationPanel({
                 type="number"
                 name="max-memory"
                 className="mt-1.5"
-                value={config.maxMemory}
+                value={maxMemoryInput}
                 min={config.minMemory}
                 max={32768}
-                onChange={(event) => {
-                  const maxMemory = parseMemoryInput(
-                    event.target.value,
-                    config.minMemory,
-                    32768,
-                  );
-                  if (maxMemory !== null) onManualChange({ maxMemory });
-                }}
-                onBlur={() => void onManualSave()}
+                onChange={(event) => setMaxMemoryInput(event.target.value)}
+                onBlur={() => void commitMaxMemory()}
               />
             </div>
           </div>

@@ -151,7 +151,7 @@ fn manual_pressure(
     let available_mb = to_u32(snapshot.available_mb);
     if min_memory_mb > available_mb || max_memory_mb > available_mb {
         MemoryPressure::Critical
-    } else if available_mb.saturating_mul(10) < max_memory_mb.saturating_mul(9) {
+    } else if max_memory_mb.saturating_mul(10) > available_mb.saturating_mul(9) {
         MemoryPressure::Critical
     } else if available_mb.saturating_sub(max_memory_mb) < reserve_mb {
         MemoryPressure::Constrained
@@ -414,6 +414,24 @@ mod tests {
         assert_eq!(allocation.applied_min_mb, 4_500);
         assert_eq!(allocation.applied_max_mb, 4_500);
         assert_eq!(allocation.available_memory_mb, 4_096);
+        assert_eq!(allocation.pressure, MemoryPressure::Critical);
+    }
+
+    #[test]
+    fn manual_allocation_using_more_than_ninety_percent_is_critical() {
+        let allocation = resolve_memory_allocation(
+            MemorySnapshot {
+                total_mb: 8_192,
+                available_mb: 4_096,
+            },
+            0,
+            false,
+            false,
+            (1_024, 3_800),
+            None,
+        );
+
+        assert_eq!(allocation.applied_max_mb, 3_800);
         assert_eq!(allocation.pressure, MemoryPressure::Critical);
     }
 
