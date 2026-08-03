@@ -32,8 +32,28 @@ else
   echo "$archive_name: OK"
 fi
 
-if tar -tzf "$archive" | grep -Eq '(^/|(^|/)\.\.(/|$))'; then
+if ! archive_entries=$(tar -tzf "$archive"); then
+  echo "musl archive cannot be listed" >&2
+  exit 1
+fi
+if printf '%s\n' "$archive_entries" | grep -Eq '(^/|(^|/)\.\.(/|$))'; then
   echo "musl archive contains an unsafe path" >&2
+  exit 1
+fi
+if ! archive_listing=$(tar -tvzf "$archive"); then
+  echo "musl archive metadata cannot be inspected" >&2
+  exit 1
+fi
+if printf '%s\n' "$archive_listing" | awk '
+  {
+    entry_type = substr($1, 1, 1)
+    if (entry_type != "-" && entry_type != "d") {
+      unsafe = 1
+    }
+  }
+  END { exit unsafe ? 0 : 1 }
+'; then
+  echo "musl archive contains a link or special file" >&2
   exit 1
 fi
 
@@ -44,6 +64,10 @@ cleanup() {
 trap cleanup EXIT HUP INT TERM
 
 tar -xzf "$archive" -C "$staging_root"
+if [ -n "$(find "$staging_root" -type l -print -quit)" ]; then
+  echo "musl archive extracted a symbolic link" >&2
+  exit 1
+fi
 set -- "$staging_root"/Dropout_*_linux_x86_64-musl
 if [ "$#" -ne 1 ] || [ ! -d "$1" ]; then
   echo "musl archive must contain exactly one package directory" >&2

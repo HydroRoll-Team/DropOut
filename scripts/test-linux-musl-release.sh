@@ -3,6 +3,7 @@ set -eu
 
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 dockerfile="$repo_root/.github/docker/linux-musl.Dockerfile"
+musl_cargo_config="$repo_root/.github/docker/linux-musl.cargo.toml"
 
 if grep -qx 'Cargo.lock' "$repo_root/.dockerignore"; then
   echo "Cargo.lock must be included in reproducible musl builds" >&2
@@ -12,6 +13,8 @@ fi
 grep -q 'AS verify-runtime' "$dockerfile"
 grep -q 'verify-linux-musl-package.sh /artifacts' "$dockerfile"
 grep -q 'COPY --from=verify-runtime /artifacts/ /' "$dockerfile"
+grep -q '^TS_RS_EXPORT_DIR = ' "$musl_cargo_config"
+grep -q '^TS_RS_LARGE_INT = "number"$' "$musl_cargo_config"
 
 fixture_root=$(mktemp -d)
 cleanup() {
@@ -43,6 +46,27 @@ fi
 printf 'corrupt\n' >>"$archive"
 if "$repo_root/scripts/verify-linux-musl-package.sh" "$artifact_dir" archive-only >/dev/null 2>&1; then
   echo "corrupted musl archives must fail verification" >&2
+  exit 1
+fi
+
+symlink_fixture="$fixture_root/symlink-fixture"
+symlink_package_root="$symlink_fixture/$package_name"
+symlink_artifacts="$symlink_fixture/artifacts"
+mkdir -p "$symlink_package_root" "$symlink_artifacts"
+printf '#!/bin/sh\nexit 0\n' >"$symlink_package_root/payload"
+chmod +x "$symlink_package_root/payload"
+ln -s payload "$symlink_package_root/dropout"
+printf 'fixture readme\n' >"$symlink_package_root/README.md"
+printf '[Desktop Entry]\nName=DropOut\n' >"$symlink_package_root/dropout.desktop"
+printf 'fixture icon\n' >"$symlink_package_root/dropout.png"
+tar -czf "$symlink_artifacts/$package_name.tar.gz" -C "$symlink_fixture" "$package_name"
+if command -v sha256sum >/dev/null 2>&1; then
+  (cd "$symlink_artifacts" && sha256sum "$package_name.tar.gz" >"$package_name.tar.gz.sha256")
+else
+  (cd "$symlink_artifacts" && shasum -a 256 "$package_name.tar.gz" >"$package_name.tar.gz.sha256")
+fi
+if "$repo_root/scripts/verify-linux-musl-package.sh" "$symlink_artifacts" archive-only >/dev/null 2>&1; then
+  echo "musl archives containing symlinks must fail verification" >&2
   exit 1
 fi
 
