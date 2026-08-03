@@ -28,6 +28,7 @@ import {
   rollbackLauncherImport,
   scanLauncherInstances,
 } from "@/client";
+import { formatBytes } from "@/lib/format-bytes";
 import { listen } from "@/lib/launcher-runtime";
 import { cn } from "@/lib/utils";
 import type {
@@ -60,17 +61,6 @@ type ImportFailure = {
 };
 
 const TRACK_STEPS: Step[] = ["detect", "review", "transfer", "report"];
-
-function formatBytes(value: bigint) {
-  const bytes = Number(value);
-  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  const unit = Math.min(
-    Math.floor(Math.log(bytes) / Math.log(1024)),
-    units.length - 1,
-  );
-  return `${(bytes / 1024 ** unit).toFixed(unit > 1 ? 1 : 0)} ${units[unit]}`;
-}
 
 function createOperationId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {

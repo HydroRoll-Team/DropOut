@@ -37,6 +37,9 @@ jobs:
         run: pnpm biome ci
         working-directory: packages/ui
 
+      - name: Run UI unit tests
+        run: pnpm -C packages/ui test:unit
+
       - name: Build UI
         run: pnpm -C packages/ui build
 

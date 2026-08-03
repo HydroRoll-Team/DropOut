@@ -1008,7 +1008,7 @@ pub fn preview_import(
         warnings,
         total_files,
         total_bytes,
-        can_import: true,
+        can_import: total_files > 0,
     })
 }
 
@@ -2297,6 +2297,7 @@ mod tests {
 
         let preview = preview_import(&instance, &[]).unwrap();
         assert_eq!(preview.total_files, 0);
+        assert!(!preview.can_import);
         assert!(preview.content.iter().any(|group| {
             group.relative_path == ".minecraft" && group.disposition == "unsupported"
         }));
@@ -2310,6 +2311,20 @@ mod tests {
 
         fs::remove_dir_all(root).unwrap();
         fs::remove_dir_all(destination).unwrap();
+    }
+
+    #[test]
+    fn empty_instance_directories_are_not_importable() {
+        let root = test_dir("empty-instance-directory");
+        let instance = root.join("PrismLauncher/instances/Empty");
+        fs::create_dir_all(instance.join(".minecraft")).unwrap();
+        fs::write(instance.join("instance.cfg"), "name=Empty\n").unwrap();
+
+        let preview = preview_import(&instance, &[]).unwrap();
+        assert_eq!(preview.total_files, 0);
+        assert!(!preview.can_import);
+
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
