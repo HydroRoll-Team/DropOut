@@ -224,6 +224,24 @@ test("primary launcher flow is keyboard operable", async ({ page }) => {
   ).toBeVisible();
 });
 
+test("settings reports the current launcher version", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "__TAURI_INTERNALS__", {
+      value: {
+        invoke: async (command: string) => {
+          if (command === "plugin:app|version") return "9.8.7-test";
+          throw new Error(`Unexpected Tauri command: ${command}`);
+        },
+      },
+    });
+  });
+  await page.goto("/?fixture=ready&theme=dark#/settings");
+  await page.getByRole("tab", { name: "Advanced" }).click();
+
+  await expect(page.getByText("Current version")).toBeVisible();
+  await expect(page.getByText("v9.8.7-test", { exact: true })).toBeVisible();
+});
+
 test("home primary action follows launcher recovery state", async ({
   page,
 }) => {

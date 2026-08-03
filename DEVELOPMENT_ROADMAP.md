@@ -2,7 +2,7 @@
 
 > **目标读者**: Claude Opus 4（AI 开发助手）
 > **项目**: DropOut — 基于 Tauri v2 的现代 Minecraft 启动器
-> **当前版本**: 0.2.0-alpha.6
+> **当前版本**: 0.2.0-alpha.7
 > **生成日期**: 2026-04-03
 
 ---
@@ -866,7 +866,7 @@ export function createInstance(name: string, customDir?: string | null): Promise
 
 **项目信息**:
 - GitHub 仓库: `HydroRoll-Team/DropOut`（发布页: https://github.com/HydroRoll-Team/DropOut/releases）
-- 当前版本: `0.2.0-alpha.6`
+- 当前版本: `0.2.0-alpha.7`
 - Tauri 版本: 2.9
 - 项目已有 GitHub Releases 集成（`get_github_releases` 命令）
 
