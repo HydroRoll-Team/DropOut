@@ -2,11 +2,12 @@ import { getVersion } from "@tauri-apps/api/app";
 import { isTauri } from "@tauri-apps/api/core";
 import { toNumber } from "es-toolkit/compat";
 import { FileJsonIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
-import { migrateSharedCaches } from "@/client";
+import { getMemoryRecommendation, migrateSharedCaches } from "@/client";
+import { MemoryAllocationPanel } from "@/components/memory-allocation-panel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -39,6 +40,7 @@ import { setLanguage } from "@/i18n";
 import { MAX_DOWNLOAD_THREADS, MIN_DOWNLOAD_THREADS } from "@/lib/config";
 import { useJavaStore } from "@/models/java";
 import { useSettingsStore } from "@/models/settings";
+import type { MemoryAllocation } from "@/types";
 
 export type SettingsTab = "general" | "appearance" | "advanced";
 
@@ -49,7 +51,22 @@ export function SettingsPage() {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const [appVersion, setAppVersion] = useState<string | null>(null);
+  const [memory, setMemory] = useState<MemoryAllocation | null>(null);
+  const [memoryLoading, setMemoryLoading] = useState(false);
+  const [memoryError, setMemoryError] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  const refreshMemory = useCallback(async () => {
+    setMemoryLoading(true);
+    setMemoryError(null);
+    try {
+      setMemory(await getMemoryRecommendation(null));
+    } catch (error) {
+      setMemoryError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setMemoryLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!isTauri()) return;
@@ -82,6 +99,7 @@ export function SettingsPage() {
         console.error(error);
         toast.error(`Failed to refresh java catalogs: ${error}`);
       }
+      await refreshMemory();
     };
     refresh();
   }, [
@@ -89,6 +107,7 @@ export function SettingsPage() {
     javaStore.refresh,
     javaStore.refreshInstallations,
     javaStore.catalog,
+    refreshMemory,
   ]);
 
   const renderScrollArea = () => {
@@ -322,48 +341,23 @@ export function SettingsPage() {
                       </SelectContent>
                     </Select>
                   </Field>
-                  <Field>
-                    <FieldLabel htmlFor="min-memory">
-                      {t("settings.jvm.minMemory")}
-                    </FieldLabel>
-                    <Input
-                      id="min-memory"
-                      type="number"
-                      name="min-memory"
-                      value={config?.minMemory}
-                      onChange={(e) => {
-                        settings.merge({
-                          minMemory: toNumber(e.target.value),
-                        });
-                      }}
-                      onBlur={() => {
-                        settings.save();
-                      }}
-                      min={256}
-                      max={config?.maxMemory ?? 16384}
-                    />
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="max-memory">
-                      {t("settings.jvm.maxMemory")}
-                    </FieldLabel>
-                    <Input
-                      id="max-memory"
-                      type="number"
-                      name="max-memory"
-                      value={config?.maxMemory}
-                      onChange={(e) => {
-                        settings.merge({
-                          maxMemory: toNumber(e.target.value),
-                        });
-                      }}
-                      onBlur={() => {
-                        settings.save();
-                      }}
-                      min={config?.minMemory ?? 256}
-                      max={32768}
-                    />
-                  </Field>
+                  <MemoryAllocationPanel
+                    config={config}
+                    recommendation={memory}
+                    loading={memoryLoading}
+                    error={memoryError}
+                    onAutomaticChange={async (checked) => {
+                      settings.merge({ autoMemory: checked });
+                      await settings.save();
+                      await refreshMemory();
+                    }}
+                    onManualChange={(nextMemory) => settings.merge(nextMemory)}
+                    onManualSave={async () => {
+                      await settings.save();
+                      await refreshMemory();
+                    }}
+                    onRefresh={refreshMemory}
+                  />
                 </FieldSet>
               </FieldGroup>
             </CardContent>

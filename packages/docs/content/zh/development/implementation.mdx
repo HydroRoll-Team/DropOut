@@ -110,8 +110,11 @@ fn check_java_installation(path: &PathBuf) -> Option<JavaInstallation> {
 ## 3. 游戏启动逻辑与 JVM 优化
 
 ### 3.1 内存分配方案
--   **Xmx & Xms**: 建议将初始内存与最大内存设为一致。
--   **策略**: 启动器会自动根据系统总内存和 Java 架构提示用户最优分配，且启动器生成的参数具有最高优先级。
+- **实时采样**：`MemoryState` 通过 `sysinfo` 只刷新物理内存数据；就绪检查和实际启动都会独立获取最新采样。
+- **负载目标**：原版目标为 3072 MB。模组实例从 3072 MB 起，每个已启用归档增加 32 MB，向上取整到 256 MB，最高 12 GB。
+- **系统预留**：自动堆内存会排除已安装内存的 15%，并限制在 1536–4096 MB。目标无法安全装入时，`Xmx` 以 256 MB 向下调整；`Xms` 最高从 1024 MB 起步，避免 JVM 立即提交完整堆内存。
+- **优先级**：实例覆盖 → 自动计算或全局手动范围。手动值接近或超过当前可用内存时会标记为受限或临界。
+- **安全性**：`get_launch_readiness` 与 `start_game` 调用同一解析器，临界压力会阻止直接调用和 UI 启动。
 
 ### 3.2 G1GC 优化策略
 针对 1.17+ 版本及高负载模组环境，DropOut 默认注入精简的 G1GC 参数链：
@@ -122,11 +125,12 @@ fn check_java_installation(path: &PathBuf) -> Option<JavaInstallation> {
 
 ### 3.3 启动就绪与恢复接口
 
-首页指挥台会在启用启动操作前调用 `get_launch_readiness(instance_id, version_id)`。该命令检查版本元数据和客户端文件，并调用与 `start_game` 相同的 Java 解析器（实例覆盖 → 全局路径 → 首选托管运行时 → 自动检测），确保页面显示的 Java 结果与真实启动判断一致。
+首页指挥台会在启用启动操作前调用 `get_launch_readiness(instance_id, version_id)`。该命令检查版本元数据和客户端文件，并调用与 `start_game` 相同的 Java 与内存解析器。Java 使用实例覆盖 → 全局路径 → 首选托管运行时 → 自动检测；内存使用实例覆盖 → 自动计算或全局手动范围，确保页面显示的启动判断与真实进程参数一致。
 
 | 命令 / 事件 | 类型 | 用途 |
 | :--- | :--- | :--- |
 | `get_launch_readiness` | Invoke | 返回文件安装状态、所需 Java 主版本和已解析的兼容运行时 |
+| `get_memory_recommendation` | Invoke | 返回实例的实时内存、负载、建议值、实际策略、来源和压力状态 |
 | `download-start` / `download-progress` / `download-complete` | Event | 驱动实时汇总下载卡片 |
 | `launcher-log` / `game-stdout` / `game-stderr` | Event | 保留最近的启动和游戏输出，用于失败恢复 |
 | `game-exited` | Event | 区分主动停止、正常退出和失败会话 |

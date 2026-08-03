@@ -19,6 +19,7 @@ import type {
   MigrationImportReport,
   MigrationPreview,
   MigrationProgressEvent,
+  MemoryAllocation,
   ModInfo,
   Version,
 } from "@/types";
@@ -111,6 +112,7 @@ function createLibraryInstances(count: number): Instance[] {
 }
 
 const settings: LauncherConfig = {
+  autoMemory: true,
   minMemory: 1024,
   maxMemory: 8192,
   javaPath: "/fixtures/java/bin/java",
@@ -155,6 +157,29 @@ const settings: LauncherConfig = {
   firstLaunchCompleted: true,
   jvmPreset: "g1gc",
   githubProxy: "",
+};
+
+const healthyMemory: MemoryAllocation = {
+  totalMemoryMb: 16_384,
+  availableMemoryMb: 11_264,
+  reservedMemoryMb: 2_457,
+  targetMemoryMb: 3_456,
+  headroomMb: 7_808,
+  recommendedMinMb: 1_024,
+  recommendedMaxMb: 3_456,
+  appliedMinMb: 2_048,
+  appliedMaxMb: 6_144,
+  modCount: 12,
+  workload: "light",
+  pressure: "healthy",
+  source: "instance-override",
+};
+
+const criticalMemory: MemoryAllocation = {
+  ...healthyMemory,
+  availableMemoryMb: 2_048,
+  headroomMb: 0,
+  pressure: "critical",
 };
 
 const javaInstallations: JavaInstallation[] = [
@@ -514,8 +539,21 @@ export async function fixtureInvoke<T>(
             String(args.instanceId).endsWith("017")
               ? null
               : javaInstallations[0],
+          memory:
+            fixture.name === "memory-pressure" ? criticalMemory : healthyMemory,
         } satisfies LaunchReadiness;
       }
+      case "get_memory_recommendation":
+        return fixture.name === "memory-pressure"
+          ? criticalMemory
+          : fixture.name === "memory-settings"
+            ? healthyMemory
+            : {
+                ...healthyMemory,
+                appliedMinMb: 1_024,
+                appliedMaxMb: 3_456,
+                source: "automatic",
+              };
       case "detect_launchers":
         return fixture.name === "migration" ? detectedLaunchers : [];
       case "scan_launcher_instances":

@@ -46,7 +46,7 @@ Available fixture states are:
 
 Use `theme=dark` or `theme=light`, and `locale=en` or `locale=zh-CN`. Fixture activation is guarded by `import.meta.env.DEV`; production builds ignore fixture parameters and continue to call Tauri directly.
 
-The home command center does not infer readiness from frontend configuration alone. `get_launch_readiness` reuses the backend's real Java priority and compatibility rules, while `download-start`, `download-progress`, `download-complete`, `launcher-log`, `game-stdout`, `game-stderr`, and `game-exited` events keep progress and recovery details live.
+The home command center does not infer readiness from frontend configuration alone. `get_launch_readiness` reuses the backend's real Java and memory resolution rules, including live RAM pressure, while `download-start`, `download-progress`, `download-complete`, `launcher-log`, `game-stdout`, `game-stderr`, and `game-exited` events keep progress and recovery details live. The settings memory dashboard calls `get_memory_recommendation` for the same allocation preview used by launch.
 
 ## Regression Tests
 

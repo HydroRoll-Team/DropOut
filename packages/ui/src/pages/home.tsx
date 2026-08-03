@@ -215,11 +215,12 @@ export function HomePage() {
     lastError: lastErrorInstanceId === activeInstance?.id ? lastError : null,
   });
 
-  const memory = activeInstance?.memoryOverride ?? {
-    min: config?.minMemory ?? 0,
-    max: config?.maxMemory ?? 0,
-  };
-  const memoryValid = memory.min > 0 && memory.max >= memory.min;
+  const memory = probe?.memory ?? null;
+  const memoryValid =
+    memory !== null &&
+    memory.appliedMinMb > 0 &&
+    memory.appliedMaxMb >= memory.appliedMinMb &&
+    memory.pressure !== "critical";
   const runningInstance = instances.find(
     (instance) => instance.id === runningInstanceId,
   );
@@ -287,11 +288,21 @@ export function HomePage() {
       {
         id: "memory",
         label: t("home.check.memory"),
-        value:
-          memory.min > 0
-            ? `${formatMemory(memory.min)} – ${formatMemory(memory.max)}`
-            : t("home.value.checking"),
-        tone: memory.min === 0 ? "pending" : memoryValid ? "pass" : "fail",
+        value: memory
+          ? t(`home.value.memory.${memory.source}`, {
+              min: formatMemory(memory.appliedMinMb),
+              max: formatMemory(memory.appliedMaxMb),
+            })
+          : t("home.value.checking"),
+        tone: !memory
+          ? "pending"
+          : memory.pressure === "critical"
+            ? "fail"
+            : memory.pressure === "constrained"
+              ? "warn"
+              : memoryValid
+                ? "pass"
+                : "fail",
         icon: MemoryStick,
       },
       {
@@ -321,8 +332,7 @@ export function HomePage() {
     activeInstance,
     downloadActive,
     downloadPercentage,
-    memory.max,
-    memory.min,
+    memory,
     memoryValid,
     probe,
     probeLoading,
@@ -548,7 +558,9 @@ export function HomePage() {
                     "hidden size-11 shrink-0 items-center justify-center rounded-full sm:flex",
                     homeState === "ready" || homeState === "running"
                       ? toneStyles.pass
-                      : homeState === "failed" || homeState === "data-error"
+                      : homeState === "failed" ||
+                          homeState === "data-error" ||
+                          homeState === "memory-invalid"
                         ? toneStyles.fail
                         : toneStyles.pending,
                   )}
@@ -556,7 +568,8 @@ export function HomePage() {
                 >
                   {homeState === "ready" ? (
                     <Check className="size-5" />
-                  ) : homeState === "failed" ? (
+                  ) : homeState === "failed" ||
+                    homeState === "memory-invalid" ? (
                     <AlertTriangle className="size-5" />
                   ) : (
                     <CircleDashed className="size-5" />

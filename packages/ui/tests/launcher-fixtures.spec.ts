@@ -12,6 +12,11 @@ const visualScenarios = [
   { fixture: "no-account", route: "/", heading: "Sign in to continue" },
   { fixture: "no-instance", route: "/", heading: "Choose what to play" },
   { fixture: "not-ready", route: "/", heading: "Compatible Java required" },
+  {
+    fixture: "memory-pressure",
+    route: "/",
+    heading: "Fix the memory allocation",
+  },
   { fixture: "ready", route: "/", heading: "Copper Valley is ready" },
   { fixture: "downloading", route: "/", heading: "Preparing Copper Valley" },
   { fixture: "launching", route: "/", heading: "Starting Copper Valley" },
@@ -59,6 +64,11 @@ const visualScenarios = [
     route: "/assistant",
     heading: "Diagnostic assistant",
   },
+  {
+    fixture: "memory-settings",
+    route: "/settings",
+    heading: "Settings",
+  },
 ] as const;
 
 for (const theme of themes) {
@@ -105,6 +115,12 @@ for (const theme of themes) {
         await expect(
           page.getByText("Unavailable", { exact: true }),
         ).toBeVisible();
+      }
+
+      if (fixture === "memory-settings") {
+        const memoryPanel = page.getByTestId("memory-allocation-panel");
+        await expect(memoryPanel).toBeVisible();
+        await memoryPanel.scrollIntoViewIfNeeded();
       }
 
       await page.evaluate(() => document.fonts.ready);
@@ -497,6 +513,19 @@ test("home primary action follows launcher recovery state", async ({
   await page.goto("/?fixture=not-ready&theme=dark#/");
   await page.getByRole("button", { name: "Repair Java" }).click();
   await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+});
+
+test("critical memory pressure blocks launch with a repair action", async ({
+  page,
+}) => {
+  await page.goto("/?fixture=memory-pressure&theme=dark#/");
+
+  await expect(
+    page.getByRole("heading", { name: "Fix the memory allocation" }),
+  ).toBeVisible();
+  await expect(page.getByText("6 GB max · Instance")).toBeVisible();
+  await page.getByRole("button", { name: "Fix memory" }).click();
+  await expect(page.getByTestId("memory-allocation-panel")).toBeVisible();
 });
 
 test("home launch and stop actions follow the game lifecycle", async ({
@@ -984,4 +1013,22 @@ test("configuration studio validates, saves, and protects unsaved changes", asyn
   await expect(page.getByTestId("config-editor-status")).not.toContainText(
     "Valid JSON",
   );
+});
+
+test("automatic memory exposes live headroom and a manual fallback", async ({
+  page,
+}) => {
+  await page.goto("/?fixture=memory-settings&theme=dark#/settings");
+
+  const panel = page.getByTestId("memory-allocation-panel");
+  await expect(panel).toBeVisible();
+  await expect(panel.getByText("11 GB", { exact: true })).toBeVisible();
+  await expect(panel.getByText("Healthy launch headroom")).toBeVisible();
+  await expect(
+    panel.getByRole("progressbar", { name: "Available physical memory" }),
+  ).toHaveAttribute("aria-valuenow", "69");
+
+  await panel.getByRole("switch", { name: "Automatic memory" }).click();
+  await expect(panel.getByLabel("Min Memory (MB)")).toBeVisible();
+  await expect(panel.getByLabel("Max Memory (MB)")).toBeVisible();
 });

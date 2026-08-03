@@ -19,6 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useInstanceStore } from "@/models/instance";
 import { useSettingsStore } from "@/models/settings";
@@ -60,6 +61,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
   // Settings tab fields
   const [editMemoryMin, setEditMemoryMin] = useState<number>(0);
   const [editMemoryMax, setEditMemoryMax] = useState<number>(0);
+  const [useMemoryOverride, setUseMemoryOverride] = useState(false);
   const [editJavaPath, setEditJavaPath] = useState<string>("");
   const [editJavaArgs, setEditJavaArgs] = useState<string>("");
   const [editServerAddress, setEditServerAddress] = useState<string>("");
@@ -83,6 +85,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
           config?.maxMemory ??
           2048,
       );
+      setUseMemoryOverride(instance.memoryOverride !== null);
       setEditJavaPath(instance.javaPathOverride ?? "");
       setEditJavaArgs(instance.jvmArgsOverride ?? "");
       setEditServerAddress(instance.serverAddress ?? "");
@@ -170,6 +173,13 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
       setErrorMessage("Instance name cannot be empty");
       return;
     }
+    if (
+      useMemoryOverride &&
+      (editMemoryMin < 256 || editMemoryMax < editMemoryMin)
+    ) {
+      setErrorMessage(t("editor.memoryRangeError"));
+      return;
+    }
     setSaving(true);
     setErrorMessage("");
     try {
@@ -179,10 +189,12 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
         name: editName.trim(),
         // some bindings may use camelCase; set optional string fields to null when empty
         notes: editNotes.trim() ? editNotes.trim() : null,
-        memoryOverride: {
-          min: editMemoryMin,
-          max: editMemoryMax,
-        },
+        memoryOverride: useMemoryOverride
+          ? {
+              min: editMemoryMin,
+              max: editMemoryMax,
+            }
+          : null,
         javaPathOverride: editJavaPath.trim() ? editJavaPath.trim() : null,
         jvmArgsOverride: editJavaArgs.trim() ? editJavaArgs.trim() : null,
         serverAddress: editServerAddress.trim()
@@ -565,6 +577,28 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                 </p>
               </div>
 
+              <div className="border-border/70 bg-card/50 flex items-center justify-between gap-4 border p-3">
+                <div>
+                  <label
+                    htmlFor="instance-memory-override"
+                    className="block text-sm font-medium"
+                  >
+                    {t("editor.memoryOverride")}
+                  </label>
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    {useMemoryOverride
+                      ? t("editor.memoryOverrideHint")
+                      : t("editor.memoryInheritedHint")}
+                  </p>
+                </div>
+                <Switch
+                  id="instance-memory-override"
+                  checked={useMemoryOverride}
+                  onCheckedChange={setUseMemoryOverride}
+                  disabled={saving}
+                />
+              </div>
+
               <div>
                 <label
                   htmlFor="min-memory-edit"
@@ -576,8 +610,10 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                   id="min-memory-edit"
                   type="number"
                   value={String(editMemoryMin)}
+                  min={256}
+                  max={editMemoryMax}
                   onChange={(e) => setEditMemoryMin(Number(e.target.value))}
-                  disabled={saving}
+                  disabled={saving || !useMemoryOverride}
                 />
                 <p className="text-xs text-zinc-400 mt-1">
                   Default: {config?.minMemory} MB
@@ -595,8 +631,10 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                   id="max-memory-edit"
                   type="number"
                   value={String(editMemoryMax)}
+                  min={editMemoryMin}
+                  max={32768}
                   onChange={(e) => setEditMemoryMax(Number(e.target.value))}
-                  disabled={saving}
+                  disabled={saving || !useMemoryOverride}
                 />
                 <p className="text-xs text-zinc-400 mt-1">
                   Default: {config?.maxMemory} MB

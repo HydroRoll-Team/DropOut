@@ -61,6 +61,7 @@ The Rust core owns side effects. The React UI invokes Tauri commands and renders
 - **Launch command center** - one state-driven action for sign-in, repair, download, launch, stop, and failure recovery, backed by real readiness checks.
 - **Instance library** - searchable and sortable grid/list views, progressive readiness, active-instance details, and guarded management actions.
 - **Instance system** - isolated game directories with per-instance notes, memory and Java overrides, version, loader, mods, saves, and migration entry points.
+- **Automatic memory** - live RAM and mod-count-aware heap sizing, protected system headroom, launch pressure checks, and per-instance overrides.
 - **Minecraft version management** - install, verify, list, delete, and launch local versions.
 - **Fabric and Forge support** - loader version discovery plus installer flows for modded instances.
 - **Java management** - local Java detection, compatibility checks, Adoptium catalog lookup, downloads, resume, and cancellation.
