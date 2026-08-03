@@ -60,7 +60,7 @@ DropOut is packed with features designed for both casual players and power users
 | Mods Manager | Planned | Enable/disable mods in launcher |
 | Launcher Auto-update | Planned | Self-updating mechanism |
 | Custom Game Directory | Planned | Choose game files location |
-| Launcher Migration | Preview | Basic PCL/HMCL/MultiMC/Prism discovery and copy import |
+| Launcher Migration | Complete | Reviewed Prism/MultiMC/PCL/HMCL copy migration with cancellation, rollback, and compatibility reports |
 
 ## Performance Features
 
@@ -145,6 +145,14 @@ Built-in [Monaco configuration editor](/en/docs/manual/features/config-editor) w
 - Configuration help
 - Documentation search
 
+### Migration Compatibility
+- Preview included, skipped, unsupported, and conflicting content before copying
+- Preserve launcher-specific metadata, runtime overrides, notes, and icons
+- Cancel active transfers, roll back partial destinations, and undo completed imports
+- Keep source launcher data byte-for-byte unchanged
+
+See the [launcher migration guide](/en/docs/manual/features/migration) for the compatibility matrix and recovery workflow.
+
 ## Coming Soon
 
 ### Multi-account Management
@@ -157,12 +165,6 @@ Built-in [Monaco configuration editor](/en/docs/manual/features/config-editor) w
 - Enable/disable mods
 - Mod compatibility checking
 - Version management
-
-### Migration Compatibility
-- Preview imported, skipped, unsupported, and conflicting content
-- Preserve launcher-specific metadata and overrides
-- Add cancellation, rollback, and compatibility reports
-- Keep source launcher data unchanged
 
 ### Launcher Auto-update
 - Background update checks

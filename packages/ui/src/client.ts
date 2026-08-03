@@ -24,6 +24,8 @@ import type {
   LauncherConfig,
   LaunchReadiness,
   Message,
+  MigrationImportReport,
+  MigrationPreview,
   MigrationResult,
   ModelInfo,
   ModInfo,
@@ -51,6 +53,12 @@ export function assistantCheckHealth(): Promise<boolean> {
 
 export function cancelJavaDownload(): Promise<void> {
   return invoke<void>("cancel_java_download");
+}
+
+export function cancelLauncherImport(operationId: string): Promise<boolean> {
+  return invoke<boolean>("cancel_launcher_import", {
+    operationId,
+  });
 }
 
 export function changeInstanceDirectory(
@@ -172,6 +180,18 @@ export function duplicateInstance(
 ): Promise<Instance> {
   return invoke<Instance>("duplicate_instance", {
     instanceId,
+    newName,
+  });
+}
+
+export function executeLauncherImport(
+  operationId: string,
+  sourcePath: string,
+  newName: string | null,
+): Promise<MigrationImportReport> {
+  return invoke<MigrationImportReport>("execute_launcher_import", {
+    operationId,
+    sourcePath,
     newName,
   });
 }
@@ -452,6 +472,14 @@ export function openFileExplorer(path: string): Promise<void> {
   });
 }
 
+export function previewLauncherImport(
+  sourcePath: string,
+): Promise<MigrationPreview> {
+  return invoke<MigrationPreview>("preview_launcher_import", {
+    sourcePath,
+  });
+}
+
 export function readRawConfig(): Promise<string> {
   return invoke<string>("read_raw_config");
 }
@@ -476,6 +504,12 @@ export function repairInstances(): Promise<InstanceRepairResult> {
 
 export function resumeJavaDownloads(): Promise<JavaInstallation[]> {
   return invoke<JavaInstallation[]>("resume_java_downloads");
+}
+
+export function rollbackLauncherImport(operationId: string): Promise<boolean> {
+  return invoke<boolean>("rollback_launcher_import", {
+    operationId,
+  });
 }
 
 export function saveRawConfig(content: string): Promise<void> {

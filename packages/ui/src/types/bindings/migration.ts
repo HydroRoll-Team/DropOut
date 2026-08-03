@@ -16,4 +16,79 @@ export type ImportableInstance = {
   minecraftVersion: string | null;
   modLoader: string | null;
   modLoaderVersion: string | null;
+  notes: string | null;
+  memoryOverride: MigrationMemoryOverride | null;
+  javaPathOverride: string | null;
+  jvmArgsOverride: string | null;
+  iconSource: string | null;
+};
+
+export type MigrationCompatibilityCheck = {
+  id: string;
+  status: string;
+  summary: string;
+  action: string | null;
+};
+
+export type MigrationConflict = {
+  kind: string;
+  message: string;
+  suggestedResolution: string;
+};
+
+export type MigrationContentGroup = {
+  id: string;
+  relativePath: string;
+  disposition: string;
+  fileCount: number;
+  totalBytes: bigint;
+  reason: string | null;
+};
+
+export type MigrationCopyResult = {
+  copiedFiles: number;
+  copiedBytes: bigint;
+  skippedSymlinks: number;
+  pendingRemoteFiles: number;
+  importedIcon: string | null;
+};
+
+export type MigrationImportReport = {
+  operationId: string;
+  instanceId: string;
+  instanceName: string;
+  sourcePath: string;
+  copiedFiles: number;
+  copiedBytes: bigint;
+  skippedSymlinks: number;
+  warnings: Array<string>;
+  compatibilityStatus: string;
+  compatibilityChecks: Array<MigrationCompatibilityCheck>;
+};
+
+export type MigrationMemoryOverride = { min: number; max: number };
+
+export type MigrationPreview = {
+  source: ImportableInstance;
+  suggestedName: string;
+  nameConflict: boolean;
+  content: Array<MigrationContentGroup>;
+  conflicts: Array<MigrationConflict>;
+  warnings: Array<string>;
+  totalFiles: number;
+  totalBytes: bigint;
+  canImport: boolean;
+};
+
+export type MigrationProgress = {
+  completedFiles: number;
+  totalFiles: number;
+  completedBytes: bigint;
+  totalBytes: bigint;
+  currentPath: string;
+};
+
+export type MigrationProgressEvent = {
+  operationId: string;
+  progress: MigrationProgress;
 };

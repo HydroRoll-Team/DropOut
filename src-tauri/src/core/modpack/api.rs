@@ -37,6 +37,10 @@ impl ModpackApi {
         self.parser.parse(path).map(|modpack| modpack.info)
     }
 
+    pub fn inspect(&self, path: &Path) -> Result<ParsedModpack, String> {
+        self.parser.parse(path)
+    }
+
     pub async fn import(&self, path: &Path) -> Result<ParsedModpack, String> {
         let modpack = self.parser.parse(path)?;
         self.resolver.resolve(modpack).await
@@ -80,6 +84,10 @@ impl Default for ModpackApi {
 
 pub fn detect(path: &Path) -> Result<ModpackInfo, String> {
     ModpackApi::default().detect(path)
+}
+
+pub fn inspect(path: &Path) -> Result<ParsedModpack, String> {
+    ModpackApi::default().inspect(path)
 }
 
 pub async fn import(path: &Path) -> Result<ParsedModpack, String> {

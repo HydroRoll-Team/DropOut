@@ -1,0 +1,83 @@
+---
+title: Launcher Migration
+description: Safely move Prism, MultiMC, PCL, and HMCL environments into DropOut
+---
+
+# Launcher Migration
+
+DropOut can move an existing Minecraft environment into a new, managed instance without changing the source launcher. The migration is copy-only: the source directory is scanned and read, while every destination file is created under DropOut.
+
+## Start a migration
+
+1. Open **Instances**, then open **Library actions** and choose **Migrate from launcher**.
+2. Select an automatically detected source, choose an instance, `instances`, `.minecraft`, or `versions` directory, or choose a supported launcher archive (`.zip`/`.mrpack`).
+3. Select one or more environments.
+4. Review the manifest. Resolve duplicate names and check the **Included**, **Left behind**, and **Unsupported** groups.
+5. Start the transfer. You can cancel the active copy; DropOut removes every destination file created by that operation.
+6. Read the compatibility report. Fix any required action before launching, or use **Undo import** to remove a completed destination instance.
+
+The four-stage track—**Discover**, **Review**, **Transfer**, and **Report**—always shows whether DropOut is still reading the source, copying files, or waiting for your decision.
+
+## Launcher compatibility
+
+| Source | Automatic discovery | Metadata | Portable game content | Notes |
+| --- | --- | --- | --- | --- |
+| Prism Launcher | Windows, macOS, Linux, Linux Flatpak | Name, Minecraft version, Fabric/Forge/NeoForge/Quilt, notes, icon, Java/JVM/memory overrides | Mods, configs, resource packs, shader packs, saves, screenshots, servers, options | Custom icons under the Prism `icons` directory are preserved. |
+| MultiMC | Windows, macOS, Linux | Name, Minecraft version, loader, notes, Java/JVM/memory overrides | Same portable content as Prism | Instance folders with `instance.cfg` or `mmc-pack.json` are supported. |
+| HMCL | Common `.minecraft`/HMCL locations; manual selection everywhere | Selected version and loader metadata | Global or isolated-version mods, configs, packs, saves, screenshots, servers, options | Isolated version content takes priority over global `.minecraft` content. |
+| PCL-compatible layouts | Common Windows `.minecraft` locations; manual selection everywhere | Selected version and loader metadata | Same global/isolated behavior as HMCL | Selected version JSON, JAR, and native/runtime files stay under `versions/<id>`. |
+| Launcher archives | Manual file selection | MultiMC, Modrinth, and CurseForge/HMCL-PCL manifest metadata when present | Portable configs, saves, mods, packs, screenshots, servers, and options embedded in the archive | Plain configuration/save ZIPs are supported. Remote manifest dependencies are reported as required follow-up work and are never silently treated as installed. |
+
+Automatic discovery checks the normal launcher data locations. Portable installs and custom game directories are intentionally handled through **Choose directory**.
+
+## What the manifest means
+
+### Included
+
+DropOut copies user-owned, portable data when present:
+
+- `mods`, `config`, `resourcepacks`, `shaderpacks`, `saves`, `screenshots`;
+- JourneyMap, replay recordings, schematics, texture packs, and server resource packs;
+- `options*.txt`, `servers.dat`, and an instance icon;
+- the selected PCL/HMCL version profile required to preserve its launch configuration.
+
+For an isolated PCL/HMCL version, content inside the selected version directory takes priority over the matching global `.minecraft` directory. DropOut copies one chosen source for each category, so global and isolated mods are never mixed accidentally.
+
+### Left behind
+
+Generated or shared data such as `assets`, `libraries`, `logs`, `natives`, crash reports, and launcher caches is not copied as ordinary game content. DropOut resolves shared game dependencies on demand. Runtime files that belong to a selected PCL/HMCL version profile are kept with that profile instead.
+
+### Unsupported
+
+Unknown top-level content and symbolic links are listed before transfer and are not followed. This prevents a launcher instance from making the migration escape its reviewed source tree. If the final report says a linked target is required, copy that target manually after verifying it.
+
+Archive entries receive the same treatment. Absolute paths, parent traversal, Windows drive prefixes, duplicate destinations, and archive-encoded symbolic links are rejected before extraction. DropOut copies only reviewed portable paths and never rewrites the source archive.
+
+## Conflicts, cancellation, and rollback
+
+- Duplicate names receive a launcher-specific suggestion such as `Create Live (Prism)`. You can edit the destination name before copying.
+- Destination files are never overwritten. An unexpected destination conflict stops the active operation and rolls back its newly created files.
+- **Cancel and roll back** affects the active environment and stops the remaining queue. Environments already completed in that queue remain available in the report.
+- **Undo import** removes a completed DropOut instance. It does not touch the original launcher.
+
+## Compatibility report
+
+Every imported environment receives structured checks for:
+
+| Check | Ready | Action required |
+| --- | --- | --- |
+| Game version | A Minecraft version/profile was identified. | Select a Minecraft version before first launch. |
+| Mod loader | Vanilla was identified, or a selected PCL/HMCL version profile was copied with its loader metadata. | Prism/MultiMC and archive imports must install the detected Fabric, Forge, NeoForge, or Quilt profile before first launch. Unknown loaders must be replaced. |
+| Java | DropOut can auto-resolve Java, or the imported override exists. | Choose an installed Java runtime or clear a missing override. |
+| Memory | The imported range is valid, or DropOut defaults are used. | Make maximum memory greater than or equal to minimum memory. |
+| Linked files | No required links were skipped. | Copy verified link targets manually when needed. |
+| Archive dependencies | All required content was embedded in the archive. | Install the reported remote mods and packs from the instance content browser. |
+| Icon | The source launcher icon was preserved. | Choose a replacement icon in instance settings. |
+
+**Ready to validate** means the metadata is coherent enough for DropOut's normal launch-readiness check. It does not claim that missing game assets or an account are already prepared. **Action required** always includes a concrete next step.
+
+## Source safety
+
+Migration fixtures cover vanilla, Fabric, Forge, modded, missing-version, duplicate-name, portable configuration/save archive, MultiMC archive, and HMCL/CurseForge archive cases. Tests fingerprint every directory tree or archive before and after copying to ensure the source remains byte-for-byte unchanged. Path traversal and linked-root regressions are covered alongside Windows, macOS, Linux, and Linux Flatpak path construction.
+
+Continue with the [instance library](/en/docs/manual/features/instances) after migration, or use the [troubleshooting guide](/en/docs/manual/troubleshooting) if an imported environment still needs repair.

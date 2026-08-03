@@ -192,6 +192,140 @@
     "preparing": "Preparing download queue…",
     "files": "{{completed}} / {{total}} files"
   },
+  "migration": {
+    "eyebrow": "Migration manifest",
+    "title": {
+      "detect": "Import from another launcher",
+      "select": "Choose environments to move",
+      "review": "Review the move manifest",
+      "transfer": "Copying reviewed content",
+      "report": "Migration report"
+    },
+    "description": {
+      "detect": "Find Prism, MultiMC, PCL, or HMCL data and choose the source you trust.",
+      "select": "Select one or more isolated environments. Nothing is copied until after review.",
+      "review": "Resolve names and confirm exactly what DropOut will include or leave behind.",
+      "transfer": "Content is copied into new DropOut instances while source data stays untouched.",
+      "report": "Check compatibility notes, undo an imported instance, or finish the move."
+    },
+    "track": {
+      "label": "Migration progress",
+      "detect": "Discover",
+      "review": "Review",
+      "transfer": "Transfer",
+      "report": "Report"
+    },
+    "safety": {
+      "title": "Copy-only migration",
+      "description": "DropOut reads the source launcher and creates new instances. It never edits or removes source files."
+    },
+    "chooseDialog": "Choose a launcher, instance, or .minecraft directory",
+    "archiveDialog": "Choose a launcher configuration or save archive",
+    "archiveFilter": "Launcher archives",
+    "sources": "Detected launcher sources",
+    "itemCount": "{{count}} items",
+    "foundCount": "{{count}} importable environments found",
+    "launcher": {
+      "multimc-compatible": "Prism / MultiMC",
+      "prism": "Prism Launcher",
+      "multimc": "MultiMC",
+      "pcl-hmcl": "PCL / HMCL",
+      "pcl": "PCL",
+      "hmcl": "HMCL",
+      "modrinth": "Modrinth archive",
+      "curseforge": "CurseForge archive",
+      "portable-archive": "Portable game-data archive",
+      "custom": "Selected directory"
+    },
+    "sourceKind": {
+      "instance": "Instance",
+      "version": "Version folder",
+      "directory": "Directory",
+      "archive": "Archive"
+    },
+    "metadata": {
+      "unknownVersion": "Version needs validation",
+      "vanilla": "Vanilla",
+      "javaOverride": "Java override preserved",
+      "jvmOverride": "JVM arguments preserved",
+      "notes": "Notes preserved",
+      "icon": "Launcher icon preserved"
+    },
+    "empty": {
+      "launchers": "No compatible launchers detected",
+      "launchersHint": "Choose a Prism/MultiMC instances folder, a PCL/HMCL .minecraft directory, or a supported launcher archive.",
+      "instances": "No instances or versions were found in this directory."
+    },
+    "action": {
+      "autoScan": "Scan again",
+      "chooseDirectory": "Choose directory",
+      "chooseArchive": "Choose archive",
+      "selectAll": "Select all",
+      "clear": "Clear",
+      "review": "Review {{count}} selected",
+      "start": "Import {{count}} environments",
+      "cancelTransfer": "Cancel and roll back",
+      "finish": "Finish"
+    },
+    "review": {
+      "sourceUnchanged": "The source stays byte-for-byte unchanged",
+      "sourceUnchangedDescription": "Only the listed content will be copied. Cache and generated launcher data remain at the source.",
+      "conflictCount": "{{count}} conflicts",
+      "ready": "Ready to copy",
+      "destinationName": "Name in DropOut",
+      "duplicateDestinationName": "Choose a unique destination name.",
+      "included": "Included",
+      "skipped": "Left behind",
+      "unsupported": "Unsupported",
+      "manualReview": "Manual review required",
+      "fileSummary": "{{count}} · {{size}}",
+      "noneIncluded": "No supported content found.",
+      "noneSkipped": "No known generated content found.",
+      "notNeeded": "Not required",
+      "total": "{{count}} files · {{size}} reviewed"
+    },
+    "transfer": {
+      "current": "Now moving",
+      "preparing": "Preparing migration",
+      "queue": "Environment {{current}} of {{total}}",
+      "progress": "Migration copy progress",
+      "files": "{{completed}} / {{total}} files",
+      "preparingFiles": "Preparing reviewed file list…",
+      "rollbackHint": "Cancel stops the active copy, removes every destination file created by that operation, and does not start the remaining queue. Completed imports remain available in the final report."
+    },
+    "report": {
+      "complete": "The selected environments have moved",
+      "needsAttention": "Some environments need attention",
+      "summary": "{{imported}} imported · {{failed}} failed",
+      "copied": "{{count}} files · {{size}} copied",
+      "undo": "Undo import",
+      "undone": "Import undone",
+      "undoUnavailable": "This import can no longer be undone.",
+      "undoSuccess": "Removed imported instance {{name}}",
+      "action": "Next: {{action}}",
+      "check": {
+        "version": "Game version",
+        "loader": "Mod loader",
+        "java": "Java runtime",
+        "memory": "Memory",
+        "symlinks": "Linked files",
+        "archive-dependencies": "Archive dependencies",
+        "icon": "Instance icon"
+      },
+      "sourceSafe": "Source launcher data was only read. You can keep using the original launcher or remove it later on your own schedule.",
+      "status": {
+        "ready-to-validate": "Ready to validate",
+        "action-required": "Action required"
+      }
+    },
+    "error": {
+      "detect": "Could not detect launchers: {{error}}",
+      "scan": "Could not scan this source: {{error}}",
+      "preview": "Could not build the migration preview: {{error}}",
+      "cancel": "Could not cancel the active migration: {{error}}",
+      "undo": "Could not undo this import: {{error}}"
+    }
+  },
   "instances": {
     "title": "Instances",
     "libraryEyebrow": "Environment library",
