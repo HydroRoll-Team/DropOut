@@ -23,6 +23,14 @@ DropOut 是一个使用 Tauri v2 构建的现代化、可复现、开发者级�
 | Windows x86_64           | NSIS `.exe` 安装程序   |
 | Windows ARM64            | NSIS `.exe` 安装程序   |
 
+所有受支持的桌面发布产物都会生成带签名的 GitHub 构建来源证明。下载后，可验证该文件是否确实由本仓库的发布工作流生成：
+
+```bash
+gh attestation verify ./downloaded-asset -R HydroRoll-Team/DropOut
+```
+
+请将 `./downloaded-asset` 替换为安装包或压缩包路径。验证成功代表产物摘要和短期 Sigstore 签名均已通过，然后再继续安装。
+
 ### Linux 安装
 
 #### 使用 .deb 包

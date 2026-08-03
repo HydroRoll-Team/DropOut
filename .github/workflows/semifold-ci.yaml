@@ -12,6 +12,7 @@ env:
 
 permissions:
   id-token: write
+  attestations: write
   contents: write
   pull-requests: write
 
@@ -191,8 +192,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Verify musl release contract
-        run: scripts/test-linux-musl-release.sh
+      - name: Verify distribution release contracts
+        run: |
+          scripts/test-linux-musl-release.sh
+          scripts/test-release-provenance.sh
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -244,6 +247,10 @@ jobs:
           merge-multiple: true
       - name: List artifacts
         run: ls -R artifacts/
+      - name: Attest release artifacts
+        uses: actions/attest@v4
+        with:
+          subject-path: artifacts/**/*
       - name: Semifold CI
         run: semifold ci
         env:

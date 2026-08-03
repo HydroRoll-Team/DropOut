@@ -23,6 +23,14 @@ Download the latest prerelease for your platform from the [HydroRoll Team releas
 | Windows x86_64           | NSIS `.exe` installer  |
 | Windows ARM64            | NSIS `.exe` installer  |
 
+Every supported desktop asset has signed GitHub build provenance. After downloading an asset, verify that it was produced by this repository's release workflow:
+
+```bash
+gh attestation verify ./downloaded-asset -R HydroRoll-Team/DropOut
+```
+
+Replace `./downloaded-asset` with the installer or archive path. A successful result verifies the artifact digest and its short-lived Sigstore signature before installation.
+
 ### Linux Installation
 
 #### Using .deb Package
