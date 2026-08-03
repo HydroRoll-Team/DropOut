@@ -1,45 +1,54 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import yaml from "js-yaml";
+import { parse as parseToml } from "smol-toml";
+import { hasStagedChanges } from "./release-aur-helpers.mjs";
 
-const releaseConfig = readFileSync(
-  new URL("../.changes/config.toml", import.meta.url),
-  "utf8",
+const releaseConfig = parseToml(
+  readFileSync(new URL("../.changes/config.toml", import.meta.url), "utf8"),
 );
-const releaseWorkflow = readFileSync(
-  new URL("../.github/workflows/semifold-ci.yaml", import.meta.url),
-  "utf8",
-);
-const aurPublisher = readFileSync(
-  new URL("./release-aur.ts", import.meta.url),
-  "utf8",
+const releaseWorkflow = yaml.load(
+  readFileSync(
+    new URL("../.github/workflows/semifold-ci.yaml", import.meta.url),
+    "utf8",
+  ),
 );
 
 test("publishes AUR in a rerunnable job after the GitHub release", () => {
-  const releaseJobStart = releaseWorkflow.indexOf("  release:\n");
-  const aurJobStart = releaseWorkflow.indexOf("  publish-aur:\n");
+  const releaseJob = releaseWorkflow.jobs.release;
+  const aurJob = releaseWorkflow.jobs["publish-aur"];
 
-  assert.notEqual(releaseJobStart, -1, "release job is missing");
-  assert.ok(aurJobStart > releaseJobStart, "AUR job must follow release job");
-
-  const releaseJob = releaseWorkflow.slice(releaseJobStart, aurJobStart);
-  const aurJob = releaseWorkflow.slice(aurJobStart);
-
-  assert.doesNotMatch(releaseJob, /makepkg|release-aur\.ts/);
-  assert.match(aurJob, /needs: \[release\]/);
-  assert.match(
-    aurJob,
-    /if: github\.event_name == 'push' && github\.ref_name == 'main'/,
+  assert.ok(releaseJob, "release job is missing");
+  assert.ok(aurJob, "AUR job is missing");
+  assert.deepEqual(aurJob.needs, ["release"]);
+  assert.equal(
+    aurJob.if,
+    "github.event_name == 'push' && github.ref_name == 'main'",
   );
-  assert.match(aurJob, /actions\/download-artifact@v6/);
-  assert.match(aurJob, /tsx scripts\/release-aur\.ts/);
+  assert.equal(
+    releaseJob.steps.some(
+      ({ name, run }) =>
+        name === "Install Makepkg" || run?.includes("release-aur.ts"),
+    ),
+    false,
+  );
+  assert.equal(
+    aurJob.steps.some(({ uses }) => uses === "actions/download-artifact@v6"),
+    true,
+  );
+  assert.equal(
+    aurJob.steps.some(({ run }) => run?.includes("tsx scripts/release-aur.ts")),
+    true,
+  );
 });
 
 test("does not run AUR before Semifold creates the GitHub release", () => {
-  assert.doesNotMatch(releaseConfig, /\[\[resolver\.rust\.publish\]\]/);
+  assert.equal(releaseConfig.resolver.rust.publish, undefined);
 });
 
 test("treats an already-current AUR package as a successful no-op", () => {
-  assert.match(aurPublisher, /git diff --cached --quiet/);
-  assert.match(aurPublisher, /AUR package is already up to date/);
+  assert.equal(hasStagedChanges(""), false);
+  assert.equal(hasStagedChanges("\n"), false);
+  assert.equal(hasStagedChanges("PKGBUILD\n.SRCINFO\n"), true);
 });

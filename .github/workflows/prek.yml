@@ -46,8 +46,21 @@ jobs:
         uses: j178/prek-action@v1
         continue-on-error: true
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: "pnpm"
+          cache-dependency-path: "pnpm-lock.yaml"
+
+      - name: Install release test dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
       - name: Test release workflow contract
-        run: node --test scripts/release-workflow.test.mjs
+        run: pnpm test:release
 
       - name: Check for changes
         id: check_changes
