@@ -20,7 +20,10 @@ interface TrayLaunchRequest {
   versionId: string;
 }
 
-async function quickLaunch(request: TrayLaunchRequest) {
+async function quickLaunch(
+  request: TrayLaunchRequest,
+  revealHome: () => Promise<void>,
+) {
   try {
     let instanceState = useInstanceStore.getState();
     let instance = instanceState.instances.find(
@@ -39,13 +42,13 @@ async function quickLaunch(request: TrayLaunchRequest) {
       console.warn(
         `Tray quick launch instance is unavailable: ${request.instanceId}`,
       );
-      await showMainWindow();
+      await revealHome();
       return;
     }
 
     await instanceState.setActiveInstance(instance);
     if (!useAuthStore.getState().account) {
-      await showMainWindow();
+      await revealHome();
       return;
     }
     const gameState = useGameStore.getState();
@@ -54,11 +57,11 @@ async function quickLaunch(request: TrayLaunchRequest) {
       gameState.launchingInstanceId ||
       gameState.stoppingInstanceId
     ) {
-      await showMainWindow();
+      await revealHome();
       return;
     }
     if (useDownloadStore.getState().active) {
-      await showMainWindow();
+      await revealHome();
       return;
     }
     const readiness = await getLaunchReadiness(
@@ -66,11 +69,11 @@ async function quickLaunch(request: TrayLaunchRequest) {
       request.versionId,
     );
     if (!readiness.java) {
-      await showMainWindow();
+      await revealHome();
       return;
     }
     if (!readiness.versionInstalled) {
-      await showMainWindow();
+      await revealHome();
       await installVersion(request.instanceId, request.versionId);
       return;
     }
@@ -80,18 +83,18 @@ async function quickLaunch(request: TrayLaunchRequest) {
       max: config?.maxMemory ?? 0,
     };
     if (memory.min <= 0 || memory.max < memory.min) {
-      await showMainWindow();
+      await revealHome();
       return;
     }
     const result = await useGameStore
       .getState()
       .startGame(request.instanceId, request.versionId);
     if (result === null) {
-      await showMainWindow();
+      await revealHome();
     }
   } catch (error) {
     console.error("Failed to quick launch from the system tray:", error);
-    await showMainWindow().catch((showError) =>
+    await revealHome().catch((showError) =>
       console.error("Failed to reveal the launcher window:", showError),
     );
   }
@@ -139,9 +142,13 @@ export function TrayController() {
 
     void (async () => {
       try {
+        const revealHome = async () => {
+          navigate("/");
+          await showMainWindow();
+        };
         unlisteners.push(
           await listen<TrayLaunchRequest>("tray-quick-launch", (event) => {
-            void quickLaunch(event.payload);
+            void quickLaunch(event.payload, revealHome);
           }),
         );
         unlisteners.push(

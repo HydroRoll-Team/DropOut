@@ -378,6 +378,20 @@ for (const { fixture, heading, requiredCommands } of trayRecoveryScenarios) {
   });
 }
 
+test("tray recovery returns to Home before revealing readiness guidance", async ({
+  page,
+}) => {
+  await page.goto("/?fixture=not-ready&theme=dark#/settings");
+  await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+
+  await triggerTrayQuickLaunch(page);
+
+  await expect(
+    page.getByRole("heading", { name: "Compatible Java required" }),
+  ).toBeVisible();
+  expect(await fixtureCommandLog(page)).not.toContain("start_game");
+});
+
 test("tray quick launch installs missing files instead of starting an incomplete instance", async ({
   page,
 }) => {
