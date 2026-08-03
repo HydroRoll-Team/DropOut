@@ -3637,7 +3637,7 @@ fn main() {
 
             app.manage(instance_state);
             app.manage(desktop::TrayDownloadState::default());
-            desktop::setup_system_tray(app)?;
+            desktop::best_effort_initialization(desktop::setup_system_tray(app));
 
             // Load saved account on startup
             let app_dir = app.path().app_data_dir().unwrap();

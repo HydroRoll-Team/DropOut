@@ -268,9 +268,14 @@ fn progress_badged_icon(
 
 fn refresh_tray_with_config(app: &AppHandle, config: &LauncherConfig) -> Result<(), String> {
     let labels = tray_labels(&config.language);
-    let menu = app.state::<TrayMenuState>();
+    let Some(menu) = app.try_state::<TrayMenuState>() else {
+        return Ok(());
+    };
+    let Some(download_state) = app.try_state::<TrayDownloadState>() else {
+        return Ok(());
+    };
     let targets = current_launch_targets(app);
-    let download = app.state::<TrayDownloadState>().0.lock().unwrap().clone();
+    let download = download_state.0.lock().unwrap().clone();
 
     menu.toggle_window
         .set_text(labels.toggle_window)
@@ -358,6 +363,15 @@ pub(crate) fn best_effort_refresh(
         log::warn!("Failed to refresh the system tray after {context}: {error}");
     }
     Ok(())
+}
+
+pub(crate) fn best_effort_initialization<E>(initialization_result: Result<(), E>)
+where
+    E: std::fmt::Display,
+{
+    if let Err(error) = initialization_result {
+        log::warn!("System tray is unavailable; continuing without it: {error}");
+    }
 }
 
 #[tauri::command]
@@ -549,9 +563,9 @@ pub fn notify_game_crash(app: &AppHandle, version_id: &str, exit_code: Option<i3
 #[cfg(test)]
 mod tests {
     use super::{
-        TrayDownloadStatus, best_effort_refresh, download_status_label, progress_badged_icon,
-        recent_launch_targets, should_hide_on_close, should_minimize_after_launch,
-        should_start_minimized, tray_labels,
+        TrayDownloadStatus, best_effort_initialization, best_effort_refresh, download_status_label,
+        progress_badged_icon, recent_launch_targets, should_hide_on_close,
+        should_minimize_after_launch, should_start_minimized, tray_labels,
     };
     use crate::core::config::LauncherConfig;
     use crate::core::instance::Instance;
@@ -659,5 +673,10 @@ mod tests {
             )
             .is_ok()
         );
+    }
+
+    #[test]
+    fn unavailable_tray_backend_does_not_abort_startup() {
+        best_effort_initialization(Err::<(), _>("tray backend unavailable"));
     }
 }
