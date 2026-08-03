@@ -321,6 +321,119 @@ test("system tray lifecycle settings are progressive and save immediately", asyn
   }
 });
 
+async function triggerTrayQuickLaunch(page: Page) {
+  await page.evaluate(async () => {
+    const fixtureModule = "/src/fixtures/launcher.ts";
+    const fixture = await import(fixtureModule);
+    fixture.resetFixtureCommandLog();
+    fixture.emitFixtureEvent("tray-quick-launch", {
+      instanceId: "fixture-fabric-1211",
+      instanceName: "Copper Valley",
+      versionId: "1.21.1",
+    });
+  });
+}
+
+async function fixtureCommandLog(page: Page): Promise<string[]> {
+  return page.evaluate(async () => {
+    const fixtureModule = "/src/fixtures/launcher.ts";
+    const fixture = await import(fixtureModule);
+    return fixture.getFixtureCommandLog();
+  });
+}
+
+const trayRecoveryScenarios = [
+  {
+    fixture: "not-ready",
+    heading: "Compatible Java required",
+    requiredCommands: ["get_launch_readiness", "show_main_window"],
+  },
+  {
+    fixture: "no-account",
+    heading: "Sign in to continue",
+    requiredCommands: ["show_main_window"],
+  },
+  {
+    fixture: "memory-invalid",
+    heading: "Fix the memory allocation",
+    requiredCommands: ["get_launch_readiness", "show_main_window"],
+  },
+  {
+    fixture: "launching",
+    heading: "Starting Copper Valley",
+    requiredCommands: ["show_main_window"],
+  },
+] as const;
+
+for (const { fixture, heading, requiredCommands } of trayRecoveryScenarios) {
+  test(`tray quick launch opens recovery for ${fixture}`, async ({ page }) => {
+    await page.goto(`/?fixture=${fixture}&theme=dark#/`);
+    await expect(page.getByRole("heading", { name: heading })).toBeVisible();
+
+    await triggerTrayQuickLaunch(page);
+    await expect
+      .poll(() => fixtureCommandLog(page))
+      .toEqual(expect.arrayContaining([...requiredCommands]));
+    expect(await fixtureCommandLog(page)).not.toContain("start_game");
+  });
+}
+
+test("tray quick launch installs missing files instead of starting an incomplete instance", async ({
+  page,
+}) => {
+  await page.goto("/?fixture=files-missing&theme=dark#/");
+  await expect(
+    page.getByRole("heading", { name: "Game files need attention" }),
+  ).toBeVisible();
+
+  await triggerTrayQuickLaunch(page);
+  await expect
+    .poll(() => fixtureCommandLog(page))
+    .toEqual(
+      expect.arrayContaining([
+        "get_launch_readiness",
+        "install_version",
+        "show_main_window",
+      ]),
+    );
+  expect(await fixtureCommandLog(page)).not.toContain("start_game");
+});
+
+test("tray quick launch reveals an active download without starting duplicate work", async ({
+  page,
+}) => {
+  await page.goto("/?fixture=downloading&theme=dark#/");
+  await expect(
+    page.getByRole("heading", { name: "Preparing Copper Valley" }),
+  ).toBeVisible();
+
+  await triggerTrayQuickLaunch(page);
+  await expect
+    .poll(() => fixtureCommandLog(page))
+    .toContain("show_main_window");
+  const commands = await fixtureCommandLog(page);
+  expect(commands).not.toContain("install_version");
+  expect(commands).not.toContain("start_game");
+});
+
+test("tray quick launch starts a fully ready instance", async ({ page }) => {
+  await page.goto("/?fixture=ready&theme=dark#/");
+  await expect(
+    page.getByRole("heading", { name: "Copper Valley is ready" }),
+  ).toBeVisible();
+
+  await triggerTrayQuickLaunch(page);
+  await expect
+    .poll(() => fixtureCommandLog(page))
+    .toEqual(
+      expect.arrayContaining([
+        "set_active_instance",
+        "get_launch_readiness",
+        "start_game",
+      ]),
+    );
+});
+
 test("home primary action follows launcher recovery state", async ({
   page,
 }) => {

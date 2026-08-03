@@ -26,7 +26,7 @@ The tray menu provides:
 - **Downloads**, including bounded progress and a shortcut to the download monitor;
 - **Quit DropOut**, which always exits explicitly.
 
-Quick launch uses the same account, Java, file-readiness, single-game, and error handling as the Home launch command. A successful tray launch updates the recent-instance order.
+Quick launch uses the same account, Java, file-readiness, memory, single-game, and error handling as the Home launch command. A ready instance starts immediately. Otherwise DropOut reveals the matching recovery state; missing game files start the reviewed install flow instead of launching an incomplete instance. A successful tray launch updates the recent-instance order.
 
 On Windows, double-click the tray icon to show or hide the window. On macOS, click the icon. Linux desktop environments expose the same action through the tray context menu because tray click events are not consistently available there.
 
@@ -38,4 +38,4 @@ While the tray is enabled, DropOut sends desktop notifications when:
 - Minecraft exits unexpectedly;
 - a launcher update is available.
 
-The tray tooltip and supported desktop panels also reflect active download progress. Disable the system tray master switch to stop these background notifications.
+The tray icon shows a progress badge during active downloads. Its tooltip and supported desktop panels provide the same bounded status. Disable the system tray master switch to stop these background notifications.

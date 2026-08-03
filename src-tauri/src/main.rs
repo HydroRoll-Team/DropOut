@@ -1845,6 +1845,7 @@ async fn read_raw_config(state: State<'_, core::config::ConfigState>) -> Result<
 #[tauri::command]
 #[dropout_macros::api]
 async fn save_raw_config(
+    app: tauri::AppHandle,
     state: State<'_, core::config::ConfigState>,
     content: String,
 ) -> Result<(), String> {
@@ -1863,6 +1864,7 @@ async fn save_raw_config(
 
     // Update in-memory state
     *state.config.lock().unwrap() = new_config;
+    desktop::refresh_tray(&app)?;
 
     Ok(())
 }

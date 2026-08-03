@@ -1,14 +1,18 @@
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router";
 import {
+  getLaunchReadiness,
+  installVersion,
   refreshSystemTray,
   showMainWindow,
   updateTrayDownloadStatus,
 } from "@/client";
 import { listen, type UnlistenFn } from "@/lib/launcher-runtime";
+import { useAuthStore } from "@/models/auth";
 import { useDownloadStore } from "@/models/downloads";
 import { useGameStore } from "@/models/game";
 import { useInstanceStore } from "@/models/instance";
+import { useSettingsStore } from "@/models/settings";
 
 interface TrayLaunchRequest {
   instanceId: string;
@@ -40,6 +44,45 @@ async function quickLaunch(request: TrayLaunchRequest) {
     }
 
     await instanceState.setActiveInstance(instance);
+    if (!useAuthStore.getState().account) {
+      await showMainWindow();
+      return;
+    }
+    const gameState = useGameStore.getState();
+    if (
+      gameState.runningInstanceId ||
+      gameState.launchingInstanceId ||
+      gameState.stoppingInstanceId
+    ) {
+      await showMainWindow();
+      return;
+    }
+    if (useDownloadStore.getState().active) {
+      await showMainWindow();
+      return;
+    }
+    const readiness = await getLaunchReadiness(
+      request.instanceId,
+      request.versionId,
+    );
+    if (!readiness.java) {
+      await showMainWindow();
+      return;
+    }
+    if (!readiness.versionInstalled) {
+      await showMainWindow();
+      await installVersion(request.instanceId, request.versionId);
+      return;
+    }
+    const config = useSettingsStore.getState().config;
+    const memory = instance.memoryOverride ?? {
+      min: config?.minMemory ?? 0,
+      max: config?.maxMemory ?? 0,
+    };
+    if (memory.min <= 0 || memory.max < memory.min) {
+      await showMainWindow();
+      return;
+    }
     const result = await useGameStore
       .getState()
       .startGame(request.instanceId, request.versionId);

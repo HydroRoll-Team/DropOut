@@ -12,6 +12,8 @@ export const launcherFixtureNames = [
   "no-account",
   "no-instance",
   "not-ready",
+  "files-missing",
+  "memory-invalid",
   "ready",
   "downloading",
   "java-download-progress",

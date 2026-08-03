@@ -217,6 +217,55 @@ fn download_status_label(status: &TrayDownloadStatus, labels: TrayLabels) -> Str
     )
 }
 
+fn progress_badged_icon(
+    base: &tauri::image::Image<'_>,
+    percentage: f64,
+) -> tauri::image::Image<'static> {
+    let width = base.width();
+    let height = base.height();
+    let mut rgba = base.rgba().to_vec();
+    if width == 0
+        || height == 0
+        || rgba.len() != width.saturating_mul(height).saturating_mul(4) as usize
+    {
+        return tauri::image::Image::new_owned(rgba, width, height);
+    }
+
+    let progress = if percentage.is_finite() {
+        percentage.clamp(0.0, 100.0) / 100.0
+    } else {
+        0.0
+    };
+    let radius = (width.min(height) / 4).max(2) as i32;
+    let inner_radius = (radius - 2).max(1);
+    let center_x = width as i32 - radius - 1;
+    let center_y = height as i32 - radius - 1;
+    let fill_top = center_y + inner_radius - ((inner_radius * 2) as f64 * progress).round() as i32;
+
+    for y in (center_y - radius).max(0)..=(center_y + radius).min(height as i32 - 1) {
+        for x in (center_x - radius).max(0)..=(center_x + radius).min(width as i32 - 1) {
+            let dx = x - center_x;
+            let dy = y - center_y;
+            let distance_squared = dx * dx + dy * dy;
+            if distance_squared > radius * radius {
+                continue;
+            }
+
+            let pixel = ((y as u32 * width + x as u32) * 4) as usize;
+            let color = if distance_squared > inner_radius * inner_radius {
+                [255, 255, 255, 255]
+            } else if y >= fill_top {
+                [16, 185, 129, 255]
+            } else {
+                [15, 23, 42, 255]
+            };
+            rgba[pixel..pixel + 4].copy_from_slice(&color);
+        }
+    }
+
+    tauri::image::Image::new_owned(rgba, width, height)
+}
+
 pub fn refresh_tray(app: &AppHandle) -> Result<(), String> {
     let config = current_config(app);
     let labels = tray_labels(&config.language);
@@ -265,6 +314,15 @@ pub fn refresh_tray(app: &AppHandle) -> Result<(), String> {
     if let Some(tray) = app.tray_by_id(TRAY_ID) {
         tray.set_visible(config.enable_system_tray)
             .map_err(|error| error.to_string())?;
+        if let Some(base_icon) = app.default_window_icon() {
+            let icon = if download.active {
+                progress_badged_icon(base_icon, download.percentage)
+            } else {
+                base_icon.clone().to_owned()
+            };
+            tray.set_icon(Some(icon))
+                .map_err(|error| error.to_string())?;
+        }
         let tooltip = if download.active {
             format!(
                 "{} · {:.0}% · {}",
@@ -476,8 +534,8 @@ pub fn notify_game_crash(app: &AppHandle, version_id: &str, exit_code: Option<i3
 #[cfg(test)]
 mod tests {
     use super::{
-        TrayDownloadStatus, download_status_label, recent_launch_targets, should_hide_on_close,
-        should_minimize_after_launch, should_start_minimized, tray_labels,
+        TrayDownloadStatus, download_status_label, progress_badged_icon, recent_launch_targets,
+        should_hide_on_close, should_minimize_after_launch, should_start_minimized, tray_labels,
     };
     use crate::core::config::LauncherConfig;
     use crate::core::instance::Instance;
@@ -537,6 +595,23 @@ mod tests {
             download_status_label(&status, tray_labels("en")),
             "Verifying · 100%"
         );
+    }
+
+    #[test]
+    fn active_download_badge_is_visible_and_bounded() {
+        let base = tauri::image::Image::new_owned(vec![0; 32 * 32 * 4], 32, 32);
+
+        let empty = progress_badged_icon(&base, -20.0);
+        let half = progress_badged_icon(&base, 50.0);
+        let complete = progress_badged_icon(&base, 140.0);
+
+        assert_eq!(half.width(), 32);
+        assert_eq!(half.height(), 32);
+        assert_eq!(half.rgba().len(), 32 * 32 * 4);
+        assert_eq!(empty.rgba()[(25 * 32 + 25) * 4 + 3], 255);
+        assert_ne!(half.rgba(), base.rgba());
+        assert_ne!(empty.rgba(), half.rgba());
+        assert_ne!(half.rgba(), complete.rgba());
     }
 
     #[test]
