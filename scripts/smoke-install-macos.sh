@@ -12,7 +12,7 @@ if [ -z "$dmg" ] || [ -z "$app_archive" ]; then
   exit 1
 fi
 
-smoke_root=$(mktemp -d)
+smoke_root=$(mktemp -d "${TMPDIR:-/tmp}/dropout-macos-smoke.XXXXXX")
 mount_root="$smoke_root/mount"
 install_root="$smoke_root/install"
 attached=false

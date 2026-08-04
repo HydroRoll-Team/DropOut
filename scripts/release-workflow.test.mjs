@@ -159,6 +159,7 @@ test("smoke tests every packaged desktop artifact in an isolated install", () =>
   );
   assert.match(macSmoke, /\.app\.tar\.gz/);
   assert.match(macSmoke, /tar -xzf/);
+  assert.match(macSmoke, /dropout-macos-smoke\.XXXXXX/);
   assert.match(macSmoke, /application bundle is missing Info\.plist/);
   assert.match(macSmoke, /application bundle has an invalid Info\.plist/);
   assert.match(macSmoke, /application bundle is missing CFBundleExecutable/);
