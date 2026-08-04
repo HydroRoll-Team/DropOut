@@ -53,6 +53,25 @@ pub struct ContentSearchResult {
     pub limit: u32,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "content_search.ts")]
+pub struct ContentProjectIdentity {
+    pub id: String,
+    pub slug: String,
+    pub title: String,
+    pub project_type: String,
+    pub page_url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "content_search.ts")]
+pub struct IdentifiedContent {
+    pub project: ContentProjectIdentity,
+    pub version: ContentVersion,
+}
+
 // ── Modrinth API response types (internal, not exported) ──
 
 #[derive(Debug, Deserialize)]
@@ -99,6 +118,14 @@ struct ModrinthFile {
     filename: String,
     size: u64,
     primary: bool,
+}
+
+#[derive(Debug, Deserialize)]
+struct ModrinthProject {
+    id: String,
+    slug: String,
+    title: String,
+    project_type: String,
 }
 
 // ── Conversion helpers ──
@@ -168,6 +195,75 @@ fn build_client() -> Result<reqwest::Client, String> {
         .user_agent(USER_AGENT)
         .build()
         .map_err(|e| format!("Failed to build HTTP client: {}", e))
+}
+
+pub async fn identify_modrinth_file(sha1: &str) -> Result<Option<IdentifiedContent>, String> {
+    identify_modrinth_file_at(MODRINTH_API_BASE, sha1).await
+}
+
+async fn identify_modrinth_file_at(
+    api_base: &str,
+    sha1: &str,
+) -> Result<Option<IdentifiedContent>, String> {
+    let client = build_client()?;
+    let api_base = api_base.trim_end_matches('/');
+    let response = client
+        .get(format!("{api_base}/version_file/{sha1}"))
+        .query(&[("algorithm", "sha1")])
+        .send()
+        .await
+        .map_err(|error| format!("Modrinth file lookup failed: {error}"))?;
+
+    if response.status() == reqwest::StatusCode::NOT_FOUND {
+        return Ok(None);
+    }
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response
+            .text()
+            .await
+            .unwrap_or_else(|_| "unknown error".to_string());
+        return Err(format!("Modrinth file lookup error ({status}): {body}"));
+    }
+
+    let version: ModrinthVersion = response
+        .json()
+        .await
+        .map_err(|error| format!("Failed to parse Modrinth file lookup: {error}"))?;
+    let project_response = client
+        .get(format!("{api_base}/project/{}", version.project_id))
+        .send()
+        .await
+        .map_err(|error| format!("Modrinth project lookup failed: {error}"))?;
+
+    if !project_response.status().is_success() {
+        let status = project_response.status();
+        let body = project_response
+            .text()
+            .await
+            .unwrap_or_else(|_| "unknown error".to_string());
+        return Err(format!("Modrinth project lookup error ({status}): {body}"));
+    }
+
+    let project: ModrinthProject = project_response
+        .json()
+        .await
+        .map_err(|error| format!("Failed to parse Modrinth project lookup: {error}"))?;
+    let page_url = format!(
+        "https://modrinth.com/{}/{}",
+        project.project_type, project.slug
+    );
+
+    Ok(Some(IdentifiedContent {
+        project: ContentProjectIdentity {
+            id: project.id,
+            slug: project.slug,
+            title: project.title,
+            project_type: project.project_type,
+            page_url,
+        },
+        version: version.into_content_version(),
+    }))
 }
 
 /// Search content on Modrinth.
@@ -319,38 +415,108 @@ pub async fn get_modrinth_versions(
 /// Download a content file into the appropriate subfolder of an instance.
 ///
 /// `subfolder` should be one of: mods, shaderpacks, resourcepacks, datapacks
+pub async fn download_content_to_path(
+    url: &str,
+    target_path: &std::path::Path,
+) -> Result<(), String> {
+    let client = build_client()?;
+    if let Some(parent) = target_path.parent() {
+        std::fs::create_dir_all(parent).map_err(|error| {
+            format!(
+                "Failed to create download directory {}: {error}",
+                parent.display()
+            )
+        })?;
+    }
+
+    let response = client
+        .get(url)
+        .send()
+        .await
+        .map_err(|error| format!("Download request failed: {error}"))?;
+    if !response.status().is_success() {
+        return Err(format!(
+            "Download failed with status: {}",
+            response.status()
+        ));
+    }
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|error| format!("Failed to read download body: {error}"))?;
+    std::fs::write(target_path, &bytes).map_err(|error| {
+        format!(
+            "Failed to write download {}: {error}",
+            target_path.display()
+        )
+    })
+}
+
 pub async fn download_content_to_instance(
     instance_game_dir: &str,
     url: &str,
     file_name: &str,
     subfolder: &str,
 ) -> Result<String, String> {
-    let client = build_client()?;
-
     let target_dir = std::path::Path::new(instance_game_dir).join(subfolder);
-    std::fs::create_dir_all(&target_dir)
-        .map_err(|e| format!("Failed to create directory {}: {}", target_dir.display(), e))?;
-
     let target_path = target_dir.join(file_name);
-
-    let resp = client
-        .get(url)
-        .send()
-        .await
-        .map_err(|e| format!("Download request failed: {}", e))?;
-
-    if !resp.status().is_success() {
-        let status = resp.status();
-        return Err(format!("Download failed with status: {}", status));
-    }
-
-    let bytes = resp
-        .bytes()
-        .await
-        .map_err(|e| format!("Failed to read download body: {}", e))?;
-
-    std::fs::write(&target_path, &bytes)
-        .map_err(|e| format!("Failed to write file {}: {}", target_path.display(), e))?;
+    download_content_to_path(url, &target_path).await?;
 
     Ok(target_path.to_string_lossy().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::identify_modrinth_file_at;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpListener;
+
+    async fn mock_modrinth() -> (String, tokio::task::JoinHandle<()>) {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let responses = [
+            (
+                "/version_file/abc123?algorithm=sha1",
+                r#"{"id":"version-1","project_id":"project-1","name":"Shared 1.20.4","version_number":"1.0.0","game_versions":["1.20.4"],"loaders":["fabric","forge"],"files":[{"url":"https://cdn.modrinth.com/shared.jar","filename":"shared.jar","size":10,"primary":true}],"date_published":"2026-08-04T00:00:00Z"}"#,
+            ),
+            (
+                "/project/project-1",
+                r#"{"id":"project-1","slug":"shared-project","title":"Shared Project","project_type":"mod"}"#,
+            ),
+        ];
+
+        let task = tokio::spawn(async move {
+            for (expected_path, body) in responses {
+                let (mut socket, _) = listener.accept().await.unwrap();
+                let mut request = vec![0_u8; 4096];
+                let read = socket.read(&mut request).await.unwrap();
+                let request = String::from_utf8_lossy(&request[..read]);
+                assert!(request.starts_with(&format!("GET {expected_path} HTTP/1.1")));
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+                    body.len(),
+                    body
+                );
+                socket.write_all(response.as_bytes()).await.unwrap();
+            }
+        });
+
+        (format!("http://{address}"), task)
+    }
+
+    #[tokio::test]
+    async fn identifies_installed_content_from_modrinth_file_hash() {
+        let (api_base, server) = mock_modrinth().await;
+
+        let identified = identify_modrinth_file_at(&api_base, "abc123")
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(identified.project.id, "project-1");
+        assert_eq!(identified.project.title, "Shared Project");
+        assert_eq!(identified.version.id, "version-1");
+        assert_eq!(identified.version.loaders, ["fabric", "forge"]);
+        server.await.unwrap();
+    }
 }

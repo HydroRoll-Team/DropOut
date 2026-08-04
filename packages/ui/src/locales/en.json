@@ -435,6 +435,7 @@
       "openFolder": "Open folder",
       "edit": "Edit",
       "duplicate": "Duplicate",
+      "convert": "Convert content",
       "mods": "Mods",
       "content": "Content",
       "export": "Export",
@@ -508,6 +509,77 @@
     "duplicate": "Duplicate {{name}}",
     "edit": "Edit {{name}}",
     "delete": "Delete {{name}}"
+  },
+  "conversion": {
+    "eyebrow": "Protected content conversion",
+    "title": "Convert {{name}}",
+    "description": "Audit mods and packs against a new Minecraft and loader target, then create an isolated copy.",
+    "copySuffix": "Converted",
+    "scan": "Scan compatibility",
+    "scanning": "Scanning compatibility…",
+    "apply": "Create converted copy",
+    "blocked": "{{count}} item(s) still need a decision",
+    "source": {
+      "label": "Source environment",
+      "protected": "Read-only · original files stay untouched"
+    },
+    "target": {
+      "label": "Target environment",
+      "gameVersion": "Target Minecraft version",
+      "loader": "Target loader",
+      "loaderVersion": "Loader version",
+      "loadingLoaders": "Loading versions…",
+      "chooseLoader": "Choose a loader version",
+      "copyName": "Converted instance name"
+    },
+    "manifest": {
+      "title": "Conversion manifest",
+      "empty": "Choose a target and scan before creating the copy.",
+      "summary": "{{totalCount}} files · {{keepCount}} keep · {{replaceCount}} replace · {{reviewCount}} review · {{incompatibleCount}} incompatible",
+      "counts": "Compatibility totals",
+      "replacement": "Replace with {{version}}",
+      "suggestion": "Alternative: {{project}}",
+      "exclude": "Exclude from the converted copy",
+      "excludeLabel": "Exclude {{name}} from the copy"
+    },
+    "status": {
+      "keep": "Keep",
+      "replace": "Replace",
+      "needsReview": "Review",
+      "incompatible": "Incompatible"
+    },
+    "reason": {
+      "keep": "The exact file or portable content is compatible with the target.",
+      "replace": "A compatible release of the same project is available.",
+      "needsReview": "This file could not be verified automatically; review it before copying.",
+      "incompatible": "No compatible release or reviewed alternative was found.",
+      "alternative": "No compatible release exists, but a target-compatible alternative is available."
+    },
+    "kind": {
+      "mod": "Mod",
+      "resourcePack": "Resource pack",
+      "shaderPack": "Shader pack",
+      "dataPack": "Data pack"
+    },
+    "report": {
+      "title": "Converted copy is ready",
+      "description": "The source was preserved. Review or launch the new instance independently.",
+      "replaced": "Replaced",
+      "excluded": "Excluded",
+      "source": "Source",
+      "unchanged": "Unchanged",
+      "rollbackHint": "Rollback is available for this operation and only removes the converted copy.",
+      "rolledBack": "Converted copy removed",
+      "open": "Open converted copy",
+      "undo": "Undo conversion"
+    },
+    "error": {
+      "loaders": "Could not load loader versions: {{error}}",
+      "preview": "Compatibility scan failed: {{error}}",
+      "apply": "Conversion failed: {{error}}",
+      "rollback": "Rollback failed: {{error}}",
+      "rollbackUnavailable": "This conversion can no longer be rolled back"
+    }
   },
   "mods": {
     "title": "Mods",

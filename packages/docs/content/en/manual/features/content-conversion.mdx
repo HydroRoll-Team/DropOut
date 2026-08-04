@@ -1,0 +1,44 @@
+---
+title: Content Conversion
+description: Convert Minecraft versions and Fabric, Forge, or vanilla loaders without changing the source instance
+---
+
+# Content Conversion
+
+Content conversion creates a new isolated instance for a different Minecraft version or loader. The original instance is opened read-only, copied first, and never rewritten by the conversion operation.
+
+## Start a conversion
+
+Open **Instances**, use an instance's action menu, and select **Convert content**. In the source-to-target header:
+
+1. Confirm the protected source instance, Minecraft version, and loader.
+2. Enter the target Minecraft version.
+3. Choose **Vanilla**, **Fabric**, or **Forge** and, when required, select a loader version.
+4. Select **Scan compatibility**.
+
+DropOut inventories enabled and disabled mod JARs, resource packs, shader packs, and data packs inside every world. It hashes local files for identification but does not upload their contents.
+
+## Read the conversion manifest
+
+Risk items are shown first so every decision is visible before the copy can be created.
+
+| State | Meaning | Apply behavior |
+| --- | --- | --- |
+| **Keep** | The exact file supports the target, or portable content stays on the same Minecraft version. | The copied file remains in place. |
+| **Replace** | Modrinth exposes a compatible release of the same project. | DropOut downloads the replacement into the target copy and removes only the copied original. |
+| **Review** | The file could not be identified or the online lookup was unavailable. | Exclude it from the target copy or leave the conversion blocked. |
+| **Incompatible** | No compatible release of the same project was found. | Review the linked alternative when available, then exclude the incompatible file or leave the conversion blocked. |
+
+Online matching uses each file's SHA-1 identifier and filters project versions by the target Minecraft version and applicable loader. A failed lookup becomes a review item instead of silently treating the file as compatible.
+
+## Apply safely
+
+**Create converted copy** remains disabled while any review or incompatible item has no explicit decision. Excluding an item removes it only from the new target copy. Compatible replacements download to temporary files and are swapped into place only after the download succeeds.
+
+After the content plan succeeds, DropOut installs the selected Fabric or Forge profile and updates the copied instance metadata. Any failure after duplication removes the incomplete target instance. The source instance remains available with its original loader, mods, packs, saves, and configuration.
+
+## Roll back
+
+The completion report lists replacements and exclusions and provides **Undo conversion**. Undo removes the converted instance recorded for that operation; it does not touch the source. Once the launcher restarts, use the normal instance delete/export workflow because the in-memory one-click rollback token is no longer available.
+
+For moving an existing environment from another launcher first, see [Launcher Migration](/en/docs/manual/features/migration). For ordinary instance operations, continue with the [Instance Library](/en/docs/manual/features/instances).

@@ -2,6 +2,7 @@ pub mod account_storage;
 pub mod assistant;
 pub mod auth;
 pub mod config;
+pub mod content_conversion;
 pub mod content_search;
 pub mod downloader;
 pub mod fabric;

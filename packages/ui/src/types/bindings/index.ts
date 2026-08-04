@@ -2,6 +2,7 @@ export * from "./account";
 export * from "./assistant";
 export * from "./auth";
 export * from "./config";
+export * from "./content_conversion";
 export * from "./content_search";
 export * from "./core";
 export * from "./downloader";

@@ -764,6 +764,70 @@ test("instance library scales from empty to one active workspace", async ({
   ).toBeVisible();
 });
 
+test("content conversion previews a protected copy and supports rollback", async ({
+  page,
+}) => {
+  await page.goto("/?fixture=ready&theme=dark#/instances");
+  await page
+    .getByRole("button", { name: "More actions for Copper Valley" })
+    .click();
+  await page.getByRole("menuitem", { name: "Convert content" }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Convert Copper Valley" }),
+  ).toBeVisible();
+  await page.getByRole("combobox", { name: "Target loader" }).click();
+  await page.getByRole("option", { name: "Forge" }).click();
+  await page.getByRole("button", { name: "Scan compatibility" }).click();
+
+  await expect(page.getByText("Conversion manifest")).toBeVisible();
+  await expect(page.getByText("sodium.jar", { exact: true })).toBeVisible();
+  if (process.platform === "darwin") {
+    await page.evaluate(() => document.fonts.ready);
+    await expect(page).toHaveScreenshot(
+      "conversion-manifest-dark.png",
+      screenshotTolerance,
+    );
+  }
+  const apply = page.getByRole("button", { name: "Create converted copy" });
+  await expect(apply).toBeDisabled();
+  await page
+    .getByRole("checkbox", { name: "Exclude Local Edit.zip from the copy" })
+    .click();
+  await page
+    .getByRole("checkbox", {
+      name: "Exclude Fabric Tools.zip from the copy",
+    })
+    .click();
+  await expect(apply).toBeEnabled();
+  await apply.click();
+
+  await expect(
+    page.getByRole("heading", { name: "Converted copy is ready" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Undo conversion" }).click();
+  await expect(page.getByText("Converted copy removed")).toBeVisible();
+});
+
+test("content conversion exposes a localized Chinese review gate", async ({
+  page,
+}) => {
+  await page.goto("/?fixture=ready&theme=dark&locale=zh-CN#/instances");
+  await page.getByRole("button", { name: "Copper Valley 的更多操作" }).click();
+  await page.getByRole("menuitem", { name: "转换内容" }).click();
+  await expect(
+    page.getByRole("heading", { name: "转换 Copper Valley" }),
+  ).toBeVisible();
+  await page.getByRole("combobox", { name: "目标加载器" }).click();
+  await page.getByRole("option", { name: "Forge" }).click();
+  await page.getByRole("button", { name: "扫描兼容性" }).click();
+  await expect(page.getByText("转换清单")).toBeVisible();
+  await expect(
+    page.getByText("不存在兼容版本，但找到了支持目标环境的替代项目。"),
+  ).toBeVisible();
+  await expectAccessibilitySmoke(page);
+});
+
 test("large instance library supports search, sorting, views, and active selection", async ({
   page,
 }) => {

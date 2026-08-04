@@ -435,6 +435,7 @@
       "openFolder": "打开文件夹",
       "edit": "编辑",
       "duplicate": "复制",
+      "convert": "转换内容",
       "mods": "模组",
       "content": "内容",
       "export": "导出",
@@ -508,6 +509,77 @@
     "duplicate": "复制 {{name}}",
     "edit": "编辑 {{name}}",
     "delete": "删除 {{name}}"
+  },
+  "conversion": {
+    "eyebrow": "受保护的内容转换",
+    "title": "转换 {{name}}",
+    "description": "按新的 Minecraft 版本和加载器审查模组与内容包，再创建隔离副本。",
+    "copySuffix": "转换副本",
+    "scan": "扫描兼容性",
+    "scanning": "正在扫描兼容性…",
+    "apply": "创建转换副本",
+    "blocked": "仍有 {{count}} 项需要决定",
+    "source": {
+      "label": "源环境",
+      "protected": "只读 · 原始文件保持不变"
+    },
+    "target": {
+      "label": "目标环境",
+      "gameVersion": "目标 Minecraft 版本",
+      "loader": "目标加载器",
+      "loaderVersion": "加载器版本",
+      "loadingLoaders": "正在加载版本…",
+      "chooseLoader": "选择加载器版本",
+      "copyName": "转换后实例名称"
+    },
+    "manifest": {
+      "title": "转换清单",
+      "empty": "选择目标并扫描后，才能创建副本。",
+      "summary": "共 {{totalCount}} 个文件 · 保留 {{keepCount}} · 替换 {{replaceCount}} · 审查 {{reviewCount}} · 不兼容 {{incompatibleCount}}",
+      "counts": "兼容性统计",
+      "replacement": "替换为 {{version}}",
+      "suggestion": "可选替代：{{project}}",
+      "exclude": "不复制到转换副本",
+      "excludeLabel": "从副本中排除 {{name}}"
+    },
+    "status": {
+      "keep": "保留",
+      "replace": "替换",
+      "needsReview": "需审查",
+      "incompatible": "不兼容"
+    },
+    "reason": {
+      "keep": "原文件或可移植内容与目标环境兼容。",
+      "replace": "同一项目存在可用的兼容版本。",
+      "needsReview": "无法自动验证此文件，请在复制前人工核对。",
+      "incompatible": "未找到兼容版本或经核对的替代项目。",
+      "alternative": "不存在兼容版本，但找到了支持目标环境的替代项目。"
+    },
+    "kind": {
+      "mod": "模组",
+      "resourcePack": "资源包",
+      "shaderPack": "光影包",
+      "dataPack": "数据包"
+    },
+    "report": {
+      "title": "转换副本已就绪",
+      "description": "源实例已保留；现在可以独立检查或启动新实例。",
+      "replaced": "已替换",
+      "excluded": "已排除",
+      "source": "源实例",
+      "unchanged": "未改变",
+      "rollbackHint": "本次操作可回滚，且只会删除转换后的副本。",
+      "rolledBack": "转换副本已移除",
+      "open": "打开转换副本",
+      "undo": "撤销转换"
+    },
+    "error": {
+      "loaders": "无法加载加载器版本：{{error}}",
+      "preview": "兼容性扫描失败：{{error}}",
+      "apply": "转换失败：{{error}}",
+      "rollback": "回滚失败：{{error}}",
+      "rollbackUnavailable": "本次转换已无法回滚"
+    }
   },
   "mods": {
     "title": "模组",
