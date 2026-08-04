@@ -279,25 +279,42 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+      - name: Check matching GitHub release
+        id: release-check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version=$(jq -r '.version' src-tauri/tauri.conf.json)
+          if gh release view "dropout-v$version" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Install pnpm
+        if: steps.release-check.outputs.published == 'true'
         uses: pnpm/action-setup@v4
       - name: Install Node.js
+        if: steps.release-check.outputs.published == 'true'
         uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: "pnpm"
           cache-dependency-path: "pnpm-lock.yaml"
       - name: Install Makepkg
+        if: steps.release-check.outputs.published == 'true'
         run: sudo apt-get update && sudo apt-get install -y makepkg pacman
       - name: Install Node.js Dependencies
+        if: steps.release-check.outputs.published == 'true'
         run: pnpm install --frozen-lockfile
       - name: Download Linux build artifacts
+        if: steps.release-check.outputs.published == 'true'
         uses: actions/download-artifact@v6
         with:
           pattern: linux-*-artifacts
           path: artifacts/
           merge-multiple: true
       - name: Publish AUR package
+        if: steps.release-check.outputs.published == 'true'
         run: pnpm exec tsx scripts/release-aur.ts
         env:
           AUR_SSH_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
