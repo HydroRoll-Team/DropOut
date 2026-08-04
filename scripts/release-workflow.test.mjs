@@ -48,7 +48,7 @@ test("publishes AUR in a rerunnable job after the GitHub release", () => {
   );
 
   const releaseGateIndex = aurJob.steps.findIndex(
-    ({ id }) => id === "release-check",
+    ({ id }) => id === "release_check",
   );
   assert.ok(releaseGateIndex > 0, "AUR release gate is missing");
   assert.match(
@@ -65,7 +65,7 @@ test("publishes AUR in a rerunnable job after the GitHub release", () => {
   for (const step of aurJob.steps.slice(releaseGateIndex + 1)) {
     assert.equal(
       step.if,
-      "steps.release-check.outputs.published == 'true'",
+      "steps.release_check.outputs.published == 'true'",
       `${step.name} must wait for a matching GitHub release`,
     );
   }
