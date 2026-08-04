@@ -146,14 +146,49 @@ test("smoke tests every packaged desktop artifact in an isolated install", () =>
     "all isolated-install smoke checks must run before artifacts are uploaded",
   );
 
+  const linuxSmoke = readFileSync(
+    new URL("../scripts/smoke-install-linux.sh", import.meta.url),
+    "utf8",
+  );
+  assert.match(linuxSmoke, /bundle_root\/rpm/);
+  assert.match(linuxSmoke, /rpm2cpio/);
+
   const macSmoke = readFileSync(
     new URL("../scripts/smoke-install-macos.sh", import.meta.url),
     "utf8",
   );
+  assert.match(macSmoke, /\.app\.tar\.gz/);
+  assert.match(macSmoke, /tar -xzf/);
   assert.match(macSmoke, /application bundle is missing Info\.plist/);
   assert.match(macSmoke, /application bundle has an invalid Info\.plist/);
   assert.match(macSmoke, /application bundle is missing CFBundleExecutable/);
   assert.match(macSmoke, /is not present or not executable/);
+
+  const windowsSmoke = readFileSync(
+    new URL("../scripts/smoke-install-windows.ps1", import.meta.url),
+    "utf8",
+  );
+  assert.match(windowsSmoke, /OpenRead/);
+  assert.match(windowsSmoke, /\[byte\[\]\]::new\(2\)/);
+  assert.doesNotMatch(windowsSmoke, /ReadAllBytes/);
+
+  const linuxUpload =
+    stepByName.get("Upload Artifact (Linux)")?.with?.path ?? "";
+  assert.match(linuxUpload, /bundle\/rpm\/\*\.rpm/);
+  const windowsUpload =
+    stepByName.get("Upload Artifact (Windows)")?.with?.path ?? "";
+  assert.doesNotMatch(windowsUpload, /\.msi/);
+
+  const windowsBuilds = releaseWorkflow.jobs[
+    "build-tauri"
+  ].strategy.matrix.include.filter(({ platform }) =>
+    platform.startsWith("windows"),
+  );
+  assert.equal(windowsBuilds.length, 2);
+  assert.equal(
+    windowsBuilds.every(({ args }) => args.includes("--bundles nsis")),
+    true,
+  );
 });
 
 test("treats an already-current AUR package as a successful no-op", () => {

@@ -29,8 +29,15 @@ try {
     throw "NSIS installer did not produce an application executable"
   }
 
-  $header = [System.IO.File]::ReadAllBytes($installedBinary.FullName)
-  if ($header.Length -lt 2 -or $header[0] -ne 0x4d -or $header[1] -ne 0x5a) {
+  $header = [byte[]]::new(2)
+  $stream = [System.IO.File]::OpenRead($installedBinary.FullName)
+  try {
+    $bytesRead = $stream.Read($header, 0, $header.Length)
+  }
+  finally {
+    $stream.Dispose()
+  }
+  if ($bytesRead -ne 2 -or $header[0] -ne 0x4d -or $header[1] -ne 0x5a) {
     throw "Installed application does not have a valid PE header"
   }
 

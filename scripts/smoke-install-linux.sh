@@ -7,9 +7,10 @@ bundle_root="$repo_root/target/$target/release/bundle"
 
 appimage=$(find "$bundle_root/appimage" -maxdepth 1 -type f -name '*.AppImage' -print -quit)
 deb=$(find "$bundle_root/deb" -maxdepth 1 -type f -name '*.deb' -print -quit)
+rpm=$(find "$bundle_root/rpm" -maxdepth 1 -type f -name '*.rpm' -print -quit)
 
-if [ -z "$appimage" ] || [ -z "$deb" ]; then
-  echo "expected AppImage and Debian artifacts under $bundle_root" >&2
+if [ -z "$appimage" ] || [ -z "$deb" ] || [ -z "$rpm" ]; then
+  echo "expected AppImage, Debian, and RPM artifacts under $bundle_root" >&2
   exit 1
 fi
 
@@ -35,5 +36,14 @@ mkdir -p "$deb_root"
 dpkg-deb --extract "$deb" "$deb_root"
 find "$deb_root/usr/bin" -maxdepth 1 -type f -perm -u+x -print -quit | grep -q .
 find "$deb_root/usr/share/applications" -type f -name '*.desktop' -print -quit | grep -q .
+
+rpm_root="$smoke_root/rpm"
+mkdir -p "$rpm_root"
+(
+  cd "$rpm_root"
+  rpm2cpio "$rpm" | cpio -idm --quiet
+)
+find "$rpm_root/usr/bin" -maxdepth 1 -type f -perm -u+x -print -quit | grep -q .
+find "$rpm_root/usr/share/applications" -type f -name '*.desktop' -print -quit | grep -q .
 
 echo "Verified isolated Linux installs for $target"
