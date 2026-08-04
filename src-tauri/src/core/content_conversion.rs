@@ -267,14 +267,14 @@ pub fn preview_local_content(
 /// Apply a resolved compatibility decision to one manifest item.
 pub fn apply_compatibility_resolution(
     preview: &mut ConversionPreview,
-    sha1: &str,
+    relative_path: &str,
     resolution: CompatibilityResolution,
 ) -> Result<(), String> {
     let item = preview
         .items
         .iter_mut()
-        .find(|item| item.sha1 == sha1)
-        .ok_or_else(|| format!("Conversion item with SHA-1 {sha1} was not found"))?;
+        .find(|item| item.relative_path == relative_path)
+        .ok_or_else(|| format!("Conversion item {relative_path} was not found"))?;
 
     match resolution {
         CompatibilityResolution::Compatible { project } => {
@@ -356,7 +356,7 @@ where
         match resolver(item.clone(), preview.target.clone()).await {
             Ok(Some(resolution)) => {
                 if let Err(error) =
-                    apply_compatibility_resolution(&mut preview, &item.sha1, resolution)
+                    apply_compatibility_resolution(&mut preview, &item.relative_path, resolution)
                 {
                     preview
                         .lookup_warnings
@@ -1046,11 +1046,11 @@ mod tests {
             },
         )
         .unwrap();
-        let sha1 = preview.items[0].sha1.clone();
+        let relative_path = preview.items[0].relative_path.clone();
 
         apply_compatibility_resolution(
             &mut preview,
-            &sha1,
+            &relative_path,
             CompatibilityResolution::Compatible {
                 project: ConversionProject {
                     id: "shared-project".to_string(),
@@ -1090,11 +1090,11 @@ mod tests {
             },
         )
         .unwrap();
-        let sha1 = preview.items[0].sha1.clone();
+        let relative_path = preview.items[0].relative_path.clone();
 
         apply_compatibility_resolution(
             &mut preview,
-            &sha1,
+            &relative_path,
             CompatibilityResolution::Replacement {
                 project: ConversionProject {
                     id: "cross-loader".to_string(),
@@ -1144,11 +1144,11 @@ mod tests {
             },
         )
         .unwrap();
-        let sha1 = preview.items[0].sha1.clone();
+        let relative_path = preview.items[0].relative_path.clone();
 
         apply_compatibility_resolution(
             &mut preview,
-            &sha1,
+            &relative_path,
             CompatibilityResolution::Incompatible {
                 project: Some(ConversionProject {
                     id: "fabric-only".to_string(),
@@ -1267,6 +1267,48 @@ mod tests {
         fs::remove_dir_all(root).unwrap();
     }
 
+    #[tokio::test]
+    async fn identical_files_at_different_paths_are_resolved_independently() {
+        let root = temp_fixture("duplicate-hash-resolution");
+        let mods = root.join("mods");
+        fs::create_dir_all(&mods).unwrap();
+        fs::write(mods.join("copy-a.jar"), b"identical-mod").unwrap();
+        fs::write(mods.join("copy-b.jar"), b"identical-mod").unwrap();
+        let preview = preview_local_content(
+            &root,
+            "fabric-loader-0.15.6-1.20.4",
+            Some("fabric"),
+            ConversionTarget {
+                game_version: "1.20.4".to_string(),
+                loader: "forge".to_string(),
+                loader_version: Some("49.0.30".to_string()),
+            },
+        )
+        .unwrap();
+
+        let preview = super::resolve_preview_with(preview, |item, _| async move {
+            Ok(Some(CompatibilityResolution::Compatible {
+                project: ConversionProject {
+                    id: item.relative_path.clone(),
+                    name: item.file_name,
+                    page_url: "https://modrinth.com/mod/example".to_string(),
+                },
+            }))
+        })
+        .await;
+
+        assert_eq!(preview.summary.keep, 2);
+        assert_eq!(preview.summary.needs_review, 0);
+        assert!(
+            preview
+                .items
+                .iter()
+                .all(|item| item.disposition == ConversionDisposition::Keep)
+        );
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
     #[test]
     fn excluding_incompatible_content_only_removes_the_target_copy() {
         let source = temp_fixture("exclude-source");
@@ -1287,10 +1329,10 @@ mod tests {
             },
         )
         .unwrap();
-        let sha1 = preview.items[0].sha1.clone();
+        let relative_path = preview.items[0].relative_path.clone();
         apply_compatibility_resolution(
             &mut preview,
-            &sha1,
+            &relative_path,
             CompatibilityResolution::Incompatible {
                 project: None,
                 suggestion: None,
@@ -1333,10 +1375,10 @@ mod tests {
             },
         )
         .unwrap();
-        let sha1 = preview.items[0].sha1.clone();
+        let relative_path = preview.items[0].relative_path.clone();
         apply_compatibility_resolution(
             &mut preview,
-            &sha1,
+            &relative_path,
             CompatibilityResolution::Replacement {
                 project: ConversionProject {
                     id: "project".to_string(),
