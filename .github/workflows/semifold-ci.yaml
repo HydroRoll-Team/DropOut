@@ -284,11 +284,17 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          version=$(jq -r '.version' src-tauri/tauri.conf.json)
-          if gh release view "dropout-v$version" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+          set -euo pipefail
+          version=$(jq -re '.version' src-tauri/tauri.conf.json)
+          if output=$(gh release view "dropout-v$version" --repo "$GITHUB_REPOSITORY" 2>&1); then
             echo "published=true" >> "$GITHUB_OUTPUT"
           else
-            echo "published=false" >> "$GITHUB_OUTPUT"
+            if printf '%s\n' "$output" | grep -qi 'not found'; then
+              echo "published=false" >> "$GITHUB_OUTPUT"
+            else
+              printf '%s\n' "$output" >&2
+              exit 1
+            fi
           fi
       - name: Install pnpm
         if: steps.release-check.outputs.published == 'true'
