@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.0-beta.2
+
+### New Features
+
+- [`4ff6565`](https://github.com/HydroRoll-Team/DropOut/commit/4ff6565ac4182951a576e25e84a8516464356846): Add preview-first Minecraft and loader conversion with Modrinth compatibility matching, protected instance copies, explicit exclusions, replacement downloads, rollback, bilingual guidance, and deterministic UI coverage. ([#201](https://github.com/HydroRoll-Team/DropOut/pull/201) by @HsiangNianian)
+
 ## v0.2.0-beta.1
 
 ### New Features
