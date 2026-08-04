@@ -2750,34 +2750,10 @@ async fn convert_mod_loader(
         .get_instance(&instance_id)
         .ok_or_else(|| format!("Instance {} not found", instance_id))?;
 
-    // Determine the base Minecraft version
-    let game_version = {
-        let vid = instance.version_id.as_deref().unwrap_or_default();
-        // Extract base MC version from modded version IDs
-        if vid.starts_with("fabric-loader-") {
-            // "fabric-loader-0.15.6-1.20.4" -> "1.20.4"
-            vid.rsplit('-')
-                .take(3)
-                .collect::<Vec<_>>()
-                .into_iter()
-                .rev()
-                .collect::<Vec<_>>()
-                .join(".")
-                .split('.')
-                .filter(|s| s.parse::<u32>().is_ok())
-                .collect::<Vec<_>>()
-                .join(".")
-        } else if vid.contains("-forge-") {
-            // "1.20.1-forge-47.1.0" -> "1.20.1"
-            vid.split("-forge-").next().unwrap_or(vid).to_string()
-        } else {
-            vid.to_string()
-        }
-    };
-
-    if game_version.is_empty() {
-        return Err("Instance has no Minecraft version set".into());
-    }
+    let game_version = core::content_conversion::base_game_version(
+        instance.version_id.as_deref().unwrap_or_default(),
+    )
+    .ok_or_else(|| "Instance has no Minecraft version set".to_string())?;
 
     emit_log!(
         window,
@@ -2866,6 +2842,181 @@ async fn convert_mod_loader(
 
     instance_state.end_operation(&instance_id);
     result
+}
+
+async fn build_content_conversion_preview(
+    instance_state: &core::instance::InstanceState,
+    instance_id: &str,
+    target: core::content_conversion::ConversionTarget,
+) -> Result<core::content_conversion::ConversionPreview, String> {
+    core::content_conversion::validate_target(&target)?;
+    let instance = instance_state
+        .get_instance(instance_id)
+        .ok_or_else(|| format!("Instance {instance_id} not found"))?;
+    let source_version_id = instance
+        .version_id
+        .as_deref()
+        .ok_or_else(|| "Instance has no Minecraft version set".to_string())?;
+    let preview = core::content_conversion::preview_local_content(
+        &instance.game_dir,
+        source_version_id,
+        instance.mod_loader.as_deref(),
+        target,
+    )?;
+    Ok(core::content_conversion::resolve_preview_with_modrinth(preview).await)
+}
+
+#[tauri::command]
+#[dropout_macros::api]
+async fn preview_content_conversion(
+    instance_id: String,
+    target: core::content_conversion::ConversionTarget,
+    instance_state: State<'_, core::instance::InstanceState>,
+) -> Result<core::content_conversion::ConversionPreview, String> {
+    build_content_conversion_preview(&instance_state, &instance_id, target).await
+}
+
+#[tauri::command]
+#[dropout_macros::api]
+async fn apply_content_conversion(
+    window: Window,
+    request: core::content_conversion::ConversionApplyRequest,
+    config_state: State<'_, core::config::ConfigState>,
+    instance_state: State<'_, core::instance::InstanceState>,
+    operation_state: State<'_, core::content_conversion::ConversionOperationState>,
+) -> Result<core::content_conversion::ConversionReport, String> {
+    core::content_conversion::validate_target(&request.target)?;
+    let preview = build_content_conversion_preview(
+        &instance_state,
+        &request.instance_id,
+        request.target.clone(),
+    )
+    .await?;
+    let target_instance = instance_state.duplicate_instance(
+        &request.instance_id,
+        request.new_name.clone(),
+        window.app_handle(),
+    )?;
+    let target_instance_id = target_instance.id.clone();
+    let operation_id = uuid::Uuid::new_v4().to_string();
+
+    let conversion_result: Result<core::content_conversion::ConversionReport, String> = async {
+        let prepared = core::content_conversion::prepare_target_content(
+            &target_instance.game_dir,
+            &preview,
+            &request.excluded_paths,
+        )?;
+        let replaced_paths = core::content_conversion::apply_replacement_tasks_with(
+            &target_instance.game_dir,
+            &prepared.replacements,
+            |url, destination| async move {
+                core::content_search::download_content_to_path(&url, &destination).await
+            },
+        )
+        .await?;
+
+        let new_version_id = match request.target.loader.as_str() {
+            "vanilla" => request.target.game_version.clone(),
+            "fabric" => {
+                let loader_version = request.target.loader_version.as_deref().ok_or_else(|| {
+                    "A Fabric loader version is required for conversion".to_string()
+                })?;
+                core::fabric::install_fabric(
+                    &target_instance.game_dir,
+                    &request.target.game_version,
+                    loader_version,
+                )
+                .await
+                .map_err(|error| format!("Fabric installation failed: {error}"))?
+                .id
+            }
+            "forge" => {
+                let loader_version = request.target.loader_version.as_deref().ok_or_else(|| {
+                    "A Forge loader version is required for conversion".to_string()
+                })?;
+                let config = config_state.config.lock().unwrap().clone();
+                let java_path = {
+                    let configured = if !config.java_path.is_empty() && config.java_path != "java" {
+                        config.java_path
+                    } else {
+                        core::java::detect_all_java_installations(window.app_handle())
+                            .await
+                            .first()
+                            .map(|java| java.path.clone())
+                            .unwrap_or_default()
+                    };
+                    if configured.is_empty() {
+                        None
+                    } else {
+                        Some(utils::path::normalize_java_path(&configured)?)
+                    }
+                };
+                core::forge::install_forge(
+                    &target_instance.game_dir,
+                    &request.target.game_version,
+                    loader_version,
+                    java_path.as_deref(),
+                )
+                .await
+                .map_err(|error| format!("Forge installation failed: {error}"))?
+                .id
+            }
+            loader => return Err(format!("Unsupported target loader: {loader}")),
+        };
+
+        let mut updated = instance_state
+            .get_instance(&target_instance_id)
+            .ok_or_else(|| format!("Instance {target_instance_id} not found after conversion"))?;
+        updated.version_id = Some(new_version_id);
+        updated.mod_loader = Some(request.target.loader.clone());
+        updated.mod_loader_version = if request.target.loader == "vanilla" {
+            None
+        } else {
+            request.target.loader_version.clone()
+        };
+        instance_state.update_instance(updated.clone())?;
+
+        Ok(core::content_conversion::ConversionReport {
+            operation_id: operation_id.clone(),
+            source_instance_id: request.instance_id.clone(),
+            target_instance: updated,
+            preview: preview.clone(),
+            excluded_paths: prepared.excluded_paths,
+            replaced_paths,
+            can_rollback: true,
+        })
+    }
+    .await;
+
+    match conversion_result {
+        Ok(report) => {
+            operation_state.complete(&operation_id, &target_instance_id);
+            Ok(report)
+        }
+        Err(error) => match instance_state.delete_instance(&target_instance_id) {
+            Ok(()) => Err(error),
+            Err(cleanup_error) => Err(format!(
+                "{error}. The failed target copy could not be removed: {cleanup_error}"
+            )),
+        },
+    }
+}
+
+#[tauri::command]
+#[dropout_macros::api]
+async fn rollback_content_conversion(
+    operation_id: String,
+    operation_state: State<'_, core::content_conversion::ConversionOperationState>,
+    instance_state: State<'_, core::instance::InstanceState>,
+) -> Result<bool, String> {
+    let Some(instance_id) = operation_state.take_completed(&operation_id) else {
+        return Ok(false);
+    };
+    if let Err(error) = instance_state.delete_instance(&instance_id) {
+        operation_state.complete(&operation_id, &instance_id);
+        return Err(error);
+    }
+    Ok(true)
 }
 
 #[derive(serde::Serialize, TS)]
@@ -3761,6 +3912,7 @@ fn main() {
         .manage(MsRefreshTokenState::new())
         .manage(GameProcessState::new())
         .manage(core::assistant::AssistantState::new())
+        .manage(core::content_conversion::ConversionOperationState::default())
         .manage(core::migration::MigrationOperationState::default())
         .manage(core::memory::MemoryState::new())
         .setup(|app| {
@@ -3880,6 +4032,9 @@ fn main() {
             get_forge_versions_for_game,
             install_forge,
             convert_mod_loader,
+            preview_content_conversion,
+            apply_content_conversion,
+            rollback_content_conversion,
             get_github_releases,
             upload_to_pastebin,
             assistant_check_health,

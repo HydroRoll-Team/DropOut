@@ -1,4 +1,10 @@
 {
   "title": "User Manual",
-  "pages": ["index", "getting-started", "releases", "features", "troubleshooting"]
+  "pages": [
+    "index",
+    "getting-started",
+    "releases",
+    "features",
+    "troubleshooting"
+  ]
 }

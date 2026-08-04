@@ -32,6 +32,7 @@ import {
   openFileExplorer,
   scanInstanceMods,
 } from "@/client";
+import { ConversionWizard } from "@/components/conversion-wizard";
 import InstanceEditorModal from "@/components/instance-editor-modal";
 import { Button } from "@/components/ui/button";
 import {
@@ -170,6 +171,7 @@ interface LibraryItemProps {
   onOpen: (instance: Instance) => void;
   onEdit: (instance: Instance) => void;
   onDuplicate: (instance: Instance) => void;
+  onConvert: (instance: Instance) => void;
   onMods: (instance: Instance) => void;
   onBrowse: (instance: Instance) => void;
   onExport: (instance: Instance) => void;
@@ -192,6 +194,7 @@ function LibraryItem({
   onOpen,
   onEdit,
   onDuplicate,
+  onConvert,
   onMods,
   onBrowse,
   onExport,
@@ -364,6 +367,10 @@ function LibraryItem({
               <DropdownMenuItem onClick={() => onDuplicate(instance)}>
                 <CopyIcon />
                 {t("instances.actions.duplicate")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onConvert(instance)}>
+                <RefreshCwIcon />
+                {t("instances.actions.convert")}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onMods(instance)}>
                 <PackageIcon />
@@ -737,6 +744,9 @@ export function InstancesPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [conversionInstance, setConversionInstance] = useState<Instance | null>(
+    null,
+  );
   const [selectedInstance, setSelectedInstance] = useState<Instance | null>(
     null,
   );
@@ -921,6 +931,10 @@ export function InstancesPage() {
     setSelectedInstance(instance);
     setDuplicateName(`${instance.name} (${t("instances.copySuffix")})`);
     setShowDuplicateModal(true);
+  };
+
+  const openConversion = (instance: Instance) => {
+    setConversionInstance(instance);
   };
 
   const handleImport = async () => {
@@ -1117,6 +1131,7 @@ export function InstancesPage() {
               onOpen={(item) => void openFileExplorer(item.gameDir)}
               onEdit={openEdit}
               onDuplicate={openDuplicate}
+              onConvert={openConversion}
               onMods={(item) => navigate(`/instances/${item.id}/mods`)}
               onBrowse={(item) => navigate(`/instances/${item.id}/browse`)}
               onExport={(item) => void handleExport(item)}
@@ -1329,6 +1344,15 @@ export function InstancesPage() {
           setShowEditModal(openState);
           if (!openState) setEditingInstance(null);
         }}
+      />
+
+      <ConversionWizard
+        open={Boolean(conversionInstance)}
+        instance={conversionInstance}
+        onOpenChange={(openState) => {
+          if (!openState) setConversionInstance(null);
+        }}
+        onComplete={() => void refreshInstances()}
       />
 
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>

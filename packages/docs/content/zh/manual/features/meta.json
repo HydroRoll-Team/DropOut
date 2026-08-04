@@ -3,6 +3,7 @@
   "pages": [
     "index",
     "instances",
+    "content-conversion",
     "migration",
     "system-tray",
     "assistant",

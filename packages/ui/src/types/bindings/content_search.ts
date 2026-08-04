@@ -27,6 +27,14 @@ export type ContentProject = {
   dateModified: string;
 };
 
+export type ContentProjectIdentity = {
+  id: string;
+  slug: string;
+  title: string;
+  projectType: string;
+  pageUrl: string;
+};
+
 /**
  * Search result wrapper with pagination info.
  */
@@ -51,4 +59,9 @@ export type ContentVersion = {
   fileName: string;
   fileSize: bigint;
   datePublished: string;
+};
+
+export type IdentifiedContent = {
+  project: ContentProjectIdentity;
+  version: ContentVersion;
 };

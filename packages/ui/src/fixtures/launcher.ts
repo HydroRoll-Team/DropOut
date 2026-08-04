@@ -9,6 +9,9 @@ import type {
   AccountSummary,
   AssistantLogContext,
   ContentSearchResult,
+  ConversionPreview,
+  ConversionReport,
+  ConversionTarget,
   DetectedLauncher,
   ImportableInstance,
   Instance,
@@ -377,6 +380,110 @@ function migrationPreview(sourcePath: string): MigrationPreview {
   };
 }
 
+function conversionPreview(target: ConversionTarget): ConversionPreview {
+  return {
+    sourceGameVersion: "1.21.1",
+    sourceLoader: "fabric",
+    target,
+    sourceProtected: true,
+    lookupWarnings: [],
+    summary: {
+      total: 5,
+      keep: 2,
+      replace: 1,
+      needsReview: 1,
+      incompatible: 1,
+    },
+    items: [
+      {
+        relativePath: "mods/lithium.jar",
+        fileName: "lithium.jar",
+        contentKind: "mod",
+        sha1: "fixture-lithium",
+        sourceLoader: "fabric",
+        disposition: "keep",
+        reason:
+          "This exact file supports the target Minecraft version and loader",
+        project: {
+          id: "lithium",
+          name: "Lithium",
+          pageUrl: "https://modrinth.com/mod/lithium",
+        },
+        replacement: null,
+        suggestion: null,
+      },
+      {
+        relativePath: "mods/sodium.jar",
+        fileName: "sodium.jar",
+        contentKind: "mod",
+        sha1: "fixture-sodium",
+        sourceLoader: "fabric",
+        disposition: "replace",
+        reason:
+          "A compatible version of this project is available for the target",
+        project: {
+          id: "sodium",
+          name: "Sodium",
+          pageUrl: "https://modrinth.com/mod/sodium",
+        },
+        replacement: {
+          projectId: "sodium",
+          projectName: "Sodium",
+          versionId: "sodium-forge",
+          versionName: "Sodium Forge 1.21.1",
+          fileName: "sodium-forge.jar",
+          fileUrl: "https://cdn.modrinth.com/sodium-forge.jar",
+          pageUrl: "https://modrinth.com/mod/sodium/version/sodium-forge",
+        },
+        suggestion: null,
+      },
+      {
+        relativePath: "resourcepacks/Stay True.zip",
+        fileName: "Stay True.zip",
+        contentKind: "resourcePack",
+        sha1: "fixture-stay-true",
+        sourceLoader: null,
+        disposition: "keep",
+        reason:
+          "Portable content is compatible with the target Minecraft version",
+        project: null,
+        replacement: null,
+        suggestion: null,
+      },
+      {
+        relativePath: "shaderpacks/Local Edit.zip",
+        fileName: "Local Edit.zip",
+        contentKind: "shaderPack",
+        sha1: "fixture-local-edit",
+        sourceLoader: null,
+        disposition: "needsReview",
+        reason: "No Modrinth match was found; review this file manually",
+        project: null,
+        replacement: null,
+        suggestion: null,
+      },
+      {
+        relativePath: "saves/Copper Valley/datapacks/Fabric Tools.zip",
+        fileName: "Fabric Tools.zip",
+        contentKind: "dataPack",
+        sha1: "fixture-fabric-tools",
+        sourceLoader: null,
+        disposition: "incompatible",
+        reason:
+          "No compatible version exists; a target-compatible alternative is available",
+        project: null,
+        replacement: null,
+        suggestion: {
+          projectId: "portable-tools",
+          projectName: "Portable Tools",
+          pageUrl: "https://modrinth.com/datapack/portable-tools",
+          reason: "Supports Forge on Minecraft 1.21.1",
+        },
+      },
+    ],
+  };
+}
+
 type FixtureState = {
   activeInstanceId: string | null;
   settings: LauncherConfig;
@@ -533,6 +640,37 @@ export async function fixtureInvoke<T>(
         return fixture.instances;
       case "get_versions":
         return versions;
+      case "get_fabric_loaders_for_version":
+        return [
+          {
+            loader: {
+              separator: ".",
+              build: 14,
+              maven: "net.fabricmc:fabric-loader:0.16.14",
+              version: "0.16.14",
+              stable: true,
+            },
+            intermediary: {
+              maven: `net.fabricmc:intermediary:${String(args.gameVersion)}`,
+              version: String(args.gameVersion),
+              stable: true,
+            },
+            launcherMeta: {
+              version: 2,
+              libraries: { client: [], common: [], server: [] },
+              mainClass: "net.fabricmc.loader.impl.launch.knot.KnotClient",
+            },
+          },
+        ];
+      case "get_forge_versions_for_game":
+        return [
+          {
+            version: "52.0.16",
+            minecraftVersion: String(args.gameVersion),
+            recommended: true,
+            latest: true,
+          },
+        ];
       case "get_launch_readiness": {
         const requestedInstance = fixture.instances.find(
           (instance) => instance.id === args.instanceId,
@@ -579,6 +717,35 @@ export async function fixtureInvoke<T>(
           : [];
       case "preview_launcher_import":
         return migrationPreview(String(args.sourcePath));
+      case "preview_content_conversion":
+        return conversionPreview(args.target as ConversionTarget);
+      case "apply_content_conversion": {
+        const request = args.request as {
+          instanceId: string;
+          newName: string;
+          target: ConversionTarget;
+          excludedPaths: string[];
+        };
+        const preview = conversionPreview(request.target);
+        return {
+          operationId: "fixture-conversion-operation",
+          sourceInstanceId: request.instanceId,
+          targetInstance: {
+            ...readyInstance,
+            id: "fixture-converted-forge",
+            name: request.newName,
+            versionId: `${request.target.gameVersion}-forge-${request.target.loaderVersion}`,
+            modLoader: request.target.loader,
+            modLoaderVersion: request.target.loaderVersion,
+          },
+          preview,
+          excludedPaths: request.excludedPaths,
+          replacedPaths: ["mods/sodium-forge.jar"],
+          canRollback: true,
+        } satisfies ConversionReport;
+      }
+      case "rollback_content_conversion":
+        return true;
       case "execute_launcher_import": {
         const operationId = String(args.operationId);
         const preview = migrationPreview(String(args.sourcePath));

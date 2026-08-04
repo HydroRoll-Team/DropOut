@@ -5,6 +5,10 @@ import type {
   AssistantLogContext,
   ContentSearchResult,
   ContentVersion,
+  ConversionApplyRequest,
+  ConversionPreview,
+  ConversionReport,
+  ConversionTarget,
   DetectedLauncher,
   DeviceCodeResponse,
   FabricGameVersion,
@@ -37,6 +41,14 @@ import type {
   Version,
   VersionMetadata,
 } from "@/types";
+
+export function applyContentConversion(
+  request: ConversionApplyRequest,
+): Promise<ConversionReport> {
+  return invoke<ConversionReport>("apply_content_conversion", {
+    request,
+  });
+}
 
 export function assistantBeginStreamRequest(): Promise<string> {
   return invoke<string>("assistant_begin_stream_request");
@@ -511,6 +523,16 @@ export function openFileExplorer(path: string): Promise<void> {
   });
 }
 
+export function previewContentConversion(
+  instanceId: string,
+  target: ConversionTarget,
+): Promise<ConversionPreview> {
+  return invoke<ConversionPreview>("preview_content_conversion", {
+    instanceId,
+    target,
+  });
+}
+
 export function previewLauncherImport(
   sourcePath: string,
 ): Promise<MigrationPreview> {
@@ -547,6 +569,14 @@ export function repairInstances(): Promise<InstanceRepairResult> {
 
 export function resumeJavaDownloads(): Promise<JavaInstallation[]> {
   return invoke<JavaInstallation[]>("resume_java_downloads");
+}
+
+export function rollbackContentConversion(
+  operationId: string,
+): Promise<boolean> {
+  return invoke<boolean>("rollback_content_conversion", {
+    operationId,
+  });
 }
 
 export function rollbackLauncherImport(operationId: string): Promise<boolean> {
