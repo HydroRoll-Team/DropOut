@@ -62,6 +62,9 @@ jobs:
       - name: Test release workflow contract
         run: pnpm test:release
 
+      - name: Test RC1 parity evidence contract
+        run: pnpm test:parity
+
       - name: Check for changes
         id: check_changes
         if: steps.prek.outcome == 'failure'

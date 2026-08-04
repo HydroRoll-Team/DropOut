@@ -1,0 +1,56 @@
+---
+title: 0.2.0-rc.1 — 对标证据
+description: 逐项核对 PCL、HMCL 与 PrismLauncher 对标要求，并提供可复现的发布检查。
+---
+
+# 0.2.0-rc.1 — 候选版本 1
+
+RC1 将 DropOut 对 PCL、HMCL 与 PrismLauncher 的对标声明变成可检查的发布契约。仓库审计覆盖 42 项 UI/UX、启动器功能、迁移、分发与文档要求。每一项都绑定当前代码，以及回归测试、工作流、fixture 或已发布指南；文件缺失或证据标记过期都会让 CI 失败。
+
+这仍是预发布版本。升级前请导出无法替代的重要实例，并在 [GitHub Issues](https://github.com/HydroRoll-Team/DropOut/issues) 报告回归问题。
+
+## 包含内容
+
+- 基于状态的主页流程、可扩展实例库、分步实例创建、内容浏览、账户、运行时管理、下载、错误、更新、无障碍与受控视觉效果。
+- Microsoft/离线认证、托管 Java、原版/Fabric/Forge 安装、模组与资源包、修复/导出、系统托盘生命周期、需同意的诊断助手，以及受保护的内容转换。
+- 经核对且只复制的 Prism/MultiMC、PCL/HMCL 迁移；支持归档包、冲突预览、取消、操作级回滚和来源逐字节不变 fixture。
+- Linux x86_64/ARM64、macOS x86_64/ARM64、Windows x86_64/ARM64 与 Alpine musl 产物及发布来源证明。
+
+## 复现证据门禁
+
+在安装 Node.js 22、pnpm 10 和稳定版 Rust 的干净检出中运行：
+
+```bash
+pnpm install --frozen-lockfile
+pnpm test:parity
+pnpm test:release
+pnpm -C packages/ui test:unit
+pnpm -C packages/ui test:ui
+cargo test --manifest-path src-tauri/Cargo.toml --verbose
+```
+
+机器检查矩阵位于 [`docs/release/rc1-parity.json`](https://github.com/HydroRoll-Team/DropOut/blob/main/docs/release/rc1-parity.json)。拉取请求 CI 会在 Ubuntu、Arch Linux/Wayland、macOS 和 Windows 重跑 Rust 测试；发布 CI 会构建所有受支持目标，在上传前把各桌面安装包放入隔离目录验证，并在干净 Alpine 运行时执行 musl 产物。
+
+## 安装与验证
+
+从 [GitHub Releases](https://github.com/HydroRoll-Team/DropOut/releases) 下载适合平台的产物。打开前验证与本仓库绑定的来源证明：
+
+```bash
+gh attestation verify <downloaded-file> -R HydroRoll-Team/DropOut
+```
+
+[入门指南](/docs/manual/getting-started)说明平台产物和更新器行为；[迁移指南](/docs/manual/features/migration)说明来源选择与回滚；[内容转换](/docs/manual/features/content-conversion)说明兼容性核对与排除项。
+
+## 升级说明
+
+- 现有 DropOut 配置和实例会继续保留。
+- 迁移和转换会创建由 DropOut 管理的副本，不会原地修改来源启动器目录。
+- 应用 Minecraft 或加载器转换前，必须核对未解决内容和明确排除项。
+- 在复制后的实例成功启动前，请保留来源启动器和重要归档包。
+
+## 已知限制
+
+- RC1 是候选版本，不是稳定渠道。
+- 模组和资源包兼容性取决于配置内容提供方公开的元数据；未解决文件必须人工核对或排除。
+- 启动器归档包声明的远程依赖会作为后续任务报告，不会被静默视为已安装。
+- 发布产物提供 GitHub 构建来源证明；操作系统代码签名或公证仅在发布环境已配置时适用。

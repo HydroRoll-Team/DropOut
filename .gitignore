@@ -34,6 +34,8 @@ artifacts/
 
 # AUR Release
 release/
+!docs/release/
+!docs/release/rc1-parity.json
 
 # claude code
 .claude/

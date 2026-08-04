@@ -3,15 +3,16 @@ import path from "node:path";
 import consola from "consola";
 import toml from "toml";
 
-const tauriJsonPath = path.join(
-  __dirname,
-  "..",
-  "src-tauri",
-  "tauri.conf.json",
-);
+const repoRoot = process.env.DROPOUT_REPO_ROOT ?? path.join(__dirname, "..");
+const tauriJsonPath = path.join(repoRoot, "src-tauri", "tauri.conf.json");
 consola.debug("tauriJsonPath:", tauriJsonPath);
-const tauriTomlPath = path.join(__dirname, "..", "src-tauri", "Cargo.toml");
+const tauriTomlPath = path.join(repoRoot, "src-tauri", "Cargo.toml");
 consola.debug("tauriTomlPath:", tauriTomlPath);
+const cargoLockPath = path.join(repoRoot, "Cargo.lock");
+const packageJsonPaths = [
+  path.join(repoRoot, "packages", "ui", "package.json"),
+  path.join(repoRoot, "packages", "docs", "package.json"),
+];
 
 const getCurrentVersion = () => {
   const tauriJsonData = fs.readFileSync(tauriJsonPath, "utf8");
@@ -37,6 +38,41 @@ const replaceVersion = (content: string, version: string) => {
   return newJson;
 };
 
+const replaceLockedVersion = (content: string, version: string) => {
+  let matchedPackages = 0;
+  const sections = content.split(/(?=^\[\[package\]\]\s*(?:\r?\n|$))/m);
+
+  const synchronizedSections = sections.map((section) => {
+    if (!section.startsWith("[[package]]")) return section;
+
+    const parsed = toml.parse(section);
+    const lockedPackage = Array.isArray(parsed.package)
+      ? parsed.package[0]
+      : undefined;
+    if (lockedPackage?.name !== "dropout") return section;
+
+    matchedPackages += 1;
+    const versionPattern = /^(\s*version\s*=\s*")[^"]+(".*)$/m;
+    if (!versionPattern.test(section)) {
+      throw new Error("DropOut package version not found in Cargo.lock");
+    }
+    return section.replace(versionPattern, `$1${version}$2`);
+  });
+
+  if (matchedPackages !== 1) {
+    throw new Error(
+      `Expected one DropOut package entry in Cargo.lock, found ${matchedPackages}`,
+    );
+  }
+  return synchronizedSections.join("");
+};
+
+const writeIfChanged = (filePath: string, previous: string, next: string) => {
+  if (previous !== next) {
+    fs.writeFileSync(filePath, next);
+  }
+};
+
 const tauriJsonData = fs.readFileSync(tauriJsonPath, "utf8");
 const currentVersion = getCurrentVersion();
 const bumpVersion = getBumpVersion();
@@ -46,7 +82,19 @@ consola.debug("bumpVersion:", bumpVersion);
 if (currentVersion !== bumpVersion) {
   const replacedData = replaceVersion(tauriJsonData, bumpVersion);
   consola.info(`Bumped version from ${currentVersion} to ${bumpVersion}`);
-  fs.writeFileSync(tauriJsonPath, replacedData);
+  writeIfChanged(tauriJsonPath, tauriJsonData, replacedData);
 } else {
   consola.info(`Version ${currentVersion} is already up-to-date`);
+}
+
+const cargoLockData = fs.readFileSync(cargoLockPath, "utf8");
+const synchronizedLock = replaceLockedVersion(cargoLockData, bumpVersion);
+writeIfChanged(cargoLockPath, cargoLockData, synchronizedLock);
+
+for (const packageJsonPath of packageJsonPaths) {
+  const packageJson = fs.readFileSync(packageJsonPath, "utf8");
+  const normalizedPackageJson = packageJson.endsWith("\n")
+    ? packageJson
+    : `${packageJson}\n`;
+  writeIfChanged(packageJsonPath, packageJson, normalizedPackageJson);
 }

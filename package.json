@@ -9,6 +9,7 @@
     "deploy:docs": "wrangler deploy",
     "generate": "cargo test export_bindings && biome check packages/ui/src/types packages/ui/src/client.ts --fix",
     "bump-tauri": "tsx scripts/bump-tauri.ts",
+    "test:parity": "node --test scripts/parity-audit.test.mjs",
     "test:release": "node --test scripts/release-workflow.test.mjs",
     "prepare": "node scripts/install-prek-hooks.mjs"
   },
