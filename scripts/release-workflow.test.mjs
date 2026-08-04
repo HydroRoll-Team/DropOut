@@ -46,6 +46,29 @@ test("publishes AUR in a rerunnable job after the GitHub release", () => {
     aurJob.steps.some(({ run }) => run?.includes("tsx scripts/release-aur.ts")),
     true,
   );
+
+  const releaseGateIndex = aurJob.steps.findIndex(
+    ({ id }) => id === "release_check",
+  );
+  assert.ok(releaseGateIndex > 0, "AUR release gate is missing");
+  assert.match(
+    aurJob.steps[releaseGateIndex].run ?? "",
+    /gh release view "dropout-v\$version"/,
+  );
+  assert.match(aurJob.steps[releaseGateIndex].run ?? "", /set -euo pipefail/);
+  assert.match(aurJob.steps[releaseGateIndex].run ?? "", /jq -re/);
+  assert.match(
+    aurJob.steps[releaseGateIndex].run ?? "",
+    /grep -qi 'not found'/,
+  );
+  assert.match(aurJob.steps[releaseGateIndex].run ?? "", /exit 1/);
+  for (const step of aurJob.steps.slice(releaseGateIndex + 1)) {
+    assert.equal(
+      step.if,
+      "steps.release_check.outputs.published == 'true'",
+      `${step.name} must wait for a matching GitHub release`,
+    );
+  }
 });
 
 test("does not run AUR before Semifold creates the GitHub release", () => {

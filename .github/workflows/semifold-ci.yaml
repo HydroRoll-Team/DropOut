@@ -279,25 +279,48 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+      - name: Check matching GitHub release
+        id: release_check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version=$(jq -re '.version' src-tauri/tauri.conf.json)
+          if output=$(gh release view "dropout-v$version" --repo "$GITHUB_REPOSITORY" 2>&1); then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            if printf '%s\n' "$output" | grep -qi 'not found'; then
+              echo "published=false" >> "$GITHUB_OUTPUT"
+            else
+              printf '%s\n' "$output" >&2
+              exit 1
+            fi
+          fi
       - name: Install pnpm
+        if: steps.release_check.outputs.published == 'true'
         uses: pnpm/action-setup@v4
       - name: Install Node.js
+        if: steps.release_check.outputs.published == 'true'
         uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: "pnpm"
           cache-dependency-path: "pnpm-lock.yaml"
       - name: Install Makepkg
+        if: steps.release_check.outputs.published == 'true'
         run: sudo apt-get update && sudo apt-get install -y makepkg pacman
       - name: Install Node.js Dependencies
+        if: steps.release_check.outputs.published == 'true'
         run: pnpm install --frozen-lockfile
       - name: Download Linux build artifacts
+        if: steps.release_check.outputs.published == 'true'
         uses: actions/download-artifact@v6
         with:
           pattern: linux-*-artifacts
           path: artifacts/
           merge-multiple: true
       - name: Publish AUR package
+        if: steps.release_check.outputs.published == 'true'
         run: pnpm exec tsx scripts/release-aur.ts
         env:
           AUR_SSH_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
