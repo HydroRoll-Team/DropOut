@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.0-rc.1
+
+### New Features
+
+- [`e0cc80d`](https://github.com/HydroRoll-Team/DropOut/commit/e0cc80d269d13f244c932b64efe51b3a11228eeb): Add a machine-checked 42-row launcher parity audit, bilingual RC1 evidence guides, isolated installer smoke tests across every supported desktop target, and durable release-manifest synchronization. ([#203](https://github.com/HydroRoll-Team/DropOut/pull/203) by @HsiangNianian)
+
 ## v0.2.0-beta.2
 
 ### New Features
