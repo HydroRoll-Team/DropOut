@@ -194,7 +194,7 @@ pub fn base_game_version(version_id: &str) -> Option<String> {
     }
 
     if let Some(fabric) = version_id.strip_prefix("fabric-loader-") {
-        let (_, game_version) = fabric.rsplit_once('-')?;
+        let (_, game_version) = fabric.split_once('-')?;
         return (!game_version.is_empty()).then(|| game_version.to_string());
     }
 
@@ -460,7 +460,17 @@ where
             return Err(format!("Target content is missing: {}", task.relative_path));
         }
 
-        let replacement_name = checked_file_name(&task.replacement.file_name)?;
+        let original_is_disabled = original
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.ends_with(".jar.disabled"));
+        let replacement_file_name =
+            if original_is_disabled && !task.replacement.file_name.ends_with(".disabled") {
+                format!("{}.disabled", task.replacement.file_name)
+            } else {
+                task.replacement.file_name.clone()
+            };
+        let replacement_name = checked_file_name(&replacement_file_name)?;
         let parent = original
             .parent()
             .ok_or_else(|| format!("Target content has no parent: {}", task.relative_path))?;
@@ -870,6 +880,14 @@ mod tests {
         assert_eq!(
             base_game_version("fabric-loader-0.15.6-1.20.4"),
             Some("1.20.4".to_string())
+        );
+    }
+
+    #[test]
+    fn preserves_hyphenated_minecraft_version_from_fabric_version_id() {
+        assert_eq!(
+            base_game_version("fabric-loader-0.16.14-1.21.2-pre1"),
+            Some("1.21.2-pre1".to_string())
         );
     }
 
@@ -1421,6 +1439,46 @@ mod tests {
         assert_eq!(replaced, ["mods/target.jar"]);
 
         fs::remove_dir_all(source).unwrap();
+        fs::remove_dir_all(target).unwrap();
+    }
+
+    #[tokio::test]
+    async fn replacement_preserves_a_disabled_mod_state() {
+        let target = temp_fixture("disabled-replacement-target");
+        fs::create_dir_all(target.join("mods")).unwrap();
+        fs::write(
+            target.join("mods/current.jar.disabled"),
+            b"disabled-current",
+        )
+        .unwrap();
+        let tasks = [super::ConversionReplacementTask {
+            relative_path: "mods/current.jar.disabled".to_string(),
+            replacement: ConversionReplacement {
+                project_id: "project".to_string(),
+                project_name: "Project".to_string(),
+                version_id: "target-version".to_string(),
+                version_name: "Forge target".to_string(),
+                file_name: "target.jar".to_string(),
+                file_url: "https://cdn.modrinth.com/target.jar".to_string(),
+                page_url: "https://modrinth.com/mod/project/version/target-version".to_string(),
+            },
+        }];
+
+        let replaced =
+            super::apply_replacement_tasks_with(&target, &tasks, |_, destination| async move {
+                fs::write(destination, b"downloaded-target").map_err(|error| error.to_string())
+            })
+            .await
+            .unwrap();
+
+        assert!(!target.join("mods/current.jar.disabled").exists());
+        assert!(!target.join("mods/target.jar").exists());
+        assert_eq!(
+            fs::read(target.join("mods/target.jar.disabled")).unwrap(),
+            b"downloaded-target"
+        );
+        assert_eq!(replaced, ["mods/target.jar.disabled"]);
+
         fs::remove_dir_all(target).unwrap();
     }
 

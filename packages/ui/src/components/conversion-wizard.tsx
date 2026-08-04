@@ -25,6 +25,7 @@ import {
   previewContentConversion,
   rollbackContentConversion,
 } from "@/client";
+import { baseGameVersion } from "@/lib/version-id";
 import type {
   ConversionDisposition,
   ConversionItem,
@@ -54,15 +55,6 @@ import {
 } from "./ui/select";
 
 type TargetLoader = "vanilla" | "fabric" | "forge";
-
-function baseGameVersion(instance: Instance | null) {
-  if (!instance) return "";
-  const version = instance.versionId?.trim() ?? "";
-  if (version.includes("-forge-")) return version.split("-forge-")[0];
-  if (version.startsWith("fabric-loader-"))
-    return version.split("-").at(-1) ?? "";
-  return version;
-}
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
@@ -206,7 +198,7 @@ export function ConversionWizard({
 
   useEffect(() => {
     if (!open || !instance) return;
-    const sourceVersion = baseGameVersion(instance);
+    const sourceVersion = baseGameVersion(instance.versionId);
     const sourceLoader = (instance.modLoader ?? "vanilla") as TargetLoader;
     setGameVersion(sourceVersion);
     setLoader(sourceLoader);
@@ -456,7 +448,7 @@ export function ConversionWizard({
                   {instance?.name}
                 </p>
                 <p className="text-muted-foreground mt-1 font-mono text-[10px]">
-                  {baseGameVersion(instance)} ·{" "}
+                  {baseGameVersion(instance?.versionId)} ·{" "}
                   {instance?.modLoader ?? "vanilla"}{" "}
                   {instance?.modLoaderVersion ?? ""}
                 </p>
