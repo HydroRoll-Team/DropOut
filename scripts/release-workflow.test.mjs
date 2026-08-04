@@ -68,7 +68,7 @@ test("post-version hook synchronizes every generated release manifest", () => {
   );
   writeFileSync(
     join(fixtureRoot, "Cargo.lock"),
-    '[[package]]\nname = "dropout"\nversion = "0.2.0-rc.0"\n',
+    '# generated lockfile fixture\n[[package]]\nversion = "0.2.0-rc.0"\nsource = "registry+https://example.invalid/index"\n# package fields may be reordered\nname = "dropout"\n',
   );
   writeFileSync(
     join(fixtureRoot, "packages", "ui", "package.json"),
@@ -92,7 +92,7 @@ test("post-version hook synchronizes every generated release manifest", () => {
 
   assert.match(
     readFileSync(join(fixtureRoot, "Cargo.lock"), "utf8"),
-    /name = "dropout"\nversion = "0\.2\.0-rc\.1"/,
+    /version = "0\.2\.0-rc\.1"/,
   );
   assert.equal(
     JSON.parse(
@@ -145,6 +145,15 @@ test("smoke tests every packaged desktop artifact in an isolated install", () =>
     Math.max(...smokeIndexes) < Math.min(...uploadIndexes),
     "all isolated-install smoke checks must run before artifacts are uploaded",
   );
+
+  const macSmoke = readFileSync(
+    new URL("../scripts/smoke-install-macos.sh", import.meta.url),
+    "utf8",
+  );
+  assert.match(macSmoke, /application bundle is missing Info\.plist/);
+  assert.match(macSmoke, /application bundle has an invalid Info\.plist/);
+  assert.match(macSmoke, /application bundle is missing CFBundleExecutable/);
+  assert.match(macSmoke, /is not present or not executable/);
 });
 
 test("treats an already-current AUR package as a successful no-op", () => {

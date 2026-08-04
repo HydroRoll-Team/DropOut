@@ -39,12 +39,32 @@ const replaceVersion = (content: string, version: string) => {
 };
 
 const replaceLockedVersion = (content: string, version: string) => {
-  const packagePattern =
-    /(\[\[package\]\]\r?\nname = "dropout"\r?\nversion = ")[^"]+("\r?\n)/;
-  if (!packagePattern.test(content)) {
-    throw new Error("DropOut package entry not found in Cargo.lock");
+  let matchedPackages = 0;
+  const sections = content.split(/(?=^\[\[package\]\]\s*(?:\r?\n|$))/m);
+
+  const synchronizedSections = sections.map((section) => {
+    if (!section.startsWith("[[package]]")) return section;
+
+    const parsed = toml.parse(section);
+    const lockedPackage = Array.isArray(parsed.package)
+      ? parsed.package[0]
+      : undefined;
+    if (lockedPackage?.name !== "dropout") return section;
+
+    matchedPackages += 1;
+    const versionPattern = /^(\s*version\s*=\s*")[^"]+(".*)$/m;
+    if (!versionPattern.test(section)) {
+      throw new Error("DropOut package version not found in Cargo.lock");
+    }
+    return section.replace(versionPattern, `$1${version}$2`);
+  });
+
+  if (matchedPackages !== 1) {
+    throw new Error(
+      `Expected one DropOut package entry in Cargo.lock, found ${matchedPackages}`,
+    );
   }
-  return content.replace(packagePattern, `$1${version}$2`);
+  return synchronizedSections.join("");
 };
 
 const writeIfChanged = (filePath: string, previous: string, next: string) => {

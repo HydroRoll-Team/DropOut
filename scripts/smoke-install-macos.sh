@@ -36,11 +36,33 @@ fi
 cp -R "$source_app" "$install_root/"
 installed_app="$install_root/$(basename "$source_app")"
 info_plist="$installed_app/Contents/Info.plist"
-plutil -lint "$info_plist" >/dev/null
-executable_name=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$info_plist")
+
+if [ ! -f "$info_plist" ]; then
+  echo "application bundle is missing Info.plist" >&2
+  exit 1
+fi
+
+if ! plutil -lint "$info_plist" >/dev/null; then
+  echo "application bundle has an invalid Info.plist" >&2
+  exit 1
+fi
+
+if ! executable_name=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$info_plist" 2>/dev/null); then
+  echo "application bundle is missing CFBundleExecutable" >&2
+  exit 1
+fi
+if [ -z "$executable_name" ]; then
+  echo "application bundle is missing CFBundleExecutable" >&2
+  exit 1
+fi
+
 installed_binary="$installed_app/Contents/MacOS/$executable_name"
 
-test -x "$installed_binary"
+if [ ! -x "$installed_binary" ]; then
+  echo "application bundle CFBundleExecutable '$executable_name' is not present or not executable" >&2
+  exit 1
+fi
+
 file "$installed_binary" | grep -q 'Mach-O'
 otool -L "$installed_binary" >/dev/null
 
