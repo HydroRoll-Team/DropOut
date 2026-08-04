@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.1.0-beta.1
+
+### New Features
+
+- [`16caec4`](https://github.com/HydroRoll-Team/DropOut/commit/16caec400ca073a7308cae9738446196d29c0daf): Add adaptive per-instance memory recommendations, runtime pressure safeguards, and a final pre-launch memory check. ([#190](https://github.com/HydroRoll-Team/DropOut/pull/190) by @HsiangNianian)
+- [`dc50032`](https://github.com/HydroRoll-Team/DropOut/commit/dc50032335d7464c839630e123514d1e12883391): Add a consent-gated diagnostic assistant with redacted evidence previews, bounded provider requests, and cancellable request-isolated streaming. ([#189](https://github.com/HydroRoll-Team/DropOut/pull/189) by @HsiangNianian)
+
 ## v0.1.0-alpha.5
 
 ### New Features
