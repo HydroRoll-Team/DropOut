@@ -1,0 +1,56 @@
+---
+title: 0.2.0-rc.1 — Parity Evidence
+description: A requirement-by-requirement PCL, HMCL, and PrismLauncher parity audit with reproducible release checks.
+---
+
+# 0.2.0-rc.1 — Release candidate 1
+
+RC1 turns DropOut's PCL, HMCL, and PrismLauncher parity claim into a checked release contract. The repository audit covers 42 UI/UX, launcher-function, migration, distribution, and documentation requirements. Every row names current code plus a regression test, workflow, fixture, or published guide; missing files and stale evidence markers fail CI.
+
+This is still a prerelease. Export irreplaceable instances before upgrading and report regressions on [GitHub Issues](https://github.com/HydroRoll-Team/DropOut/issues).
+
+## What is included
+
+- A state-aware Home workflow, scalable instance library, staged instance creation, content browsing, accounts, runtime management, downloads, errors, updates, accessibility, and bounded visual effects.
+- Microsoft and offline authentication, managed Java, vanilla/Fabric/Forge installation, mods and packs, repair/export flows, system-tray lifecycle, the consent-gated assistant, and protected content conversion.
+- Reviewed, copy-only Prism/MultiMC and PCL/HMCL migration with archive support, conflict previews, cancellation, operation-scoped rollback, and byte-for-byte source preservation fixtures.
+- Linux x86_64/ARM64, macOS x86_64/ARM64, Windows x86_64/ARM64, and Alpine musl artifacts with release provenance.
+
+## Reproduce the evidence gate
+
+From a clean checkout with Node.js 22, pnpm 10, and stable Rust:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm test:parity
+pnpm test:release
+pnpm -C packages/ui test:unit
+pnpm -C packages/ui test:ui
+cargo test --manifest-path src-tauri/Cargo.toml --verbose
+```
+
+The machine-checked matrix lives at [`docs/release/rc1-parity.json`](https://github.com/HydroRoll-Team/DropOut/blob/main/docs/release/rc1-parity.json). Pull-request CI repeats Rust tests on Ubuntu, Arch Linux/Wayland, macOS, and Windows. Release CI builds every supported target and verifies each desktop installer in an isolated directory before upload; the musl archive executes in a clean Alpine runtime.
+
+## Install and verify
+
+Download the asset for your platform from [GitHub Releases](https://github.com/HydroRoll-Team/DropOut/releases). Verify its repository-bound provenance before opening it:
+
+```bash
+gh attestation verify <downloaded-file> -R HydroRoll-Team/DropOut
+```
+
+The [getting-started guide](/en/docs/manual/getting-started) covers platform assets and updater behavior. The [migration guide](/en/docs/manual/features/migration) explains source selection and rollback; [content conversion](/en/docs/manual/features/content-conversion) explains compatibility review and exclusions.
+
+## Upgrade notes
+
+- Existing DropOut configuration and instances remain in place.
+- Migration and conversion create DropOut-managed copies. They do not convert a source launcher directory in place.
+- Review unresolved content and explicit exclusions before applying a Minecraft or loader conversion.
+- Keep the source launcher and important archives until the copied instance has launched successfully.
+
+## Known limits
+
+- RC1 is a release candidate, not the stable channel.
+- Mod and pack compatibility depends on metadata exposed by the configured content provider; unresolved files require review or exclusion.
+- Remote dependencies declared by launcher archives are reported for follow-up and are not silently treated as installed.
+- GitHub build provenance is available for release assets. Operating-system code signing or notarization applies only where the release environment is configured for it.

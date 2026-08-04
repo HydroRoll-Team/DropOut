@@ -154,6 +154,19 @@ jobs:
           fi
         working-directory: target/release
 
+      - name: Smoke isolated install (Linux)
+        if: runner.os == 'Linux'
+        run: scripts/smoke-install-linux.sh "${{ matrix.target }}"
+
+      - name: Smoke isolated install (macOS)
+        if: runner.os == 'macOS'
+        run: scripts/smoke-install-macos.sh "${{ matrix.target }}"
+
+      - name: Smoke isolated install (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: scripts/smoke-install-windows.ps1 -Target "${{ matrix.target }}"
+
       - name: Upload Artifact (Linux)
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v6

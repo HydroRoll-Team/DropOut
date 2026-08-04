@@ -1,0 +1,430 @@
+{
+  "schemaVersion": 1,
+  "release": "0.2.0-rc.1",
+  "sourceIssue": 178,
+  "rows": [
+    {
+      "id": "ui-onboarding",
+      "area": "ui-ux",
+      "requirement": "First launch provides a persisted, localized guided tour of navigation, accounts, instances, and launch controls.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "code", "path": "packages/ui/src/components/guided-tour.tsx", "match": "export function GuidedTour", "detail": "First-launch tour and persisted completion flow." },
+        { "kind": "test", "path": "src-tauri/src/core/config.rs", "match": "first_launch_completed", "detail": "Persisted first-launch state and safe defaults." }
+      ]
+    },
+    {
+      "id": "ui-home-launch",
+      "area": "ui-ux",
+      "requirement": "Home presents one state-aware launch, install, repair, reveal-download, or stop action.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "code", "path": "packages/ui/src/pages/home.tsx", "match": "export function HomePage", "detail": "State-aware launcher home implementation." },
+        { "kind": "test", "path": "packages/ui/tests/launcher-fixtures.spec.ts", "match": "home primary action follows launcher recovery state", "detail": "Deterministic recovery-state UI regression." }
+      ]
+    },
+    {
+      "id": "ui-instance-library",
+      "area": "ui-ux",
+      "requirement": "The instance library handles empty, loading, error, repair, search, sort, grid, list, and active-selection states.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "code", "path": "packages/ui/src/pages/instances/index.tsx", "match": "export function InstancesPage", "detail": "Scalable instance library implementation." },
+        { "kind": "test", "path": "packages/ui/tests/launcher-fixtures.spec.ts", "match": "large instance library supports search, sorting, views, and active selection", "detail": "Large-library interaction regression." }
+      ]
+    },
+    {
+      "id": "ui-instance-creation",
+      "area": "ui-ux",
+      "requirement": "Creation guides version, loader, metadata, validation, cancellation, and progress as one staged task.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "code", "path": "packages/ui/src/pages/instances/create.tsx", "match": "export function CreateInstancePage", "detail": "Staged vanilla, Fabric, and Forge instance creation." },
+        { "kind": "fixture", "path": "packages/ui/src/fixtures/launcher.ts", "match": "case \"install_version\"", "detail": "Deterministic version-install backend fixture." }
+      ]
+    },
+    {
+      "id": "ui-content-browsing",
+      "area": "ui-ux",
+      "requirement": "Content browsing supports search, type, loader, sorting, pagination, project versions, and installation feedback.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "code", "path": "packages/ui/src/pages/instances/browse.tsx", "match": "export default function BrowsePage", "detail": "Search and install surface for mods and packs." },
+        { "kind": "code", "path": "src-tauri/src/core/content_search.rs", "match": "pub async fn search", "detail": "Backend content search and compatible version resolution." }
+      ]
+    },
+    {
+      "id": "ui-downloads",
+      "area": "ui-ux",
+      "requirement": "Downloads expose bounded progress, active work, failures, and recovery actions without duplicate starts.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "code", "path": "packages/ui/src/components/download-monitor.tsx", "match": "export function DownloadMonitor", "detail": "Accessible global download monitor." },
+        { "kind": "test", "path": "packages/ui/tests/launcher-fixtures.spec.ts", "match": "download and failure states expose actionable diagnostics", "detail": "Progress and failure-state regression." }
+      ]
+    },
+    {
+      "id": "ui-accounts",
+      "area": "ui-ux",
+      "requirement": "Accounts provide Microsoft device login, offline login, active identity, and recoverable error states.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "code", "path": "packages/ui/src/components/login-modal.tsx", "match": "export function LoginModal", "detail": "Microsoft and offline login UX." },
+        { "kind": "code", "path": "src-tauri/src/core/auth.rs", "match": "DeviceCodeResponse", "detail": "Microsoft device-code authentication flow." }
+      ]
+    },
+    {
+      "id": "ui-settings",
+      "area": "ui-ux",
+      "requirement": "Settings cover general, appearance, runtime, memory, tray, updates, and validated advanced configuration.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "code", "path": "packages/ui/src/pages/settings.tsx", "match": "export function SettingsPage", "detail": "Primary settings tabs and immediate-save controls." },
+        { "kind": "test", "path": "packages/ui/tests/launcher-fixtures.spec.ts", "match": "configuration studio validates, saves, and protects unsaved changes", "detail": "Advanced settings validation and unsaved-change protection." }
+      ]
+    },
+    {
+      "id": "ui-logs",
+      "area": "ui-ux",
+      "requirement": "Launch failures and logs remain inspectable through direct file access and redacted diagnostic evidence.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "code", "path": "packages/ui/src/pages/home.tsx", "match": "openFileExplorer(`${activeInstance.gameDir}/logs`)", "detail": "Direct access to the active instance log directory." },
+        { "kind": "test", "path": "packages/ui/tests/launcher-fixtures.spec.ts", "match": "failed launch can open a consent-gated assistant diagnosis", "detail": "Failure-to-diagnostics handoff regression." }
+      ]
+    },
+    {
+      "id": "ui-errors",
+      "area": "ui-ux",
+      "requirement": "Loading, validation, download, launch, and instance-index errors expose a next action and diagnostics.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "code", "path": "packages/ui/src/lib/launch-readiness.ts", "match": "export function", "detail": "Central launch recovery-state mapping." },
+        { "kind": "test", "path": "packages/ui/tests/launcher-fixtures.spec.ts", "match": "instance library exposes deterministic loading and repair states", "detail": "Loading, failure, retry, and repair regression." }
+      ]
+    },
+    {
+      "id": "ui-updates",
+      "area": "ui-ux",
+      "requirement": "Automatic and manual update checks show release notes and bounded installation progress.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "code", "path": "packages/ui/src/components/updater.tsx", "match": "export function UpdateDialog", "detail": "Update check, notes, download, and install dialog." },
+        { "kind": "code", "path": "packages/ui/src/pages/settings.tsx", "match": "updater.checkForUpdate(false)", "detail": "Manual update control and current version surface." }
+      ]
+    },
+    {
+      "id": "ui-accessibility",
+      "area": "ui-ux",
+      "requirement": "Core flows are keyboard operable, labelled, focus visible, localized, and reduced-motion aware.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "test", "path": "packages/ui/tests/launcher-fixtures.spec.ts", "match": "primary launcher flow is keyboard operable", "detail": "Keyboard and accessible-name regression." },
+        { "kind": "test", "path": "packages/ui/tests/launcher-fixtures.spec.ts", "match": "home supports Chinese and reduced motion", "detail": "Localization and reduced-motion regression." }
+      ]
+    },
+    {
+      "id": "ui-performance",
+      "area": "ui-ux",
+      "requirement": "The launcher remains usable with a larger library and suppresses nonessential animation under reduced motion.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "test", "path": "packages/ui/tests/launcher-fixtures.spec.ts", "match": "large instance library supports search, sorting, views, and active selection", "detail": "Representative larger-library rendering and interaction check." },
+        { "kind": "code", "path": "packages/ui/src/index.css", "match": "@media (prefers-reduced-motion: reduce)", "detail": "Global transitions and animations respect reduced-motion preference." }
+      ]
+    },
+    {
+      "id": "function-authentication",
+      "area": "functionality",
+      "requirement": "Microsoft and offline identities authenticate and persist without storing Microsoft passwords.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "code", "path": "src-tauri/src/core/auth.rs", "match": "pub async fn", "detail": "Microsoft OAuth device-code implementation." },
+        { "kind": "code", "path": "src-tauri/src/core/account_storage.rs", "match": "pub struct AccountStorage", "detail": "Account persistence and active-identity storage." }
+      ]
+    },
+    {
+      "id": "function-java-runtime",
+      "area": "functionality",
+      "requirement": "Java discovery, validation, selection, download, persistence, and launch compatibility are implemented.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "code", "path": "src-tauri/src/core/java/mod.rs", "match": "download_and_install_java", "detail": "Managed runtime download and installation." },
+        { "kind": "test", "path": "packages/ui/tests/launcher-fixtures.spec.ts", "match": "Java runtime download progress stays bounded and accessible", "detail": "Runtime progress UI regression." }
+      ]
+    },
+    {
+      "id": "function-loaders",
+      "area": "functionality",
+      "requirement": "Vanilla, Fabric, and Forge profiles install with inherited-version metadata and compatible launch arguments.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "code", "path": "src-tauri/src/core/fabric.rs", "match": "pub async fn install_fabric", "detail": "Fabric profile installation." },
+        { "kind": "code", "path": "src-tauri/src/core/forge.rs", "match": "pub async fn install_forge", "detail": "Forge profile installation." }
+      ]
+    },
+    {
+      "id": "function-mods-packs",
+      "area": "functionality",
+      "requirement": "Mods, modpacks, resource packs, shader packs, data packs, and plugins can be discovered and managed.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "code", "path": "src-tauri/src/core/mods.rs", "match": "pub fn", "detail": "Local mod listing and enable-state management." },
+        { "kind": "test", "path": "src-tauri/src/core/modpack/api.rs", "match": "#[cfg(test)]", "detail": "Archive detection and import coverage." }
+      ]
+    },
+    {
+      "id": "function-instances",
+      "area": "functionality",
+      "requirement": "Instances support create, update, delete, active selection, launch, import, export, and metadata persistence.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "code", "path": "src-tauri/src/core/instance.rs", "match": "pub struct InstanceState", "detail": "Instance lifecycle and persistence implementation." },
+        { "kind": "test", "path": "packages/ui/tests/launcher-fixtures.spec.ts", "match": "instance library scales from empty to one active workspace", "detail": "Primary instance lifecycle UI regression." }
+      ]
+    },
+    {
+      "id": "function-repairs",
+      "area": "functionality",
+      "requirement": "Missing runtime files and damaged instance indexes expose bounded repair flows.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "code", "path": "src-tauri/src/main.rs", "match": "async fn repair_instances", "detail": "Backend instance-index repair command." },
+        { "kind": "test", "path": "packages/ui/tests/launcher-fixtures.spec.ts", "match": "critical memory pressure blocks launch with a repair action", "detail": "Pre-launch recovery action regression." }
+      ]
+    },
+    {
+      "id": "function-exports",
+      "area": "functionality",
+      "requirement": "Instance export produces a portable archive without mutating the source instance.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "code", "path": "src-tauri/src/core/instance.rs", "match": "pub fn export_instance", "detail": "Copy-only instance archive export." },
+        { "kind": "api", "path": "src-tauri/src/main.rs", "match": "async fn export_instance", "detail": "Typed desktop export command." }
+      ]
+    },
+    {
+      "id": "function-background-lifecycle",
+      "area": "functionality",
+      "requirement": "System tray, close-to-tray, start minimized, download status, game status, and quit behavior are coherent.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "code", "path": "src-tauri/src/desktop.rs", "match": "setup_system_tray", "detail": "Native background lifecycle and tray menu." },
+        { "kind": "test", "path": "packages/ui/tests/launcher-fixtures.spec.ts", "match": "system tray lifecycle settings are progressive and save immediately", "detail": "Tray configuration and recovery regression." }
+      ]
+    },
+    {
+      "id": "function-assistant",
+      "area": "functionality",
+      "requirement": "Diagnostics are consent gated, redacted, bounded, cancellable, and isolated between requests.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "code", "path": "src-tauri/src/core/assistant.rs", "match": "pub struct Assistant", "detail": "Redaction and bounded provider request implementation." },
+        { "kind": "test", "path": "packages/ui/tests/launcher-fixtures.spec.ts", "match": "clearing a streaming answer cannot leak stale chunks into the next request", "detail": "Request-isolation regression." }
+      ]
+    },
+    {
+      "id": "function-conversion",
+      "area": "functionality",
+      "requirement": "Minecraft and loader conversion is preview first, compatibility checked, source preserving, and reversible.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "code", "path": "src-tauri/src/core/content_conversion.rs", "match": "pub struct ConversionPreview", "detail": "Protected conversion plan, apply, report, and rollback implementation." },
+        { "kind": "test", "path": "packages/ui/tests/launcher-fixtures.spec.ts", "match": "content conversion previews a protected copy and supports rollback", "detail": "End-to-end conversion wizard regression." }
+      ]
+    },
+    {
+      "id": "function-platforms",
+      "area": "functionality",
+      "requirement": "Linux x86_64 and arm64, macOS x86_64 and arm64, Windows x86_64 and arm64, and Alpine musl are built.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "workflow", "path": ".github/workflows/semifold-ci.yaml", "match": "Build on Linux x86_64 (Musl)", "detail": "Seven-target release build matrix." },
+        { "kind": "workflow", "path": ".github/workflows/test.yml", "match": "Test on ${{ matrix.name }}", "detail": "Cross-platform Rust regression matrix." }
+      ]
+    },
+    {
+      "id": "migration-pcl",
+      "area": "migration",
+      "requirement": "PCL-compatible global and isolated Minecraft layouts are detected and copied with selected-version metadata.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "code", "path": "src-tauri/src/core/migration.rs", "match": "\"pcl\" => \"PCL\"", "detail": "PCL source classification and discovery." },
+        { "kind": "test", "path": "packages/ui/tests/launcher-fixtures.spec.ts", "match": "PCL and HMCL isolated versions use the same reviewed migration flow", "detail": "PCL isolated-version review regression." }
+      ]
+    },
+    {
+      "id": "migration-hmcl",
+      "area": "migration",
+      "requirement": "HMCL directories and exports preserve selected versions and report remote archive dependencies.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "fixture", "path": "src-tauri/tests/fixtures/migration/v1/archive-manifest.json", "match": "HMCL Export.zip", "detail": "Versioned HMCL archive fixture." },
+        { "kind": "test", "path": "src-tauri/src/core/migration.rs", "match": "hmcl_curseforge_archives_report_remote_dependencies_before_launch", "detail": "HMCL dependency-report regression." }
+      ]
+    },
+    {
+      "id": "migration-prism-multimc",
+      "area": "migration",
+      "requirement": "PrismLauncher and MultiMC metadata, loaders, icons, Java overrides, memory overrides, and game content are reviewed before copy.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "code", "path": "src-tauri/src/core/migration.rs", "match": "PrismLauncher/instances", "detail": "Cross-platform Prism discovery and metadata parsing." },
+        { "kind": "test", "path": "packages/ui/tests/launcher-fixtures.spec.ts", "match": "migration manifest resolves conflicts, reports copied content, and supports undo", "detail": "Prism review and copy regression." }
+      ]
+    },
+    {
+      "id": "migration-archives",
+      "area": "migration",
+      "requirement": "MultiMC, Modrinth, CurseForge/HMCL-PCL, and portable configuration/save archives are traversal safe.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "test", "path": "src-tauri/src/core/migration.rs", "match": "versioned_launcher_archive_fixture_matrix_stays_copy_only", "detail": "Versioned archive-format fixture matrix." },
+        { "kind": "fixture", "path": "src-tauri/tests/fixtures/migration/v1/archive-manifest.json", "match": "portable-config-save", "detail": "Portable and launcher-specific archive cases." }
+      ]
+    },
+    {
+      "id": "migration-preview",
+      "area": "migration",
+      "requirement": "Every source is summarized as a review manifest before any destination file is written.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "code", "path": "src-tauri/src/core/migration.rs", "match": "pub fn preview_import", "detail": "Read-only preview and compatibility plan." },
+        { "kind": "code", "path": "packages/ui/src/components/import-wizard.tsx", "match": "export function ImportWizard", "detail": "Review-first migration wizard." }
+      ]
+    },
+    {
+      "id": "migration-conflicts",
+      "area": "migration",
+      "requirement": "Name, path, loader, and archive conflicts are visible and require a bounded resolution.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "code", "path": "src-tauri/src/core/migration.rs", "match": "suggested_resolution", "detail": "Structured conflict detection and resolution hints." },
+        { "kind": "test", "path": "packages/ui/tests/launcher-fixtures.spec.ts", "match": "migration manifest resolves conflicts", "detail": "Conflict-review UI regression." }
+      ]
+    },
+    {
+      "id": "migration-rollback",
+      "area": "migration",
+      "requirement": "Cancellation stops remaining work and removes only the active operation destination; completed imports can be undone.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "api", "path": "src-tauri/src/main.rs", "match": "async fn rollback_launcher_import", "detail": "Operation-scoped migration rollback command." },
+        { "kind": "test", "path": "packages/ui/tests/launcher-fixtures.spec.ts", "match": "migration cancellation stops the remaining queue", "detail": "Cancellation and queue-boundary regression." }
+      ]
+    },
+    {
+      "id": "migration-source-preservation",
+      "area": "migration",
+      "requirement": "Source directories and archives remain byte-for-byte unchanged across preview, copy, cancellation, and rollback.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "test", "path": "src-tauri/src/core/migration.rs", "match": "assert_eq!(fs::read(&archive_path).unwrap(), source_before)", "detail": "Archive source fingerprint preservation assertions." },
+        { "kind": "doc", "path": "packages/docs/content/en/manual/features/migration.mdx", "match": "byte-for-byte unchanged", "detail": "Published source-safety contract and fixture scope." }
+      ]
+    },
+    {
+      "id": "distribution-installers",
+      "area": "distribution",
+      "requirement": "Release builds produce Linux AppImage/deb/rpm, Windows NSIS, macOS dmg/app archives, and Alpine musl archives.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "workflow", "path": ".github/workflows/semifold-ci.yaml", "match": "Upload Artifact (Linux)", "detail": "Platform artifact collection and upload." },
+        { "kind": "config", "path": "src-tauri/tauri.conf.json", "match": "\"bundle\"", "detail": "Tauri packaging configuration." }
+      ]
+    },
+    {
+      "id": "distribution-updates",
+      "area": "distribution",
+      "requirement": "Published desktop releases provide updater metadata and the launcher consumes it through HTTPS.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "config", "path": "src-tauri/tauri.conf.json", "match": "latest.json", "detail": "GitHub release updater endpoint." },
+        { "kind": "code", "path": "packages/ui/src/components/updater.tsx", "match": "downloadAndInstall", "detail": "Update download and install flow." }
+      ]
+    },
+    {
+      "id": "distribution-release-notes",
+      "area": "distribution",
+      "requirement": "Changesets generate package-specific release notes and GitHub prereleases from reviewed commits.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "config", "path": ".changes/config.toml", "match": "release = \"release\"", "detail": "Semifold release branch and prerelease channel configuration." },
+        { "kind": "workflow", "path": ".github/workflows/semifold-ci.yaml", "match": "Semifold CI", "detail": "Automated version PR and release publication." }
+      ]
+    },
+    {
+      "id": "distribution-provenance",
+      "area": "distribution",
+      "requirement": "Release artifacts are attested and documented with repository-bound verification commands.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "test", "path": "scripts/test-release-provenance.sh", "match": "gh attestation verify", "detail": "Release provenance contract." },
+        { "kind": "workflow", "path": ".github/workflows/semifold-ci.yaml", "match": "uses: actions/attest@v4", "detail": "GitHub artifact attestation step." }
+      ]
+    },
+    {
+      "id": "distribution-clean-install",
+      "area": "distribution",
+      "requirement": "Every supported installer is unpacked or silently installed in an isolated location before upload; musl executes in a clean Alpine runtime.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "workflow", "path": ".github/workflows/semifold-ci.yaml", "match": "Smoke isolated install (Windows)", "detail": "All desktop matrix jobs run isolated-install checks before upload." },
+        { "kind": "test", "path": "scripts/release-workflow.test.mjs", "match": "smoke tests every packaged desktop artifact in an isolated install", "detail": "Ordering and platform coverage contract." },
+        { "kind": "script", "path": "scripts/smoke-install-linux.sh", "match": "--appimage-extract", "detail": "Linux AppImage and Debian isolated extraction." },
+        { "kind": "script", "path": "scripts/smoke-install-macos.sh", "match": "hdiutil attach", "detail": "macOS dmg mount, copy, plist, and Mach-O verification." },
+        { "kind": "script", "path": "scripts/smoke-install-windows.ps1", "match": "Start-Process", "detail": "Windows NSIS silent install and PE verification." }
+      ]
+    },
+    {
+      "id": "docs-install",
+      "area": "documentation",
+      "requirement": "English and Chinese installation, update, and artifact-verification instructions are current.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "doc", "locale": "en", "path": "packages/docs/content/en/manual/getting-started.mdx", "match": "gh attestation verify", "detail": "English install and verification guide." },
+        { "kind": "doc", "locale": "zh", "path": "packages/docs/content/zh/manual/getting-started.mdx", "match": "gh attestation verify", "detail": "Chinese install and verification guide." }
+      ]
+    },
+    {
+      "id": "docs-migration",
+      "area": "documentation",
+      "requirement": "English and Chinese migration guides describe supported launchers, archives, conflicts, rollback, and source safety.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "doc", "locale": "en", "path": "packages/docs/content/en/manual/features/migration.mdx", "match": "Prism Launcher", "detail": "English launcher migration guide." },
+        { "kind": "doc", "locale": "zh", "path": "packages/docs/content/zh/manual/features/migration.mdx", "match": "Prism Launcher", "detail": "Chinese launcher migration guide." }
+      ]
+    },
+    {
+      "id": "docs-troubleshooting",
+      "area": "documentation",
+      "requirement": "English and Chinese troubleshooting cover install, runtime, launch, loader, download, update, and diagnostics recovery.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "doc", "locale": "en", "path": "packages/docs/content/en/manual/troubleshooting.mdx", "match": "Troubleshooting", "detail": "English troubleshooting guide." },
+        { "kind": "doc", "locale": "zh", "path": "packages/docs/content/zh/manual/troubleshooting.mdx", "match": "故障排除", "detail": "Chinese troubleshooting guide." }
+      ]
+    },
+    {
+      "id": "docs-features",
+      "area": "documentation",
+      "requirement": "English and Chinese feature indexes link shipped authentication, runtime, loaders, instances, migration, assistant, tray, configuration, and conversion behavior.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "doc", "locale": "en", "path": "packages/docs/content/en/manual/features/index.mdx", "match": "Content Conversion", "detail": "English feature status and navigation." },
+        { "kind": "doc", "locale": "zh", "path": "packages/docs/content/zh/manual/features/index.mdx", "match": "内容转换", "detail": "Chinese feature status and navigation." }
+      ]
+    },
+    {
+      "id": "docs-release",
+      "area": "documentation",
+      "requirement": "The release candidate has bilingual scope, evidence, verification, upgrade, and known-limit documentation.",
+      "status": "proven",
+      "evidence": [
+        { "kind": "doc", "locale": "en", "path": "packages/docs/content/en/manual/releases/rc-1.mdx", "match": "Release candidate 1", "detail": "English RC1 release and evidence guide." },
+        { "kind": "doc", "locale": "zh", "path": "packages/docs/content/zh/manual/releases/rc-1.mdx", "match": "候选版本 1", "detail": "Chinese RC1 release and evidence guide." }
+      ]
+    }
+  ]
+}
