@@ -22,6 +22,7 @@
     "modpack"
   ],
   "license": "AGPL-3.0-or-later",
+  "packageManager": "pnpm@next-12",
   "dependencies": {
     "consola": "^3.4.2",
     "toml": "^3.0.0"
