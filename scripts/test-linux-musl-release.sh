@@ -19,7 +19,7 @@ grep -q 'verify-linux-musl-package.sh /artifacts' "$dockerfile"
 grep -q 'COPY --from=verify-runtime /artifacts/ /' "$dockerfile"
 grep -q 'PNPM_HOME=/root/.local/share/pnpm' "$dockerfile"
 grep -q 'PATH=/root/.local/share/pnpm/bin:' "$dockerfile"
-grep -q 'SHELL=/bin/sh npx get-pnpm next-12' "$dockerfile"
+grep -q 'ENV=/root/.shrc SHELL=/bin/sh npx get-pnpm next-12' "$dockerfile"
 grep -q '^TS_RS_EXPORT_DIR = ' "$musl_cargo_config"
 grep -q '^TS_RS_LARGE_INT = "number"$' "$musl_cargo_config"
 

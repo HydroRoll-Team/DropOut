@@ -26,7 +26,7 @@ ENV CI=true \
     PNPM_HOME=/root/.local/share/pnpm \
     PATH=/root/.local/share/pnpm/bin:/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
-RUN SHELL=/bin/sh npx get-pnpm next-12 \
+RUN ENV=/root/.shrc SHELL=/bin/sh npx get-pnpm next-12 \
     && pnpm --version
 
 WORKDIR /workspace
