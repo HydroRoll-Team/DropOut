@@ -35,7 +35,6 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/workspace/target \
     --mount=type=cache,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile \
-    && pnpm -C packages/ui --lockfile-dir /workspace install --frozen-lockfile \
     && pnpm exec tauri build --target x86_64-unknown-linux-musl --no-bundle \
     && scripts/package-linux-musl.sh target/x86_64-unknown-linux-musl/release/dropout artifacts
 

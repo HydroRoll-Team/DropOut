@@ -22,7 +22,7 @@
     "modpack"
   ],
   "license": "AGPL-3.0-or-later",
-  "packageManager": "pnpm@10.30.2",
+  "packageManager": "pnpm@next-12",
   "dependencies": {
     "consola": "^3.4.2",
     "toml": "^3.0.0"
@@ -30,49 +30,11 @@
   "devDependencies": {
     "@biomejs/biome": "^2.4.9",
     "@j178/prek": "^0.2.29",
-    "@tauri-apps/cli": "^2.9.6",
+    "@tauri-apps/cli": "^2.11.4",
     "@types/node": "^24.10.9",
     "js-yaml": "^4.1.0",
     "smol-toml": "^1.7.1",
     "tsx": "^4.21.0",
     "wrangler": "^4.111.0"
-  },
-  "pnpm": {
-    "overrides": {
-      "vite": "npm:rolldown-vite@^7",
-      "@babel/core": "7.29.6",
-      "axios": "1.16.0",
-      "brace-expansion": "5.0.6",
-      "dompurify": "3.4.11",
-      "express-rate-limit": "8.2.2",
-      "fast-uri": "3.1.2",
-      "fsevents": "2.3.3",
-      "follow-redirects": "1.16.0",
-      "form-data": "4.0.6",
-      "hono": "4.12.25",
-      "@hono/node-server": "1.19.13",
-      "@isaacs/brace-expansion": "5.0.1",
-      "ip-address": "10.1.1",
-      "js-yaml": "4.2.0",
-      "launch-editor": "2.14.1",
-      "lodash": "4.18.1",
-      "lodash-es": "4.18.1",
-      "mermaid": "11.15.0",
-      "minimatch": "10.2.3",
-      "morgan": "1.11.0",
-      "path-to-regexp": "0.1.13",
-      "picomatch": "2.3.2",
-      "postcss": "8.5.10",
-      "qs": "6.15.2",
-      "seroval": "1.4.1",
-      "shell-quote": "1.8.4",
-      "uuid": "11.1.1",
-      "ws": "8.21.0"
-    },
-    "onlyBuiltDependencies": [
-      "core-js",
-      "esbuild",
-      "msw"
-    ]
   }
 }

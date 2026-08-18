@@ -89,14 +89,11 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 22
-          cache: "pnpm"
+          cache: ${{ runner.os != 'Windows' && 'pnpm' || '' }}
           cache-dependency-path: "pnpm-lock.yaml"
 
       - name: Install Root Node.js Dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Install UI Dependencies
-        run: pnpm -C packages/ui --lockfile-dir "${{ github.workspace }}" install --frozen-lockfile
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable

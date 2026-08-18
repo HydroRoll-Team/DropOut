@@ -31,7 +31,7 @@ jobs:
           cache: "pnpm"
           cache-dependency-path: "pnpm-lock.yaml"
 
-      - run: pnpm -C packages/ui --lockfile-dir "${{ github.workspace }}" install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile
 
       - name: Lint UI
         run: pnpm biome ci

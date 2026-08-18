@@ -35,7 +35,7 @@ jobs:
           cache-dependency-path: "pnpm-lock.yaml"
 
       - name: Install Dependencies
-        run: pnpm -C packages/docs --lockfile-dir "${{ github.workspace }}" install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Build Docs
         working-directory: packages/docs
