@@ -32,10 +32,6 @@ export default {
       return assetResponse;
     }
 
-    return requestHandler(request, {
-      cloudflare: {
-        env,
-      },
-    });
+    return requestHandler(request);
   },
 };
