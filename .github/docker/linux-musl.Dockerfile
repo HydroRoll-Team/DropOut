@@ -17,14 +17,17 @@ RUN apk add --no-cache \
       npm \
       openssl-dev \
       pkgconf \
-      pnpm \
       tar \
       webkit2gtk-4.1-dev \
       xvfb-run
 
 ENV CI=true \
     CARGO_BUILD_JOBS=1 \
-    PATH=/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    PNPM_HOME=/root/.local/share/pnpm \
+    PATH=/root/.local/share/pnpm/bin:/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+RUN npx get-pnpm next-12 \
+    && pnpm --version
 
 WORKDIR /workspace
 COPY . .
