@@ -38,8 +38,7 @@ The current i18n source of truth is `app/lib/i18n.ts`: default language `zh`, la
 Run commands from the repository root unless you are already inside `packages/docs`.
 
 ```bash
-pnpm install
-pnpm -C packages/docs --lockfile-dir "$PWD" install
+pnpm install --frozen-lockfile
 pnpm -C packages/docs dev
 ```
 
@@ -137,7 +136,7 @@ The docs site is deployed as a Cloudflare Worker with static assets. The root
 asset binding, compatibility date, and observability settings.
 
 ```bash
-pnpm -C packages/docs --lockfile-dir "$PWD" install
+pnpm install --frozen-lockfile
 pnpm -C packages/docs build
 pnpm deploy:docs:dry-run
 pnpm deploy:docs

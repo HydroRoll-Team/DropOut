@@ -7,7 +7,7 @@ The React launcher UI normally runs inside Tauri. Development fixtures provide d
 Run package commands from the repository root and keep the shared root lockfile authoritative:
 
 ```bash
-pnpm -C packages/ui --lockfile-dir "$PWD" install --frozen-lockfile
+pnpm install --frozen-lockfile
 pnpm -C packages/ui dev
 ```
 
