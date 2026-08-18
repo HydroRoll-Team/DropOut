@@ -11,6 +11,7 @@ repos:
         exclude: ^packages/ui(-new)?/tsconfig.*\.json$
       - id: check-toml
       - id: check-yaml
+        exclude: pnpm-lock.yaml$
       - id: check-case-conflict
       - id: fix-byte-order-marker
       - id: end-of-file-fixer

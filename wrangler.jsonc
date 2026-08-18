@@ -11,7 +11,7 @@
     }
   ],
   "build": {
-    "command": "CI=true pnpm -C packages/docs --lockfile-dir . install --frozen-lockfile && pnpm -C packages/docs build"
+    "command": "CI=true pnpm install --frozen-lockfile && pnpm -C packages/docs build"
   },
   "assets": {
     "directory": "./packages/docs/build/client",
