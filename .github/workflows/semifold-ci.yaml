@@ -83,10 +83,10 @@ jobs:
           sudo apt-get install -y pkg-config
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Install Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: ${{ runner.os != 'Windows' && 'pnpm' || '' }}
@@ -243,9 +243,9 @@ jobs:
       - name: Setup Semifold
         uses: noctisynth/setup-semifold@main
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
       - name: Install Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: "pnpm"
@@ -300,10 +300,10 @@ jobs:
           fi
       - name: Install pnpm
         if: steps.release_check.outputs.published == 'true'
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
       - name: Install Node.js
         if: steps.release_check.outputs.published == 'true'
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: "pnpm"

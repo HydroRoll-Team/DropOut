@@ -6,8 +6,14 @@
       "fileName": "HMCL configuration and saves.zip",
       "launcherType": "portable-archive",
       "entries": [
-        { "path": "HMCL Backup/config/example.toml", "content": "configured=true" },
-        { "path": "HMCL Backup/saves/Fixture World/level.dat", "content": "world" },
+        {
+          "path": "HMCL Backup/config/example.toml",
+          "content": "configured=true"
+        },
+        {
+          "path": "HMCL Backup/saves/Fixture World/level.dat",
+          "content": "world"
+        },
         { "path": "HMCL Backup/logs/latest.log", "content": "diagnostic" }
       ]
     },
@@ -16,9 +22,18 @@
       "fileName": "MultiMC Fabric.zip",
       "launcherType": "multimc",
       "entries": [
-        { "path": "Fabric Fixture/instance.cfg", "content": "name=Fabric Fixture\n" },
-        { "path": "Fabric Fixture/mmc-pack.json", "content": "{\"components\":[{\"uid\":\"net.minecraft\",\"version\":\"1.21.1\"},{\"uid\":\"net.fabricmc.fabric-loader\",\"version\":\"0.16.9\"}]}" },
-        { "path": "Fabric Fixture/.minecraft/mods/example.jar", "content": "mod" }
+        {
+          "path": "Fabric Fixture/instance.cfg",
+          "content": "name=Fabric Fixture\n"
+        },
+        {
+          "path": "Fabric Fixture/mmc-pack.json",
+          "content": "{\"components\":[{\"uid\":\"net.minecraft\",\"version\":\"1.21.1\"},{\"uid\":\"net.fabricmc.fabric-loader\",\"version\":\"0.16.9\"}]}"
+        },
+        {
+          "path": "Fabric Fixture/.minecraft/mods/example.jar",
+          "content": "mod"
+        }
       ]
     },
     {
@@ -26,9 +41,18 @@
       "fileName": "HMCL Export.zip",
       "launcherType": "curseforge",
       "entries": [
-        { "path": "manifest.json", "content": "{\"manifestType\":\"minecraftModpack\",\"name\":\"HMCL Export\",\"overrides\":\"overrides\",\"minecraft\":{\"version\":\"1.20.1\",\"modLoaders\":[{\"id\":\"forge-47.3.0\",\"primary\":true}]},\"files\":[]}" },
-        { "path": "overrides/config/example.toml", "content": "configured=true" },
-        { "path": "overrides/saves/Fixture World/level.dat", "content": "world" }
+        {
+          "path": "manifest.json",
+          "content": "{\"manifestType\":\"minecraftModpack\",\"name\":\"HMCL Export\",\"overrides\":\"overrides\",\"minecraft\":{\"version\":\"1.20.1\",\"modLoaders\":[{\"id\":\"forge-47.3.0\",\"primary\":true}]},\"files\":[]}"
+        },
+        {
+          "path": "overrides/config/example.toml",
+          "content": "configured=true"
+        },
+        {
+          "path": "overrides/saves/Fixture World/level.dat",
+          "content": "world"
+        }
       ]
     }
   ]

@@ -69,13 +69,13 @@ jobs:
 
       - name: Install Node.js
         if: github.event_name == 'workflow_dispatch'
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 22
 
       - name: Install pnpm
         if: github.event_name == 'workflow_dispatch'
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Install Frontend Dependencies
         if: github.event_name == 'workflow_dispatch'
