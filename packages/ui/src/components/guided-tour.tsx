@@ -54,8 +54,6 @@ export function GuidedTour() {
             popover: {
               title: t("tour.welcome"),
               description: t("tour.welcomeDesc"),
-              side: "over" as const,
-              align: "center" as const,
             },
           },
           {

@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import yaml from "js-yaml";
+import { load as loadYaml } from "js-yaml";
 import { parse as parseToml } from "smol-toml";
 import { hasStagedChanges } from "./release-aur-helpers.mjs";
 
@@ -13,7 +13,7 @@ const releaseConfig = parseToml(
   readFileSync(new URL("../.changes/config.toml", import.meta.url), "utf8"),
 );
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
-const releaseWorkflow = yaml.load(
+const releaseWorkflow = loadYaml(
   readFileSync(
     new URL("../.github/workflows/semifold-ci.yaml", import.meta.url),
     "utf8",

@@ -51,7 +51,7 @@ ui/                 # Svelte 5 frontend
 ```bash
 cargo tauri dev  # Starts frontend dev server (Vite on :5173) + Tauri window
 ```
-- Frontend uses **Rolldown-based Vite fork** (`npm:rolldown-vite@7.2.5`) with hot reload
+- Frontend uses **Vite 8** (with its built-in Rolldown bundler) with hot reload
 - Backend recompiles on Rust file changes
 - Console shows both Rust stdout and frontend Vite logs
 - **Vite Config**: Uses `usePolling: true` for watch compatibility with Tauri
@@ -272,7 +272,7 @@ Game arguments may contain `${variable}` placeholders. Use the `has_unresolved_p
 ## Version Compatibility
 
 - **Rust**: Edition 2021, requires Tauri v2 dependencies
-- **Node.js**: 22+ with pnpm 9+ for frontend (uses Rolldown-based Vite fork `npm:rolldown-vite@7.2.5`)
+- **Node.js**: 22+ with pnpm 9+ for frontend (uses Vite 8 with its built-in Rolldown bundler)
 - **Tauri**: v2.9+
 - **Svelte**: v5.46+ (runes mode)
 - **Java**: Supports detection of Java 8-23+, recommends Java 17+ for modern Minecraft

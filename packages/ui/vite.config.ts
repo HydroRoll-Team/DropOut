@@ -31,11 +31,11 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
-      "@components": path.resolve(__dirname, "./src/components"),
-      "@stores": path.resolve(__dirname, "./src/stores"),
-      "@types": path.resolve(__dirname, "./src/types"),
-      "@pages": path.resolve(__dirname, "./src/pages"),
+      "@": path.resolve(import.meta.dirname, "./src"),
+      "@components": path.resolve(import.meta.dirname, "./src/components"),
+      "@stores": path.resolve(import.meta.dirname, "./src/stores"),
+      "@types": path.resolve(import.meta.dirname, "./src/types"),
+      "@pages": path.resolve(import.meta.dirname, "./src/pages"),
     },
   },
 });

@@ -523,7 +523,7 @@ function InstanceComponent() {
 const VersionIdContext = createContext<string | null>(null);
 export const useVersionId = () => useContext(VersionIdContext);
 
-const { useStepper, Stepper } = defineStepper(
+const { useStepper, Stepper } = defineStepper([
   {
     id: "version",
     title: "Version",
@@ -536,12 +536,12 @@ const { useStepper, Stepper } = defineStepper(
     Component: InstanceComponent,
     schema: instanceSchema,
   },
-);
+]);
 
 export function CreateInstancePage() {
   const { t } = useTranslation();
   const stepper = useStepper();
-  const schema = stepper.state.current.data.schema;
+  const schema = stepper.current.schema;
   const form = useForm<CreateInstanceFormData>({
     resolver: zodResolver(schema as never) as Resolver<CreateInstanceFormData>,
   });
@@ -570,10 +570,10 @@ export function CreateInstancePage() {
   const [isCreating, setIsCreating] = useState(false);
   const handleSubmit = useCallback(
     async (data: CreateInstanceFormData) => {
-      switch (stepper.state.current.data.id) {
+      switch (stepper.id) {
         case "version":
           setVersionId((data as z.infer<typeof versionSchema>).versionId);
-          return await stepper.navigation.next();
+          return await stepper.next();
         case "instance":
           setInstanceMeta(data as z.infer<typeof instanceSchema>);
       }
@@ -636,11 +636,10 @@ export function CreateInstancePage() {
         aria-label={t("create.title")}
         className="w-full flex list-none flex-row items-center justify-center px-6 mb-6"
       >
-        {stepper.state.all.map((step, idx) => {
-          const current = stepper.state.current;
-          const currentIndex = stepper.lookup.getIndex(current.data.id);
-          const isInactive = stepper.state.current.data.id !== step.id;
-          const isLast = stepper.lookup.getLast().id === step.id;
+        {stepper.steps.map((step, idx) => {
+          const currentIndex = stepper.index;
+          const isInactive = stepper.id !== step.id;
+          const isLast = idx === stepper.steps.length - 1;
           const canNavigate = idx <= currentIndex && !isCreating;
           return (
             <li
@@ -652,7 +651,7 @@ export function CreateInstancePage() {
                 type="button"
                 disabled={!canNavigate}
                 onClick={() => {
-                  void stepper.navigation.goTo(step.id);
+                  void stepper.goTo(step.id);
                 }}
                 className={cn(
                   "flex size-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
@@ -688,7 +687,7 @@ export function CreateInstancePage() {
       >
         <div className="flex-1 overflow-hidden w-full max-w-xl mx-auto">
           <VersionIdContext.Provider value={versionId}>
-            {stepper.flow.switch({
+            {stepper.match({
               version: ({ Component }) => <Component />,
               instance: ({ Component }) => <Component />,
             })}
@@ -707,7 +706,7 @@ export function CreateInstancePage() {
               </Button>
             )}
           />
-          {stepper.state.isLast ? (
+          {stepper.isLast ? (
             <Button type="submit" disabled={isCreating}>
               {isCreating ? (
                 <>
@@ -746,7 +745,7 @@ function PageWrapper() {
                 variant="secondary"
                 size="icon"
                 onClick={() => {
-                  if (stepper.state.isFirst) return navigate(-1);
+                  if (stepper.isFirst) return navigate(-1);
                   setShowCancelDialog(true);
                 }}
               >
