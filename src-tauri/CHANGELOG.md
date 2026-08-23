@@ -1,5 +1,13 @@
 # Changelog
 
+<!-- semifold:release version=0.2.0-rc.2 -->
+## v0.2.0-rc.2
+
+### Bug Fixes
+
+- [`37d7f9e`](https://github.com/HydroRoll-Team/DropOut/commit/37d7f9e20f653e203aff9667f59244ae6bcf467f): Align the Tauri CLI with the Rust runtime so Linux packages retain the bundle-type metadata required by the updater. ([#216](https://github.com/HydroRoll-Team/DropOut/pull/216) by @fu050409)
+<!-- semifold:release:end -->
+
 ## v0.2.0-rc.1
 
 ### New Features
