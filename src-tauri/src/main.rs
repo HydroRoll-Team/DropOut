@@ -365,6 +365,8 @@ async fn start_game(
         )
     );
 
+    let java_major =
+        core::java::validation::parse_java_version(&java_installation.version);
     let java_path_to_use = java_installation.path;
 
     // 2. Prepare download tasks
@@ -687,45 +689,10 @@ async fn start_game(
     args.push(format!("-Xms{}M", memory.applied_min_mb));
 
     // JVM GC preset args
-    match config.jvm_preset.as_str() {
-        "g1gc" => {
-            args.push("-XX:+UseG1GC".to_string());
-            args.push("-XX:+ParallelRefProcEnabled".to_string());
-            args.push("-XX:MaxGCPauseMillis=200".to_string());
-            args.push("-XX:+UnlockExperimentalVMOptions".to_string());
-            args.push("-XX:+DisableExplicitGC".to_string());
-            args.push("-XX:+AlwaysPreTouch".to_string());
-            args.push("-XX:G1NewSizePercent=30".to_string());
-            args.push("-XX:G1MaxNewSizePercent=40".to_string());
-            args.push("-XX:G1HeapRegionSize=8M".to_string());
-            args.push("-XX:G1ReservePercent=20".to_string());
-            args.push("-XX:G1HeapWastePercent=5".to_string());
-            args.push("-XX:G1MixedGCCountTarget=4".to_string());
-            args.push("-XX:InitiatingHeapOccupancyPercent=15".to_string());
-            args.push("-XX:G1MixedGCLiveThresholdPercent=90".to_string());
-            args.push("-XX:G1RSetUpdatingPauseTimePercent=5".to_string());
-            args.push("-XX:SurvivorRatio=32".to_string());
-            args.push("-XX:+PerfDisableSharedMem".to_string());
-            args.push("-XX:MaxTenuringThreshold=1".to_string());
-        }
-        "zgc" => {
-            args.push("-XX:+UseZGC".to_string());
-            args.push("-XX:+UnlockExperimentalVMOptions".to_string());
-            args.push("-XX:+ZGenerational".to_string());
-            args.push("-XX:+AlwaysPreTouch".to_string());
-            args.push("-XX:+DisableExplicitGC".to_string());
-        }
-        "shenandoah" => {
-            args.push("-XX:+UseShenandoahGC".to_string());
-            args.push("-XX:+UnlockExperimentalVMOptions".to_string());
-            args.push("-XX:+AlwaysPreTouch".to_string());
-            args.push("-XX:+DisableExplicitGC".to_string());
-            args.push("-XX:ShenandoahGCHeuristics=adaptive".to_string());
-        }
-        _ => {
-            // "default" — no extra GC args
-        }
-    }
+    args.extend(core::java::launch_args::jvm_gc_preset_args(
+        &config.jvm_preset,
+        java_major,
+    ));
 
     // Ensure natives path is set if not already in jvm args
     if !args.iter().any(|a| a.contains("-Djava.library.path")) {
