@@ -56,18 +56,20 @@ pub fn parse_version_string(output: &str) -> Option<String> {
 
 pub fn parse_java_version(version: &str) -> u32 {
     let parts: Vec<&str> = version.split('.').collect();
-    if let Some(first) = parts.first() {
-        // Handle both legacy (1.x) and modern (x) versioning
-        if *first == "1" {
-            // Legacy versioning
-            parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0)
-        } else {
-            // Modern versioning
-            first.parse().unwrap_or(0)
-        }
-    } else {
-        0
-    }
+    let major_component = match parts.first() {
+        Some(&"1") => parts.get(1).copied(),
+        Some(first) => Some(*first),
+        None => None,
+    };
+
+    major_component
+        .and_then(|component| {
+            let numeric_end = component
+                .find(|character: char| !character.is_ascii_digit())
+                .unwrap_or(component.len());
+            component[..numeric_end].parse().ok()
+        })
+        .unwrap_or(0)
 }
 
 pub fn extract_architecture(version_output: &str) -> String {
@@ -143,4 +145,34 @@ pub fn is_version_compatible(
         .unwrap_or(true);
     let meets_max = max_major_version.map(|m| major <= m).unwrap_or(true);
     meets_min && meets_max
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_java_version;
+
+    #[test]
+    fn parse_java_version_handles_modern_dotted_versions() {
+        assert_eq!(parse_java_version("21.0.8"), 21);
+        assert_eq!(parse_java_version("24.0.1"), 24);
+        assert_eq!(parse_java_version("26.0.2"), 26);
+    }
+
+    #[test]
+    fn parse_java_version_handles_early_access_suffixes() {
+        assert_eq!(parse_java_version("24-ea"), 24);
+        assert_eq!(parse_java_version("26-ea+10"), 26);
+    }
+
+    #[test]
+    fn parse_java_version_handles_legacy_versions() {
+        assert_eq!(parse_java_version("1.8.0_402"), 8);
+        assert_eq!(parse_java_version("1.8-ea"), 8);
+    }
+
+    #[test]
+    fn parse_java_version_returns_zero_for_unparseable_versions() {
+        assert_eq!(parse_java_version(""), 0);
+        assert_eq!(parse_java_version("ea"), 0);
+    }
 }

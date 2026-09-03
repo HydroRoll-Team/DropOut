@@ -93,6 +93,16 @@ mod tests {
     }
 
     #[test]
+    fn jvm_gc_preset_args_omits_zgenerational_for_jdk_26_early_access() {
+        let java_major = super::super::validation::parse_java_version("26-ea");
+
+        assert_eq!(
+            jvm_gc_preset_args("zgc", java_major),
+            expected_modern_zgc_args()
+        );
+    }
+
+    #[test]
     fn jvm_gc_preset_args_omits_zgenerational_on_future_jdks() {
         assert_eq!(jvm_gc_preset_args("zgc", 30), expected_modern_zgc_args());
     }
