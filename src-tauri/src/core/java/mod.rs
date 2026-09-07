@@ -4,6 +4,7 @@ use tauri::{AppHandle, Emitter, Manager};
 
 pub mod detection;
 pub mod error;
+pub mod launch_args;
 pub mod persistence;
 pub mod priority;
 pub mod provider;
