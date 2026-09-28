@@ -1,5 +1,7 @@
 use std::collections::BTreeSet;
 
+use dtor::dtor;
+
 #[derive(Debug)]
 pub struct ApiInfo {
     pub fn_name: &'static str,
@@ -91,7 +93,7 @@ pub fn export_api_bindings(import_from: &str, export_to: &str) {
     std::fs::write(export_to, ts_content).unwrap();
 }
 
-#[ctor::dtor]
-fn __dropout_export_api_bindings() {
+#[dtor]
+unsafe fn __dropout_export_api_bindings() {
     export_api_bindings("@/types", "../packages/ui/src/client.ts");
 }

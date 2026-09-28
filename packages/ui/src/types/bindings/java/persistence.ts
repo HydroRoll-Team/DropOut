@@ -3,5 +3,5 @@
 export type JavaConfig = {
   user_defined_paths: Array<string>;
   preferred_java_path: string | null;
-  last_detection_time: bigint;
+  last_detection_time: number;
 };

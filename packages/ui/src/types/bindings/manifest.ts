@@ -12,7 +12,7 @@ export type Version = {
    * Java version requirement (major version number)
    * This is populated from the version JSON file if the version is installed locally
    */
-  javaVersion: bigint | null;
+  javaVersion: number | null;
   /**
    * Whether this version is installed locally
    */

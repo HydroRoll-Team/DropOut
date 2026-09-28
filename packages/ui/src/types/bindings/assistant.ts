@@ -3,12 +3,12 @@
 export type AssistantLogContext = { content: string; lineCount: number };
 
 export type GenerationStats = {
-  totalDuration: bigint;
-  loadDuration: bigint;
-  promptEvalCount: bigint;
-  promptEvalDuration: bigint;
-  evalCount: bigint;
-  evalDuration: bigint;
+  totalDuration: number;
+  loadDuration: number;
+  promptEvalCount: number;
+  promptEvalDuration: number;
+  evalCount: number;
+  evalDuration: number;
 };
 
 export type Message = { role: string; content: string };

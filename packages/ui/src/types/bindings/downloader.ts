@@ -6,10 +6,10 @@
 export type DownloadMetadata = {
   url: string;
   fileName: string;
-  totalSize: bigint;
-  downloadedBytes: bigint;
+  totalSize: number;
+  downloadedBytes: number;
   checksum: string | null;
-  timestamp: bigint;
+  timestamp: number;
   segments: Array<DownloadSegment>;
 };
 
@@ -22,9 +22,9 @@ export type DownloadQueue = { pendingDownloads: Array<PendingJavaDownload> };
  * A download segment for multi-segment parallel downloading
  */
 export type DownloadSegment = {
-  start: bigint;
-  end: bigint;
-  downloaded: bigint;
+  start: number;
+  end: number;
+  downloaded: number;
   completed: boolean;
 };
 
@@ -40,10 +40,10 @@ export type DownloadTask = {
  */
 export type JavaDownloadProgress = {
   fileName: string;
-  downloadedBytes: bigint;
-  totalBytes: bigint;
-  speedBytesPerSec: bigint;
-  etaSeconds: bigint;
+  downloadedBytes: number;
+  totalBytes: number;
+  speedBytesPerSec: number;
+  etaSeconds: number;
   status: string;
   percentage: number;
 };
@@ -56,18 +56,18 @@ export type PendingJavaDownload = {
   imageType: string;
   downloadUrl: string;
   fileName: string;
-  fileSize: bigint;
+  fileSize: number;
   checksum: string | null;
   installPath: string;
-  createdAt: bigint;
+  createdAt: number;
 };
 
 export type ProgressEvent = {
   file: string;
-  downloaded: bigint;
-  total: bigint;
+  downloaded: number;
+  total: number;
   status: string;
   completedFiles: number;
   totalFiles: number;
-  totalDownloadedBytes: bigint;
+  totalDownloadedBytes: number;
 };

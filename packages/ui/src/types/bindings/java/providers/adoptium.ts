@@ -17,7 +17,7 @@ export type AdoptiumBinary = {
 export type AdoptiumPackage = {
   name: string;
   link: string;
-  size: bigint;
+  size: number;
   checksum: string | null;
 };
 

@@ -4,7 +4,7 @@ export type ModInfo = {
   fileName: string;
   filePath: string;
   enabled: boolean;
-  fileSize: bigint;
+  fileSize: number;
   modName: string | null;
   modId: string | null;
   version: string | null;

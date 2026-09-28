@@ -8,8 +8,8 @@ export type Instance = {
   name: string;
   gameDir: string;
   versionId: string | null;
-  createdAt: bigint;
-  lastPlayed: bigint | null;
+  createdAt: number;
+  lastPlayed: number | null;
   iconPath: string | null;
   notes: string | null;
   modLoader: string | null;

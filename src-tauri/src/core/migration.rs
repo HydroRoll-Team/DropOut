@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;
 use std::fs;
 use std::io;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -695,7 +696,7 @@ fn safe_archive_relative(name: &str) -> Option<PathBuf> {
     Some(path)
 }
 
-fn archive_entry_is_symlink(entry: &zip::read::ZipFile<'_>) -> bool {
+fn archive_entry_is_symlink(entry: &zip::read::ZipFile<'_, impl Read>) -> bool {
     entry
         .unix_mode()
         .map(|mode| mode & 0o170000 == 0o120000)

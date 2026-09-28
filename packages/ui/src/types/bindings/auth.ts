@@ -8,8 +8,8 @@ export type DeviceCodeResponse = {
   userCode: string;
   deviceCode: string;
   verificationUri: string;
-  expiresIn: bigint;
-  interval: bigint;
+  expiresIn: number;
+  interval: number;
   message: string | null;
 };
 
@@ -18,7 +18,7 @@ export type MicrosoftAccount = {
   uuid: string;
   accessToken: string;
   refreshToken: string | null;
-  expiresAt: bigint;
+  expiresAt: number;
 };
 
 export type MinecraftProfile = { id: string; name: string };
@@ -28,5 +28,5 @@ export type OfflineAccount = { username: string; uuid: string };
 export type TokenResponse = {
   access_token: string;
   refresh_token: string | null;
-  expires_in: bigint;
+  expires_in: number;
 };

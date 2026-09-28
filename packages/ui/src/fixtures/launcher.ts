@@ -39,7 +39,7 @@ const account: Account = {
   uuid: "4f47a0d1-58bb-4dfa-97ba-153cccfa4cf8",
   accessToken: "fixture-only",
   refreshToken: null,
-  expiresAt: 4_102_444_800n,
+  expiresAt: 4_102_444_800,
 };
 
 const accountSummary: AccountSummary = {
@@ -54,8 +54,8 @@ const readyInstance: Instance = {
   name: "Copper Valley",
   gameDir: "/fixtures/dropout/instances/copper-valley",
   versionId: "1.21.1",
-  createdAt: 1_735_689_600_000n,
-  lastPlayed: 1_786_464_000_000n,
+  createdAt: 1_735_689_600_000,
+  lastPlayed: 1_786_464_000_000,
   iconPath: null,
   notes: "A deterministic Fabric environment for UI development.",
   modLoader: "fabric",
@@ -73,7 +73,7 @@ const vanillaInstance: Instance = {
   name: "Vanilla Archive",
   gameDir: "/fixtures/dropout/instances/vanilla-archive",
   versionId: "1.20.6",
-  createdAt: 1_720_627_200_000n,
+  createdAt: 1_720_627_200_000,
   lastPlayed: null,
   notes: "Clean vanilla profile.",
   modLoader: null,
@@ -101,9 +101,9 @@ function createLibraryInstances(count: number): Instance[] {
       gameDir: `/fixtures/dropout/instances/library-${padded}`,
       versionId:
         index % 13 === 0 ? null : index % 4 === 0 ? "1.20.6" : "1.21.1",
-      createdAt: BigInt(1_735_689_600_000 - index * 86_400_000),
+      createdAt: 1_735_689_600_000 - index * 86_400_000,
       lastPlayed:
-        index % 9 === 0 ? null : BigInt(1_786_464_000_000 - index * 7_200_000),
+        index % 9 === 0 ? null : 1_786_464_000_000 - index * 7_200_000,
       notes:
         index % 4 === 0 ? "Automation and progression test environment." : null,
       modLoader: loader,
@@ -209,7 +209,7 @@ const javaCatalog: JavaCatalog = {
   releases: [],
   availableMajorVersions: [8, 17, 21],
   ltsVersions: [8, 17, 21],
-  cachedAt: 1_786_464_000_000n,
+  cachedAt: 1_786_464_000_000,
 };
 
 const versions: Version[] = [
@@ -219,7 +219,7 @@ const versions: Version[] = [
     url: "https://piston-meta.mojang.com/fixture/1.21.1.json",
     time: "2024-08-08T12:00:00Z",
     releaseTime: "2024-08-08T12:00:00Z",
-    javaVersion: 21n,
+    javaVersion: 21,
     isInstalled: true,
   },
   {
@@ -228,7 +228,7 @@ const versions: Version[] = [
     url: "https://piston-meta.mojang.com/fixture/1.20.6.json",
     time: "2024-04-29T12:00:00Z",
     releaseTime: "2024-04-29T12:00:00Z",
-    javaVersion: 21n,
+    javaVersion: 21,
     isInstalled: true,
   },
 ];
@@ -306,14 +306,14 @@ function migrationPreview(sourcePath: string): MigrationPreview {
       (instance) => instance.sourcePath === sourcePath,
     ) ?? importableInstances[0];
   const hasConflict = source.name === "Create Live";
-  const includedContent: ReadonlyArray<readonly [string, number, bigint]> = [
-    ["mods", 184, 782_237_696n],
-    ["resourcepacks", 6, 37_748_736n],
-    ["shaderpacks", 2, 15_728_640n],
-    ["saves", 91, 1_224_736_768n],
-    ["config", 63, 4_718_592n],
+  const includedContent: ReadonlyArray<readonly [string, number, number]> = [
+    ["mods", 184, 782_237_696],
+    ["resourcepacks", 6, 37_748_736],
+    ["shaderpacks", 2, 15_728_640],
+    ["saves", 91, 1_224_736_768],
+    ["config", 63, 4_718_592],
     ...(source.sourceKind === "version"
-      ? ([["version-metadata", 3, 18_874_368n]] as const)
+      ? ([["version-metadata", 3, 18_874_368]] as const)
       : []),
   ];
   const content = [
@@ -330,7 +330,7 @@ function migrationPreview(sourcePath: string): MigrationPreview {
       relativePath: "logs",
       disposition: "skip",
       fileCount: 27,
-      totalBytes: 14_680_064n,
+      totalBytes: 14_680_064,
       reason: "Generated session data",
     },
     {
@@ -338,7 +338,7 @@ function migrationPreview(sourcePath: string): MigrationPreview {
       relativePath: "assets",
       disposition: "skip",
       fileCount: 820,
-      totalBytes: 523_239_424n,
+      totalBytes: 523_239_424,
       reason: "Shared cache will be resolved by DropOut",
     },
     {
@@ -346,7 +346,7 @@ function migrationPreview(sourcePath: string): MigrationPreview {
       relativePath: "mods/external-library",
       disposition: "unsupported",
       fileCount: 1,
-      totalBytes: 0n,
+      totalBytes: 0,
       reason: "Symbolic links are not followed during migration",
     },
   ];
@@ -356,7 +356,7 @@ function migrationPreview(sourcePath: string): MigrationPreview {
   );
   const totalBytes = includedContent.reduce(
     (total, [, , bytes]) => total + bytes,
-    0n,
+    0,
   );
 
   return {
@@ -565,10 +565,10 @@ export async function fixtureListen<T>(
     queueMicrotask(() => {
       emitFixtureEvent<JavaDownloadProgress>("java-download-progress", {
         fileName: "OpenJDK21U-jre_aarch64_mac_hotspot_21.0.7_6.tar.gz",
-        downloadedBytes: 1_610_612_736n,
-        totalBytes: 2_147_483_648n,
-        speedBytesPerSec: 33_554_432n,
-        etaSeconds: 16n,
+        downloadedBytes: 1_610_612_736,
+        totalBytes: 2_147_483_648,
+        speedBytesPerSec: 33_554_432,
+        etaSeconds: 16,
         status: "Verifying",
         percentage: 125,
       });
@@ -680,7 +680,7 @@ export async function fixtureInvoke<T>(
             fixture.name !== "downloading" &&
             fixture.name !== "files-missing" &&
             requestedInstance?.versionId !== null,
-          requiredJavaMajor: 21n,
+          requiredJavaMajor: 21,
           java:
             fixture.name === "not-ready" ||
             String(args.instanceId).endsWith("017")
@@ -763,7 +763,7 @@ export async function fixtureInvoke<T>(
             progress: {
               completedFiles: 218,
               totalFiles: preview.totalFiles,
-              completedBytes: 943_718_400n,
+              completedBytes: 943_718_400,
               totalBytes: preview.totalBytes,
               currentPath: "saves/Automation District/region/r.0.0.mca",
             },
@@ -935,12 +935,12 @@ export async function fixtureInvoke<T>(
         emitFixtureEvent<number>("download-start", 4);
         emitFixtureEvent<ProgressEvent>("download-progress", {
           file: "client-1.21.1.jar",
-          downloaded: 64n,
-          total: 128n,
+          downloaded: 64,
+          total: 128,
           status: "Downloading",
           completedFiles: 2,
           totalFiles: 4,
-          totalDownloadedBytes: 192n,
+          totalDownloadedBytes: 192,
         });
         emitFixtureEvent<void>("download-complete", undefined);
         return undefined;
@@ -956,7 +956,7 @@ export async function fixtureInvoke<T>(
           fileName: `fixture-mod-${index + 1}.jar`,
           filePath: `/fixtures/mods/fixture-mod-${index + 1}.jar`,
           enabled: index % 5 !== 0,
-          fileSize: BigInt((index + 1) * 1024 * 1024),
+          fileSize: (index + 1) * 1024 * 1024,
           modName: `Fixture Mod ${index + 1}`,
           modId: `fixture_mod_${index + 1}`,
           version: "1.0.0",

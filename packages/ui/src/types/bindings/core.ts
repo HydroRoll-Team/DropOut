@@ -9,8 +9,8 @@ export type FileInfo = {
   name: string;
   path: string;
   isDirectory: boolean;
-  size: bigint;
-  modified: bigint;
+  size: number;
+  modified: number;
 };
 
 export type GameExitedEvent = {
@@ -41,7 +41,7 @@ export type InstalledVersion = { id: string; type: string };
  */
 export type LaunchReadiness = {
   versionInstalled: boolean;
-  requiredJavaMajor: bigint | null;
+  requiredJavaMajor: number | null;
   java: JavaInstallation | null;
   memory: MemoryAllocation;
 };
@@ -53,7 +53,7 @@ export type MigrationResult = {
   movedFiles: number;
   hardlinks: number;
   copies: number;
-  savedBytes: bigint;
+  savedBytes: number;
   savedMb: number;
 };
 
@@ -70,6 +70,6 @@ export type TrayDownloadStatus = {
  */
 export type VersionMetadata = {
   id: string;
-  javaVersion: bigint | null;
+  javaVersion: number | null;
   isInstalled: boolean;
 };

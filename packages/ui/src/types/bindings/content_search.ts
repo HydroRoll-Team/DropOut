@@ -13,7 +13,7 @@ export type ContentProject = {
    * One of: mod, modpack, shader, resourcepack, datapack, plugin
    */
   projectType: string;
-  downloads: bigint;
+  downloads: number;
   follows: number;
   categories: Array<string>;
   gameVersions: Array<string>;
@@ -57,7 +57,7 @@ export type ContentVersion = {
   loaders: Array<string>;
   fileUrl: string;
   fileName: string;
-  fileSize: bigint;
+  fileSize: number;
   datePublished: string;
 };
 

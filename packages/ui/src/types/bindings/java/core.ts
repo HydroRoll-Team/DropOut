@@ -4,7 +4,7 @@ export type JavaCatalog = {
   releases: Array<JavaReleaseInfo>;
   availableMajorVersions: Array<number>;
   ltsVersions: Array<number>;
-  cachedAt: bigint;
+  cachedAt: number;
 };
 
 export type JavaDownloadInfo = {
@@ -12,7 +12,7 @@ export type JavaDownloadInfo = {
   release_name: string;
   download_url: string;
   file_name: string;
-  file_size: bigint;
+  file_size: number;
   checksum: string | null;
   image_type: string;
 };
@@ -32,7 +32,7 @@ export type JavaReleaseInfo = {
   version: string;
   releaseName: string;
   releaseDate: string | null;
-  fileSize: bigint;
+  fileSize: number;
   checksum: string | null;
   downloadUrl: string;
   isLts: boolean;

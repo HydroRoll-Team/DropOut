@@ -8,14 +8,14 @@ export type Arguments = {
 export type AssetIndex = {
   id: string;
   sha1: string;
-  size: bigint;
+  size: number;
   url: string;
-  totalSize: bigint | null;
+  totalSize: number | null;
 };
 
 export type DownloadArtifact = {
   sha1: string | null;
-  size: bigint | null;
+  size: number | null;
   url: string;
   path: string | null;
 };
@@ -58,7 +58,7 @@ export type GameVersion = {
   type: string | null;
 };
 
-export type JavaVersion = { component: string; majorVersion: bigint };
+export type JavaVersion = { component: string; majorVersion: number };
 
 export type Library = {
   downloads: LibraryDownloads | null;

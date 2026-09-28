@@ -31,5 +31,5 @@ export type StoredMicrosoftAccount = {
   access_token: string;
   refresh_token: string | null;
   ms_refresh_token: string | null;
-  expires_at: bigint;
+  expires_at: number;
 };

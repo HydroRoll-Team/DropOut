@@ -73,13 +73,13 @@ type ReadinessState =
   | { status: "attention"; probe: LaunchReadiness | null }
   | { status: "error"; message: string };
 
-function timestampMs(value: bigint | null) {
+function timestampMs(value: number | null) {
   if (value === null) return 0;
   const numeric = Number(value);
   return numeric > 1e12 ? numeric : numeric * 1000;
 }
 
-function formatDate(value: bigint | null, locale: string) {
+function formatDate(value: number | null, locale: string) {
   if (value === null) return null;
   return new Intl.DateTimeFormat(locale, {
     year: "numeric",

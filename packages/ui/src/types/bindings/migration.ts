@@ -41,13 +41,13 @@ export type MigrationContentGroup = {
   relativePath: string;
   disposition: string;
   fileCount: number;
-  totalBytes: bigint;
+  totalBytes: number;
   reason: string | null;
 };
 
 export type MigrationCopyResult = {
   copiedFiles: number;
-  copiedBytes: bigint;
+  copiedBytes: number;
   skippedSymlinks: number;
   pendingRemoteFiles: number;
   importedIcon: string | null;
@@ -59,7 +59,7 @@ export type MigrationImportReport = {
   instanceName: string;
   sourcePath: string;
   copiedFiles: number;
-  copiedBytes: bigint;
+  copiedBytes: number;
   skippedSymlinks: number;
   warnings: Array<string>;
   compatibilityStatus: string;
@@ -76,15 +76,15 @@ export type MigrationPreview = {
   conflicts: Array<MigrationConflict>;
   warnings: Array<string>;
   totalFiles: number;
-  totalBytes: bigint;
+  totalBytes: number;
   canImport: boolean;
 };
 
 export type MigrationProgress = {
   completedFiles: number;
   totalFiles: number;
-  completedBytes: bigint;
-  totalBytes: bigint;
+  completedBytes: number;
+  totalBytes: number;
   currentPath: string;
 };
 

@@ -918,11 +918,11 @@ export function ImportWizard({
                     })}
                   </span>
                   <span>
-                    {formatBytes(progress?.progress.completedBytes ?? 0n)} /{" "}
+                    {formatBytes(progress?.progress.completedBytes ?? 0)} /{" "}
                     {formatBytes(
                       progress?.progress.totalBytes ??
                         currentPreview?.totalBytes ??
-                        0n,
+                        0,
                     )}
                   </span>
                 </div>
