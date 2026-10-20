@@ -26,6 +26,10 @@ permissions:
 
 jobs:
   smoke:
+    if: >-
+      github.repository == 'HydroRoll-Team/DropOut' &&
+      (github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == 'HydroRoll-Team/DropOut')
     name: Smoke dropout.hydroroll.team
     runs-on: ubuntu-latest
     timeout-minutes: 15
