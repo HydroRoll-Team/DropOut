@@ -1,7 +1,10 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "dropout",
+  "account_id": "d6b620c5ad2c4ca81de6c0b76c719995",
   "main": "./packages/docs/worker.ts",
+  // Inline theme scripts cannot reference Wrangler's Worker-only name helper.
+  "keep_names": false,
   "compatibility_date": "2026-07-14",
   "compatibility_flags": ["nodejs_compat"],
   "routes": [

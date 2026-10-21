@@ -20,8 +20,7 @@ asset binding, custom domain, compatibility date, and observability settings.
 Run these from the repository root:
 
 ```bash
-pnpm install
-pnpm -C packages/docs --lockfile-dir "$PWD" install
+pnpm install --frozen-lockfile
 pnpm docs:build
 pnpm deploy:docs:dry-run
 ```
@@ -31,8 +30,19 @@ and validates the Worker entry plus Static Assets binding without publishing.
 
 ## Production Deploy
 
-Cloudflare builds the Worker from GitHub. Manual deploys should use the pinned
-project Wrangler version:
+Cloudflare Workers Builds deploys `HydroRoll-Team/DropOut` from `main` to the
+`dropout` Worker. The build runs from the repository root with an empty build
+command and `pnpm deploy:docs` as the deploy command; Wrangler installs the
+workspace dependencies and builds the docs using its configured build command.
+Build variables pin `PNPM_VERSION=12.0.0-rc.6` and `NODE_VERSION=22`.
+
+Pushes trigger deployment when they change `packages/docs/**`, `wrangler.jsonc`,
+`package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, or
+`scripts/install-prek-hooks.mjs`. Other branches do not deploy to production.
+The Cloudflare connection stores the deployment API token; no token belongs in
+the repository or GitHub Actions configuration.
+
+Manual deploys should use the pinned project Wrangler version:
 
 ```bash
 pnpm deploy:docs
