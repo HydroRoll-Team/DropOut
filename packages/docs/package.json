@@ -15,26 +15,26 @@
   "dependencies": {
     "@react-router/node": "^8.4.0",
     "@react-router/serve": "^8.4.0",
-    "fumadocs-core": "16.15.12",
-    "fumadocs-mdx": "15.4.3",
-    "fumadocs-ui": "16.15.12",
+    "fumadocs-core": "16.17.6",
+    "fumadocs-mdx": "15.4.7",
+    "fumadocs-ui": "16.17.6",
     "isbot": "^5.2.2",
-    "mermaid": "^12.0.0",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
+    "mermaid": "^12.2.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "react-router": "^8.4.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.14",
+    "@biomejs/biome": "^2.5.15",
     "@react-router/dev": "^8.4.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/mdx": "^2.0.14",
-    "@types/node": "^26.6.2",
+    "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "react-router-devtools": "^6.2.3",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
-    "vite": "^8.3.0"
+    "vite": "^8.3.4"
   }
 }
