@@ -15,8 +15,9 @@ Download the latest prerelease for your platform from the [HydroRoll Team releas
 
 | Platform                 | Release asset          |
 | ------------------------ | ---------------------- |
-| Linux x86_64 (glibc)     | `.deb`, `.AppImage`    |
-| Linux ARM64 (glibc)      | `.deb`, `.AppImage`    |
+| Linux x86_64 (glibc)     | `.deb`, `.rpm`, `.AppImage` |
+| Linux ARM64 (glibc)      | `.deb`, `.rpm`, `.AppImage` |
+| Arch Linux (AUR)         | `dropout-bin` package  |
 | Alpine Linux x86_64      | `-musl.tar.gz` archive |
 | macOS x86_64             | `.dmg`                 |
 | macOS ARM64              | `.dmg`                 |
@@ -41,12 +42,28 @@ sudo dpkg -i Dropout_*.deb
 sudo apt-get install -f
 ```
 
+#### Using .rpm Package
+
+```bash
+sudo dnf install ./Dropout-*.rpm
+```
+
 #### Using AppImage
 
 ```bash
 chmod +x Dropout_*.AppImage
 ./Dropout_*.AppImage
 ```
+
+#### Using the AUR Package (Arch Linux)
+
+```bash
+yay -S dropout-bin
+# or
+paru -S dropout-bin
+```
+
+The `dropout-bin` package is published by this repository's release workflow and tracks the latest release.
 
 #### Using the Alpine Linux musl archive
 
@@ -60,7 +77,7 @@ cd Dropout_*-musl
 ./dropout
 ```
 
-The checksum command verifies the packaged archive before extraction. The musl archive is dynamically linked against Alpine packages. Use the AppImage or `.deb` package on glibc distributions such as Ubuntu, Debian, Fedora, or Arch Linux.
+The checksum command verifies the packaged archive before extraction. The musl archive is dynamically linked against Alpine packages. Use the AppImage, `.deb`, `.rpm`, or AUR package on glibc distributions such as Ubuntu, Debian, Fedora, or Arch Linux.
 
 ### macOS Installation
 

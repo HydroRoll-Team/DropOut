@@ -72,6 +72,44 @@ The Rust core owns side effects. The React UI invokes Tauri commands and renders
 
 ---
 
+## Install
+
+Prebuilt DropOut bundles are published on the [releases page](https://github.com/HydroRoll-Team/DropOut/releases). Running the launcher does not require Rust or Node.js; those are only needed for the [development build](#quick-start).
+
+| Platform | Architecture | Download | Install |
+|---|---|---|---|
+| Windows 10/11 | x86_64, ARM64 | NSIS `-setup.exe` | Run the installer, then launch DropOut from the Start menu. |
+| macOS | Apple Silicon, Intel | `.dmg` | Open the disk image and drag DropOut into `Applications`. If macOS blocks the first launch, allow it in System Settings → Privacy & Security. |
+| Debian / Ubuntu | x86_64, ARM64 | `.deb` | `sudo dpkg -i Dropout_*.deb`, then `sudo apt-get install -f` if dependencies are missing. |
+| Fedora / RHEL | x86_64, ARM64 | `.rpm` | `sudo dnf install ./Dropout-*.rpm` |
+| Any glibc Linux | x86_64, ARM64 | `.AppImage` | `chmod +x Dropout_*.AppImage && ./Dropout_*.AppImage` |
+| Arch Linux | x86_64, ARM64 | AUR `dropout-bin` | `yay -S dropout-bin` (or `paru -S dropout-bin`) |
+| Alpine Linux 3.22 | x86_64 | `-musl.tar.gz` | Install the runtime libraries, verify the checksum, extract, and run `./dropout` (see below). |
+
+Asset names embed the version and architecture, for example `Dropout_0.2.0-rc.2_amd64.AppImage`; pick the file matching your OS and your CPU suffix (`x64`/`amd64`/`x86_64` or `arm64`/`aarch64`).
+
+Every desktop asset has signed GitHub build provenance, so you can verify that it came from this repository's release workflow before installing:
+
+```bash
+gh attestation verify ./downloaded-asset -R HydroRoll-Team/DropOut
+```
+
+Alpine Linux needs the native WebKitGTK libraries before the musl archive can start:
+
+```bash
+sudo apk add ca-certificates gtk+3.0 libayatana-appindicator librsvg openssl webkit2gtk-4.1
+sha256sum -c Dropout_*-musl.tar.gz.sha256
+tar -xzf Dropout_*-musl.tar.gz
+cd Dropout_*-musl
+./dropout
+```
+
+The musl archive is dynamically linked against Alpine packages; on glibc distributions use the AppImage, `.deb`, or `.rpm` instead. To build a bundle yourself, see [Build A Desktop Release](#build-a-desktop-release).
+
+Step-by-step install instructions, a first-launch walkthrough, and troubleshooting live in the documentation: [English](https://dropout.hydroroll.team/en/docs/manual/getting-started) · [简体中文](https://dropout.hydroroll.team/docs/manual/getting-started).
+
+---
+
 ## Quick Start
 
 ### Prerequisites
