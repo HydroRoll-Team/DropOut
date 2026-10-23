@@ -98,9 +98,9 @@ Alpine Linux needs the native WebKitGTK libraries before the musl archive can st
 
 ```bash
 sudo apk add ca-certificates gtk+3.0 libayatana-appindicator librsvg openssl webkit2gtk-4.1
-sha256sum -c Dropout_*-musl.tar.gz.sha256
-tar -xzf Dropout_*-musl.tar.gz
-cd Dropout_*-musl
+sha256sum -c Dropout_*-musl.tar.gz.sha256 &&
+tar -xzf Dropout_*-musl.tar.gz &&
+cd Dropout_*-musl &&
 ./dropout
 ```
 
