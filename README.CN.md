@@ -72,6 +72,44 @@ Rust 核心负责副作用。React UI 调用 Tauri 命令并渲染状态。文�
 
 ---
 
+## 安装
+
+DropOut 的预编译安装包发布在 [Releases 页面](https://github.com/HydroRoll-Team/DropOut/releases)。使用启动器不需要 Rust 或 Node.js，这些只在[从源码构建](#快速开始)时才需要。
+
+| 平台 | 架构 | 下载 | 安装方式 |
+|---|---|---|---|
+| Windows 10/11 | x86_64、ARM64 | NSIS `-setup.exe` | 运行安装程序，然后从开始菜单启动 DropOut。 |
+| macOS | Apple Silicon、Intel | `.dmg` | 打开磁盘映像，把 DropOut 拖进 `Applications`。如果首次启动被系统拦截，在「系统设置 → 隐私与安全性」中允许运行。 |
+| Debian / Ubuntu | x86_64、ARM64 | `.deb` | `sudo dpkg -i Dropout_*.deb`，缺依赖时再执行 `sudo apt-get install -f`。 |
+| Fedora / RHEL | x86_64、ARM64 | `.rpm` | `sudo dnf install ./Dropout-*.rpm` |
+| 任意 glibc Linux | x86_64、ARM64 | `.AppImage` | `chmod +x Dropout_*.AppImage && ./Dropout_*.AppImage` |
+| Arch Linux | x86_64、ARM64 | AUR `dropout-bin` | `yay -S dropout-bin`（或 `paru -S dropout-bin`） |
+| Alpine Linux 3.22 | x86_64 | `-musl.tar.gz` | 先装运行库、校验并解压，再运行 `./dropout`（见下）。 |
+
+安装包文件名里包含版本和架构，例如 `Dropout_0.2.0-rc.2_amd64.AppImage`；按操作系统和 CPU 后缀（`x64`/`amd64`/`x86_64` 或 `arm64`/`aarch64`）选择对应文件。
+
+所有桌面安装包都带有签名构建来源证明，安装前可以校验它确实由本仓库的发布流程产出：
+
+```bash
+gh attestation verify ./downloaded-asset -R HydroRoll-Team/DropOut
+```
+
+Alpine Linux 需要先安装原生 WebKitGTK 运行库，musl 包才能运行：
+
+```bash
+sudo apk add ca-certificates gtk+3.0 libayatana-appindicator librsvg openssl webkit2gtk-4.1
+sha256sum -c Dropout_*-musl.tar.gz.sha256
+tar -xzf Dropout_*-musl.tar.gz
+cd Dropout_*-musl
+./dropout
+```
+
+musl 包动态链接 Alpine 的软件包，在 glibc 发行版上请改用 AppImage、`.deb` 或 `.rpm`。想自己打包，见[构建桌面发布包](#构建桌面发布包)。
+
+分平台的详细安装步骤、首次启动流程和故障排查见文档：[简体中文](https://dropout.hydroroll.team/docs/manual/getting-started) · [English](https://dropout.hydroroll.team/en/docs/manual/getting-started)。
+
+---
+
 ## 快速开始
 
 ### 前置条件
