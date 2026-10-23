@@ -15,8 +15,9 @@ DropOut 是一个使用 Tauri v2 构建的现代化、可复现、开发者级�
 
 | 平台                     | 发布产物               |
 | ------------------------ | ---------------------- |
-| Linux x86_64（glibc）    | `.deb`、`.AppImage`    |
-| Linux ARM64（glibc）     | `.deb`、`.AppImage`    |
+| Linux x86_64（glibc）    | `.deb`、`.rpm`、`.AppImage` |
+| Linux ARM64（glibc）     | `.deb`、`.rpm`、`.AppImage` |
+| Arch Linux（AUR）        | `dropout-bin` 包       |
 | Alpine Linux x86_64      | `-musl.tar.gz` 压缩包  |
 | macOS x86_64             | `.dmg`                 |
 | macOS ARM64              | `.dmg`                 |
@@ -41,12 +42,28 @@ sudo dpkg -i Dropout_*.deb
 sudo apt-get install -f
 ```
 
+#### 使用 .rpm 包
+
+```bash
+sudo dnf install ./Dropout-*.rpm
+```
+
 #### 使用 AppImage
 
 ```bash
 chmod +x Dropout_*.AppImage
 ./Dropout_*.AppImage
 ```
+
+#### 使用 AUR 包（Arch Linux）
+
+```bash
+yay -S dropout-bin
+# 或
+paru -S dropout-bin
+```
+
+`dropout-bin` 包由本仓库的发布工作流推送，跟随最新版本。
 
 #### 使用 Alpine Linux musl 压缩包
 
@@ -60,7 +77,7 @@ cd Dropout_*-musl
 ./dropout
 ```
 
-校验命令会在解压前验证发布包的完整性。musl 压缩包会动态链接 Alpine 软件包。在 Ubuntu、Debian、Fedora 或 Arch Linux 等 glibc 发行版上，请使用 AppImage 或 `.deb` 包。
+校验命令会在解压前验证发布包的完整性。musl 压缩包会动态链接 Alpine 软件包。在 Ubuntu、Debian、Fedora 或 Arch Linux 等 glibc 发行版上，请改用 AppImage、`.deb`、`.rpm` 包或 AUR 包。
 
 ### macOS 安装
 
