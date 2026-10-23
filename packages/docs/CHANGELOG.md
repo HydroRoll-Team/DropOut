@@ -1,5 +1,13 @@
 # Changelog
 
+<!-- semifold:release version=0.1.0-rc.3 -->
+## v0.1.0-rc.3
+
+### Chores
+
+- [`12861e5`](https://github.com/HydroRoll-Team/DropOut/commit/12861e5daab3459d9d3246c50f12610140b9d549): Document per-platform installation and download steps in the getting-started guide, covering Windows, macOS, Debian/Ubuntu, Fedora/RHEL, AppImage, AUR, and the Alpine musl archive, plus asset verification and first-launch troubleshooting. ([#228](https://github.com/HydroRoll-Team/DropOut/pull/228) by @hydroroll-bot)
+<!-- semifold:release:end -->
+
 <!-- semifold:release version=0.1.0-rc.2 -->
 ## v0.1.0-rc.2
 
