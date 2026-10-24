@@ -1,5 +1,4 @@
 import {
-  ArrowLeftIcon,
   PackageIcon,
   RefreshCwIcon,
   SearchIcon,
@@ -10,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 import { deleteMod, getInstance, scanInstanceMods, toggleMod } from "@/client";
+import { PageHeader } from "@/components/deco/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -100,19 +100,19 @@ export default function ModsPage() {
   };
 
   return (
-    <div className="flex flex-col h-full p-6 space-y-4">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
-          <ArrowLeftIcon className="size-4" />
-        </Button>
-        <div>
-          <h1 className="text-xl font-bold">{t("mods.title")}</h1>
-          {instance && (
-            <p className="text-sm text-muted-foreground">{instance.name}</p>
-          )}
-        </div>
-      </div>
+    <div className="flex h-full flex-col space-y-4 px-6 pt-4 pb-6">
+      <PageHeader
+        index="02"
+        title={t("mods.title")}
+        backLabel={t("common.back")}
+        onBack={() => navigate(-1)}
+        eyebrow={
+          <>
+            <span className="type-pixel text-[11px]">02.2</span>
+            <span className="truncate">{instance?.name ?? "—"}</span>
+          </>
+        }
+      />
 
       {/* Toolbar */}
       <div className="flex items-center gap-2">
@@ -131,7 +131,7 @@ export default function ModsPage() {
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto space-y-1">
+      <div className="flex-1 overflow-y-auto pt-px">
         {loading && mods.length === 0 && (
           <p className="text-center text-muted-foreground py-12">
             {t("mods.loading")}
@@ -146,7 +146,7 @@ export default function ModsPage() {
         {filtered.map((mod) => (
           <div
             key={mod.fileName}
-            className="flex items-center gap-3 px-4 py-3 rounded-lg bg-card/50 hover:bg-card/80 transition-colors"
+            className="flex items-center gap-3 px-4 py-3 -mt-px border border-rule bg-sheet transition-colors hover:bg-paper-2"
           >
             <Switch
               checked={mod.enabled}

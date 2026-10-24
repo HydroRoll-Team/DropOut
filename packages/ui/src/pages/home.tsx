@@ -1,30 +1,19 @@
-import {
-  AlertTriangle,
-  Blocks,
-  Box,
-  Check,
-  ChevronRight,
-  CircleDashed,
-  Coffee,
-  Download,
-  FolderOpen,
-  HardDrive,
-  MemoryStick,
-  Play,
-  RefreshCw,
-  ScrollText,
-  Settings2,
-  Sparkles,
-  Square,
-  UserRound,
-  Wrench,
-  X,
-} from "lucide-react";
+import { FolderOpen, Settings2, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { getLaunchReadiness, installVersion, openFileExplorer } from "@/client";
+import { DisplayTitle } from "@/components/deco/display-title";
+import { DitherSky } from "@/components/deco/dither-sky";
+import {
+  DimensionLine,
+  GlyphCallout,
+  Leader,
+  SegBar,
+} from "@/components/deco/marks";
+import { DaylightWidget, DropoutWidget } from "@/components/deco/widgets";
+import { Win } from "@/components/deco/win";
 import { DownloadMonitor } from "@/components/download-monitor";
 import { LoginModal } from "@/components/login-modal";
 import { Button } from "@/components/ui/button";
@@ -53,16 +42,7 @@ interface ReadinessCheck {
   label: string;
   value: string;
   tone: CheckTone;
-  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
 }
-
-const toneStyles: Record<CheckTone, string> = {
-  pass: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  warn: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
-  fail: "bg-red-500/10 text-red-700 dark:text-red-300",
-  pending: "bg-sky-500/10 text-sky-700 dark:text-sky-300",
-  neutral: "bg-muted text-muted-foreground",
-};
 
 function formatMemory(megabytes: number) {
   if (megabytes >= 1024) {
@@ -72,42 +52,59 @@ function formatMemory(megabytes: number) {
   return `${megabytes} MB`;
 }
 
-function CheckStatusIcon({ tone }: { tone: CheckTone }) {
-  if (tone === "pass") return <Check className="size-3" aria-hidden="true" />;
-  if (tone === "fail") return <X className="size-3" aria-hidden="true" />;
-  if (tone === "warn") {
-    return <AlertTriangle className="size-3" aria-hidden="true" />;
-  }
-  return <CircleDashed className="size-3" aria-hidden="true" />;
-}
+/* 状态方块：过 = 实心绿，堵 = 实心红，要处理 = 黄，检查中 = 虚线框，不适用 = 空框 */
+const toneSquare: Record<CheckTone, string> = {
+  pass: "bg-go border-rule",
+  fail: "bg-fault border-rule",
+  warn: "bg-warn border-rule",
+  pending: "border-dashed border-rule animate-pulse motion-reduce:animate-none",
+  neutral: "border-rule",
+};
 
-function ReadinessItem({ check }: { check: ReadinessCheck }) {
+function ReadinessRow({ check }: { check: ReadinessCheck }) {
   const { t } = useTranslation();
-  const Icon = check.icon;
 
   return (
-    <li className="border-border/60 bg-background/45 flex min-w-0 items-center gap-2.5 border px-2.5 py-2">
+    <li className="flex min-w-0 items-center gap-2 border-b border-dashed border-rule/35 py-[3px] text-[12px] leading-4 last:border-b-0">
       <span
-        className={cn(
-          "flex size-7 shrink-0 items-center justify-center rounded-md",
-          toneStyles[check.tone],
-        )}
-      >
-        <Icon className="size-3.5" aria-hidden="true" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-muted-foreground text-[10px] font-semibold tracking-[0.08em] uppercase">
-          {check.label}
-        </p>
-        <p className="truncate text-[11px] font-medium" title={check.value}>
-          {check.value}
-        </p>
-      </div>
-      <span className={cn("rounded-full p-1", toneStyles[check.tone])}>
-        <CheckStatusIcon tone={check.tone} />
-        <span className="sr-only">{t(`home.checkTone.${check.tone}`)}</span>
-      </span>
+        aria-hidden="true"
+        className={cn("size-2.5 shrink-0 border", toneSquare[check.tone])}
+      />
+      <Leader
+        className="min-w-0 flex-1"
+        label={
+          <span className="type-pixel text-[11px] uppercase">
+            {check.label}
+          </span>
+        }
+        value={
+          <span
+            className={cn(
+              "text-[12px] font-medium",
+              check.tone === "fail" && "text-fault",
+            )}
+            title={check.value}
+          >
+            {check.value}
+          </span>
+        }
+      />
+      <span className="sr-only">{t(`home.checkTone.${check.tone}`)}</span>
     </li>
+  );
+}
+
+/* jev 的「▶▶▶ Open Roles」 */
+function TripleArrow({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 36 12"
+      className={cn("h-[0.42em] w-auto shrink-0", className)}
+      fill="currentColor"
+    >
+      <path d="M0 0l10 6-10 6zM12 0l10 6-10 6zM24 0l10 6-10 6z" />
+    </svg>
   );
 }
 
@@ -115,6 +112,7 @@ export function HomePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const activityRef = useRef<HTMLElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
 
   const account = useAuthStore((state) => state.account);
   const authStatus = useAuthStore((state) => state.status);
@@ -237,21 +235,18 @@ export function HomePage() {
         label: t("home.check.account"),
         value: account?.username ?? t("home.value.notSignedIn"),
         tone: account ? "pass" : "fail",
-        icon: UserRound,
       },
       {
         id: "instance",
         label: t("home.check.instance"),
         value: activeInstance?.name ?? t("home.value.noInstance"),
         tone: instanceReady ? "pass" : "fail",
-        icon: Box,
       },
       {
         id: "version",
         label: t("home.check.version"),
         value: activeInstance?.versionId ?? t("home.value.noVersion"),
         tone: versionReady ? "pass" : "fail",
-        icon: Blocks,
       },
       {
         id: "loader",
@@ -262,7 +257,6 @@ export function HomePage() {
             ? t("home.value.vanilla")
             : t("home.value.notConfigured"),
         tone: versionReady ? "pass" : "neutral",
-        icon: Settings2,
       },
       {
         id: "java",
@@ -283,7 +277,6 @@ export function HomePage() {
             : versionReady
               ? "fail"
               : "neutral",
-        icon: Coffee,
       },
       {
         id: "memory",
@@ -303,7 +296,6 @@ export function HomePage() {
               : memoryValid
                 ? "pass"
                 : "fail",
-        icon: MemoryStick,
       },
       {
         id: "files",
@@ -324,7 +316,6 @@ export function HomePage() {
             : probeLoading
               ? "pending"
               : "warn",
-        icon: HardDrive,
       },
     ];
   }, [
@@ -475,32 +466,11 @@ export function HomePage() {
     }
   }, [activeInstance, t]);
 
-  const actionIcon = (() => {
-    if (
-      actionPending ||
-      stoppingInstanceId !== null ||
-      homeState === "checking" ||
-      homeState === "launching"
-    ) {
-      return <Spinner />;
-    }
-    if (homeState === "running") return <Square aria-hidden="true" />;
-    if (homeState === "failed") return <ScrollText aria-hidden="true" />;
-    if (homeState === "data-error") return <RefreshCw aria-hidden="true" />;
-    if (
-      homeState === "java-missing" ||
-      homeState === "memory-invalid" ||
-      homeState === "version-missing"
-    ) {
-      return <Wrench aria-hidden="true" />;
-    }
-    if (homeState === "files-missing" || homeState === "downloading") {
-      return <Download aria-hidden="true" />;
-    }
-    if (homeState === "no-account") return <UserRound aria-hidden="true" />;
-    if (homeState === "no-instance") return <Box aria-hidden="true" />;
-    return <Play aria-hidden="true" />;
-  })();
+  const actionPendingVisual =
+    actionPending ||
+    stoppingInstanceId !== null ||
+    homeState === "checking" ||
+    homeState === "launching";
 
   const primaryDisabled =
     actionPending ||
@@ -508,158 +478,235 @@ export function HomePage() {
     homeState === "checking" ||
     homeState === "launching";
 
+  const readyCount = readinessChecks.filter(
+    (check) => check.tone === "pass",
+  ).length;
+  const blocked =
+    homeState === "failed" ||
+    homeState === "data-error" ||
+    homeState === "memory-invalid";
+
   return (
-    <div className="custom-scrollbar relative z-10 h-full overflow-y-auto">
-      <div className="mx-auto flex min-h-full max-w-6xl flex-col gap-3 p-3 sm:p-4">
-        <header className="flex items-center justify-between gap-3 px-0.5">
-          <div className="flex items-center gap-2">
-            <span className="bg-foreground size-1.5 rounded-full" />
-            <span className="text-foreground/70 font-mono text-[10px] font-bold tracking-[0.18em] uppercase">
-              {t("home.commandCenter")}
+    <div className="relative h-full overflow-x-hidden overflow-y-auto">
+      {/* 色场：抖色天空铺满宽度、高度固定（默认窗口内容区的一半），往下散成纸面 */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 h-[355.5px]"
+      >
+        <DitherSky />
+      </div>
+
+      {/*
+       * 两栏都是固定宽：左栏 551 贴左，右边那叠窗口 388 贴右，中间是留白。
+       * 窗口比默认（1024）窄时只有右栏变窄，左栏和标题不动。
+       */}
+      <div
+        className="relative grid min-h-full grid-cols-[551px_minmax(20px,1fr)_minmax(0,388px)] px-6 pt-4 pb-10"
+        data-tour="bottom-bar"
+      >
+        {/* ---------- 左：标题 / 说明 / 主操作 / 日志 ---------- */}
+        <div className="col-start-1 flex min-w-0 flex-col">
+          <p className="tag self-start text-[13px]">
+            <span className="shrink-0">{stateCopy.eyebrow}</span>
+            <span aria-hidden="true" className="leader w-16" />
+            <span className="max-w-56 truncate">
+              {activeInstance?.name ?? t("home.value.noInstance")}
             </span>
-          </div>
-          <span className="border-border/70 bg-card/70 text-muted-foreground border px-2 py-1 font-mono text-[9px] tracking-wider uppercase backdrop-blur-md">
-            {t("home.readinessProtocol")}
-          </span>
-        </header>
+            <span aria-hidden="true" className="ml-1 size-2 bg-signal" />
+          </p>
 
-        <div className="grid flex-1 grid-cols-[minmax(0,1.35fr)_minmax(220px,0.75fr)] items-start gap-3">
-          <div className="flex min-w-0 flex-col gap-3">
-            <section
-              aria-labelledby="launch-state-title"
-              className={cn(
-                "border-border/80 bg-card/88 relative overflow-hidden border p-4 shadow-lg backdrop-blur-xl",
-                "before:bg-primary before:absolute before:inset-y-0 before:left-0 before:w-1",
-                homeState === "failed" && "before:bg-red-500",
-                (homeState === "java-missing" ||
-                  homeState === "files-missing" ||
-                  homeState === "memory-invalid") &&
-                  "before:bg-amber-500",
-                homeState === "running" && "before:bg-emerald-500",
+          <div className="relative mt-10">
+            {/* 一块被丢掉的方块：只剩虚线框，压在标题后面 */}
+            <span
+              aria-hidden="true"
+              className="dropped absolute top-10 right-[8%] h-[46%] w-[22%] rotate-[-4deg]"
+            />
+            <DisplayTitle
+              ref={titleRef}
+              id="launch-state-title"
+              text={stateCopy.title}
+              className="relative w-fit max-w-full text-[74px]"
+            />
+            <GlyphCallout target={titleRef} label="DROPPED · p=0.50" />
+            <DimensionLine target={titleRef} className="mt-3" />
+          </div>
+
+          <div className="mt-5 grid grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)] gap-5">
+            <div className="col-rule">
+              <p className="type-pixel text-[11px] text-ink/70">
+                {t("home.commandCenter")}
+              </p>
+              <p className="mt-2 max-w-[44ch] text-[15px] leading-snug">
+                {stateCopy.description}
+              </p>
+            </div>
+            <div className="col-rule-dashed">
+              <p className="type-pixel text-[11px] text-ink/70">
+                {t("home.readinessProtocol")}
+              </p>
+              {errorDetail && blocked ? (
+                <p className="type-mono mt-2 line-clamp-4 border-l-4 border-fault pl-2 text-[11px] leading-snug text-fault">
+                  {errorDetail}
+                </p>
+              ) : (
+                <p className="type-mono mt-2 text-[11px] leading-snug text-ink/70 uppercase">
+                  {[
+                    activeInstance?.versionId ?? t("home.value.noVersion"),
+                    activeInstance?.modLoader
+                      ? `${activeInstance.modLoader} ${activeInstance.modLoaderVersion ?? ""}`.trim()
+                      : t("home.value.vanilla"),
+                    probe?.java ? `Java ${probe.java.version}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" / ")}
+                </p>
               )}
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="text-primary mb-1.5 font-mono text-[10px] font-bold tracking-[0.16em] uppercase">
-                    {stateCopy.eyebrow}
-                  </p>
-                  <h1
-                    id="launch-state-title"
-                    className="text-foreground text-2xl font-black tracking-[-0.04em] sm:text-3xl"
-                  >
-                    {stateCopy.title}
-                  </h1>
-                  <p className="text-muted-foreground mt-1.5 max-w-xl text-xs leading-relaxed">
-                    {stateCopy.description}
-                  </p>
-                </div>
-                <span
-                  className={cn(
-                    "hidden size-11 shrink-0 items-center justify-center rounded-full sm:flex",
-                    homeState === "ready" || homeState === "running"
-                      ? toneStyles.pass
-                      : homeState === "failed" ||
-                          homeState === "data-error" ||
-                          homeState === "memory-invalid"
-                        ? toneStyles.fail
-                        : toneStyles.pending,
-                  )}
-                  aria-hidden="true"
-                >
-                  {homeState === "ready" ? (
-                    <Check className="size-5" />
-                  ) : homeState === "failed" ||
-                    homeState === "memory-invalid" ? (
-                    <AlertTriangle className="size-5" />
-                  ) : (
-                    <CircleDashed className="size-5" />
-                  )}
-                </span>
-              </div>
-
-              {errorDetail &&
-                (homeState === "failed" || homeState === "data-error") && (
-                  <p className="border-red-500/20 bg-red-500/8 text-red-800 dark:text-red-200 mt-3 truncate border px-2.5 py-2 font-mono text-[10px]">
-                    {errorDetail}
-                  </p>
-                )}
-
-              <Button
-                className={cn(
-                  "mt-4 min-w-44 justify-between shadow-md",
-                  (homeState === "ready" || homeState === "stopped") &&
-                    "bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-700",
-                )}
-                variant={homeState === "running" ? "destructive" : "default"}
-                size="lg"
-                disabled={primaryDisabled}
-                onClick={() => void handlePrimaryAction()}
-                data-tour="launch-button"
-              >
-                <span className="flex items-center gap-2">
-                  {actionIcon}
-                  {stateCopy.action}
-                </span>
-                {!primaryDisabled && homeState !== "running" && (
-                  <ChevronRight className="size-4" aria-hidden="true" />
-                )}
-              </Button>
-            </section>
-
-            <section
-              aria-labelledby="readiness-title"
-              className="border-border/80 bg-card/82 border p-3 shadow-sm backdrop-blur-xl"
-            >
-              <div className="mb-2.5 flex items-end justify-between gap-3">
-                <div>
-                  <h2 id="readiness-title" className="text-xs font-bold">
-                    {t("home.readinessTitle")}
-                  </h2>
-                  <p className="text-muted-foreground mt-0.5 text-[10px]">
-                    {t("home.readinessDescription")}
-                  </p>
-                </div>
-                <span className="text-muted-foreground font-mono text-[9px] uppercase">
-                  {t("home.checksCount", {
-                    ready: readinessChecks.filter(
-                      (check) => check.tone === "pass",
-                    ).length,
-                    total: readinessChecks.length,
-                  })}
-                </span>
-              </div>
-              <ul className="grid grid-cols-2 gap-1.5">
-                {readinessChecks.map((check) => (
-                  <ReadinessItem key={check.id} check={check} />
-                ))}
-              </ul>
-            </section>
+            </div>
           </div>
 
-          <aside className="flex min-w-0 flex-col gap-3">
-            <section
-              aria-labelledby="active-instance-title"
-              className="border-border/80 bg-card/88 border p-3 shadow-sm backdrop-blur-xl"
-              data-tour="instance-selector"
+          <div className="mt-6 flex items-center gap-4">
+            <button
+              type="button"
+              className={cn(
+                "group/cta flex cursor-pointer items-center gap-3 text-[37px] leading-none outline-none disabled:cursor-not-allowed disabled:opacity-40",
+                "focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring",
+                homeState === "running" && "text-fault",
+              )}
+              disabled={primaryDisabled}
+              onClick={() => void handlePrimaryAction()}
+              data-tour="launch-button"
             >
-              <div className="mb-2.5 flex items-center justify-between gap-2">
-                <div>
-                  <p className="text-muted-foreground font-mono text-[9px] font-bold tracking-[0.12em] uppercase">
-                    {t("home.activeInstance")}
-                  </p>
-                  <h2
-                    id="active-instance-title"
-                    className="mt-0.5 text-sm font-bold"
-                  >
-                    {activeInstance?.name ?? t("home.value.noInstance")}
-                  </h2>
-                </div>
-                <Box
-                  className="text-muted-foreground size-4"
+              {actionPendingVisual ? (
+                <Spinner className="size-[0.6em]" />
+              ) : homeState === "running" ? (
+                <span
                   aria-hidden="true"
+                  className="size-[0.42em] shrink-0 bg-current"
                 />
-              </div>
+              ) : (
+                <TripleArrow className="transition-transform duration-150 group-hover/cta:translate-x-1" />
+              )}
+              <span className="cta-underline">{stateCopy.action}</span>
+            </button>
+          </div>
 
+          {downloadActive || downloadTotalFiles > 0 ? (
+            <div className="mt-7">
+              <DownloadMonitor />
+              {downloadActive && (
+                <p className="type-pixel mt-1.5 text-[11px] text-ink/70">
+                  {t("home.downloadFiles", {
+                    completed: downloadCompletedFiles,
+                    total: downloadTotalFiles,
+                  })}
+                </p>
+              )}
+            </div>
+          ) : (
+            <Win
+              ref={activityRef}
+              tabIndex={-1}
+              aria-labelledby="activity-title"
+              title="SESSION.LOG"
+              meta={homeState.toUpperCase()}
+              className="mt-7 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
+              <div className="flex items-baseline justify-between gap-3 border-b border-rule px-2.5 py-1.5">
+                <h2
+                  id="activity-title"
+                  className="font-display text-[15px] font-semibold tracking-[-0.03em]"
+                >
+                  {homeState === "failed"
+                    ? t("home.failureDetails")
+                    : t("home.sessionLog")}
+                </h2>
+                <span className="type-pixel text-[10px] text-ink/60">
+                  {t("home.activity")}
+                </span>
+              </div>
+              <ol className="type-mono min-h-[92px] space-y-0.5 bg-sheet px-2.5 py-2 text-[10.5px] leading-relaxed">
+                {recentLogs.length > 0 ? (
+                  recentLogs.slice(-5).map((entry) => (
+                    <li
+                      key={entry.id}
+                      className="flex min-w-0 items-center gap-2"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          "size-2 shrink-0 border border-rule",
+                          entry.source === "stderr"
+                            ? "bg-fault"
+                            : entry.source === "launcher"
+                              ? "bg-go"
+                              : "bg-ink",
+                        )}
+                      />
+                      <span
+                        className={cn(
+                          "truncate",
+                          entry.source === "stderr" && "text-fault",
+                        )}
+                      >
+                        {entry.message}
+                      </span>
+                    </li>
+                  ))
+                ) : (
+                  <li className="flex items-center gap-2 text-ink/60">
+                    <span
+                      aria-hidden="true"
+                      className="dropped size-2 shrink-0"
+                    />
+                    {t("home.noActivity")}
+                  </li>
+                )}
+              </ol>
+              <div className="flex gap-1 border-t border-rule bg-win p-1">
+                <Button
+                  variant="outline"
+                  size="xs"
+                  disabled={!activeInstance}
+                  onClick={() => void openLogs()}
+                >
+                  <FolderOpen aria-hidden="true" />
+                  {t("home.openLogs")}
+                </Button>
+                {homeState === "failed" && (
+                  <Button
+                    size="xs"
+                    onClick={() => navigate("/assistant?source=failure")}
+                  >
+                    <Sparkles aria-hidden="true" />
+                    {t("home.askAssistant")}
+                  </Button>
+                )}
+              </div>
+            </Win>
+          )}
+        </div>
+
+        {/* ---------- 右：一叠互相压着的窗口 ---------- */}
+        <aside className="@container/stack relative col-start-3 flex min-w-0 flex-col pt-1">
+          <Win
+            title="INSTANCE.CFG"
+            meta={activeInstance?.versionId ?? "—"}
+            className="relative z-20 mr-6 @max-[360px]/stack:mr-0"
+            aria-labelledby="active-instance-title"
+            data-tour="instance-selector"
+          >
+            <div className="space-y-2 p-2.5">
+              <div>
+                <p className="type-pixel text-[11px] text-ink/60">
+                  {t("home.activeInstance")}
+                </p>
+                <h2
+                  id="active-instance-title"
+                  className="truncate font-display text-[19px] leading-tight font-semibold tracking-[-0.035em]"
+                >
+                  {activeInstance?.name ?? t("home.value.noInstance")}
+                </h2>
+              </div>
               <Select
                 value={activeInstance?.id ?? null}
                 items={instances.map((instance) => ({
@@ -683,7 +730,7 @@ export function HomePage() {
                       <SelectItem key={instance.id} value={instance.id}>
                         <div className="flex min-w-0 flex-col">
                           <span className="truncate">{instance.name}</span>
-                          <span className="text-muted-foreground truncate text-[10px]">
+                          <span className="type-pixel truncate text-[10px] opacity-70">
                             {instance.versionId ?? t("home.value.noVersion")}
                           </span>
                         </div>
@@ -692,136 +739,100 @@ export function HomePage() {
                   </SelectGroup>
                 </SelectContent>
               </Select>
-
-              <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-[10px]">
-                <div className="min-w-0">
-                  <dt className="text-muted-foreground">
-                    {t("home.check.version")}
-                  </dt>
-                  <dd className="truncate font-medium">
-                    {activeInstance?.versionId ?? "—"}
-                  </dd>
-                </div>
-                <div className="min-w-0">
-                  <dt className="text-muted-foreground">
-                    {t("home.check.loader")}
-                  </dt>
-                  <dd className="truncate font-medium capitalize">
-                    {activeInstance?.modLoader ?? t("home.value.vanilla")}
-                  </dd>
-                </div>
-              </dl>
-
-              <div className="border-border/70 mt-3 flex gap-1 border-t pt-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 flex-1 px-2 text-[10px]"
-                  onClick={() => navigate("/instances")}
-                >
-                  <Settings2 aria-hidden="true" />
-                  {t("home.manage")}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 flex-1 px-2 text-[10px]"
-                  disabled={!activeInstance}
-                  onClick={() => {
-                    if (activeInstance) {
-                      void openFileExplorer(activeInstance.gameDir);
-                    }
-                  }}
-                >
-                  <FolderOpen aria-hidden="true" />
-                  {t("home.folder")}
-                </Button>
+              <div className="space-y-0.5 text-[12px]">
+                <Leader
+                  label={
+                    <span className="type-pixel text-[11px] uppercase">
+                      {t("home.check.version")}
+                    </span>
+                  }
+                  value={activeInstance?.versionId ?? "—"}
+                />
+                <Leader
+                  label={
+                    <span className="type-pixel text-[11px] uppercase">
+                      {t("home.check.loader")}
+                    </span>
+                  }
+                  value={activeInstance?.modLoader ?? t("home.value.vanilla")}
+                  valueClassName="capitalize"
+                />
               </div>
-            </section>
-
-            {downloadActive || downloadTotalFiles > 0 ? (
-              <DownloadMonitor />
-            ) : (
-              <section
-                ref={activityRef}
-                tabIndex={-1}
-                aria-labelledby="activity-title"
-                className="border-border/80 bg-card/88 focus-visible:ring-ring border p-3 shadow-sm backdrop-blur-xl focus-visible:ring-2 focus-visible:outline-none"
+            </div>
+            <div className="flex gap-1 border-t border-rule bg-win p-1">
+              <Button
+                variant="outline"
+                size="xs"
+                className="flex-1"
+                onClick={() => navigate("/instances")}
               >
-                <div className="mb-2.5 flex items-center justify-between gap-2">
-                  <div>
-                    <p className="text-muted-foreground font-mono text-[9px] font-bold tracking-[0.12em] uppercase">
-                      {t("home.activity")}
-                    </p>
-                    <h2
-                      id="activity-title"
-                      className="mt-0.5 text-sm font-bold"
-                    >
-                      {homeState === "failed"
-                        ? t("home.failureDetails")
-                        : t("home.sessionLog")}
-                    </h2>
-                  </div>
-                  <ScrollText
-                    className="text-muted-foreground size-4"
-                    aria-hidden="true"
-                  />
-                </div>
+                <Settings2 aria-hidden="true" />
+                {t("home.manage")}
+              </Button>
+              <Button
+                variant="outline"
+                size="xs"
+                className="flex-1"
+                disabled={!activeInstance}
+                onClick={() => {
+                  if (activeInstance) {
+                    void openFileExplorer(activeInstance.gameDir);
+                  }
+                }}
+              >
+                <FolderOpen aria-hidden="true" />
+                {t("home.folder")}
+              </Button>
+            </div>
+          </Win>
 
-                <div className="bg-zinc-950 text-zinc-300 min-h-24 space-y-1 overflow-hidden p-2.5 font-mono text-[9px] leading-relaxed">
-                  {recentLogs.length > 0 ? (
-                    recentLogs.slice(-5).map((entry) => (
-                      <p
-                        key={entry.id}
-                        className={cn(
-                          "truncate",
-                          entry.source === "stderr" && "text-red-300",
-                          entry.source === "launcher" && "text-emerald-300",
-                        )}
-                      >
-                        <span className="text-zinc-600">› </span>
-                        {entry.message}
-                      </p>
-                    ))
-                  ) : (
-                    <p className="text-zinc-500">{t("home.noActivity")}</p>
-                  )}
-                </div>
-
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="mt-2 h-7 w-full text-[10px]"
-                  disabled={!activeInstance}
-                  onClick={() => void openLogs()}
+          <Win
+            title="READINESS.SYS"
+            meta={`${readyCount}/${readinessChecks.length}`}
+            className="relative z-10 mt-2.5 ml-8 -mr-1 @max-[360px]/stack:ml-3 @max-[360px]/stack:mr-0"
+            aria-labelledby="readiness-title"
+          >
+            <div className="px-2.5 pt-2 pb-4">
+              <div className="flex items-baseline justify-between gap-3">
+                <h2
+                  id="readiness-title"
+                  className="font-display text-[15px] font-semibold tracking-[-0.03em]"
                 >
-                  <FolderOpen aria-hidden="true" />
-                  {t("home.openLogs")}
-                </Button>
-                {homeState === "failed" && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="mt-1 h-7 w-full text-[10px]"
-                    onClick={() => navigate("/assistant?source=failure")}
-                  >
-                    <Sparkles aria-hidden="true" />
-                    {t("home.askAssistant")}
-                  </Button>
-                )}
-              </section>
-            )}
-
-            {downloadActive && (
-              <p className="text-muted-foreground px-1 text-center font-mono text-[9px]">
-                {t("home.downloadFiles", {
-                  completed: downloadCompletedFiles,
-                  total: downloadTotalFiles,
-                })}
+                  {t("home.readinessTitle")}
+                </h2>
+                <span className="type-pixel shrink-0 text-[10px] text-ink/60">
+                  {t("home.checksCount", {
+                    ready: readyCount,
+                    total: readinessChecks.length,
+                  })}
+                </span>
+              </div>
+              <p className="mt-0.5 text-[11px] text-ink/60">
+                {t("home.readinessDescription")}
               </p>
-            )}
-          </aside>
-        </div>
+              <ul className="mt-1.5">
+                {readinessChecks.map((check) => (
+                  <ReadinessRow key={check.id} check={check} />
+                ))}
+              </ul>
+              <SegBar
+                className="mt-2"
+                value={
+                  downloadActive
+                    ? downloadPercentage / 100
+                    : readyCount / readinessChecks.length
+                }
+                fillClassName={blocked ? "bg-fault" : "bg-ink"}
+              />
+            </div>
+          </Win>
+
+          {/* 两个小部件是装饰：右栏窄到放不下两个时收起 DAYLIGHT */}
+          <div className="relative z-30 -mt-2.5 flex items-start gap-3 pl-1">
+            <DropoutWidget className="w-[178px] shrink-0 rotate-[-2.2deg]" />
+            <DaylightWidget className="mt-5 w-[155px] shrink-0 rotate-[1.6deg] @max-[360px]/stack:hidden" />
+          </div>
+        </aside>
       </div>
 
       <LoginModal open={showLoginModal} onOpenChange={setShowLoginModal} />

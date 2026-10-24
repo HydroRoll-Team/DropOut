@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { getMemoryRecommendation, migrateSharedCaches } from "@/client";
+import { B64Block } from "@/components/deco/marks";
 import { MemoryAllocationPanel } from "@/components/memory-allocation-panel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,6 +39,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUpdater } from "@/components/updater";
 import { setLanguage } from "@/i18n";
 import { MAX_DOWNLOAD_THREADS, MIN_DOWNLOAD_THREADS } from "@/lib/config";
+import { DROPOUT_SOURCE } from "@/lib/eggs";
 import { useJavaStore } from "@/models/java";
 import { useSettingsStore } from "@/models/settings";
 import type { MemoryAllocation } from "@/types";
@@ -120,10 +122,14 @@ export function SettingsPage() {
     }
     return (
       <ScrollArea className="min-h-0 flex-1 pr-2">
-        <TabsContent value="general" className="min-h-full pb-1">
-          <Card className="min-h-full">
+        <TabsContent value="general" className="min-h-full pr-1 pb-2">
+          <Card className="min-h-full pt-0">
+            <div aria-hidden="true" className="win-title">
+              <span>GENERAL.CFG</span>
+              <span className="opacity-60">∵ x</span>
+            </div>
             <CardHeader>
-              <CardTitle className="font-bold text-xl">
+              <CardTitle className="type-display text-[30px] font-semibold">
                 {t("settings.general.title")}
               </CardTitle>
             </CardHeader>
@@ -363,10 +369,14 @@ export function SettingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
-        <TabsContent value="java" className="min-h-full pb-1">
-          <Card className="min-h-full">
+        <TabsContent value="java" className="min-h-full pr-1 pb-2">
+          <Card className="min-h-full pt-0">
+            <div aria-hidden="true" className="win-title">
+              <span>JAVA.CFG</span>
+              <span className="opacity-60">∵ x</span>
+            </div>
             <CardHeader>
-              <CardTitle className="font-bold text-xl">
+              <CardTitle className="type-display text-[30px] font-semibold">
                 {t("settings.java.title")}
               </CardTitle>
               <CardContent>
@@ -435,10 +445,14 @@ export function SettingsPage() {
             </CardHeader>
           </Card>
         </TabsContent>
-        <TabsContent value="appearance" className="min-h-full pb-1">
-          <Card className="min-h-full">
+        <TabsContent value="appearance" className="min-h-full pr-1 pb-2">
+          <Card className="min-h-full pt-0">
+            <div aria-hidden="true" className="win-title">
+              <span>APPEARANCE.CFG</span>
+              <span className="opacity-60">∵ x</span>
+            </div>
             <CardHeader>
-              <CardTitle className="font-bold text-xl">
+              <CardTitle className="type-display text-[30px] font-semibold">
                 {t("settings.appearance.title")}
               </CardTitle>
             </CardHeader>
@@ -542,10 +556,14 @@ export function SettingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
-        <TabsContent value="advanced" className="min-h-full pb-1">
-          <Card className="min-h-full">
+        <TabsContent value="advanced" className="min-h-full pr-1 pb-2">
+          <Card className="min-h-full pt-0">
+            <div aria-hidden="true" className="win-title">
+              <span>ADVANCED.CFG</span>
+              <span className="opacity-60">∵ x</span>
+            </div>
             <CardHeader>
-              <CardTitle className="font-bold text-xl">
+              <CardTitle className="type-display text-[30px] font-semibold">
                 {t("settings.advanced.title")}
               </CardTitle>
             </CardHeader>
@@ -778,39 +796,56 @@ export function SettingsPage() {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-6 p-6">
-      <div className="flex shrink-0 items-center justify-between">
-        <h2 className="text-3xl font-black bg-clip-text text-transparent bg-linear-to-r dark:from-white dark:to-white/60 from-gray-900 to-gray-600">
-          Settings
-        </h2>
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => navigate("/settings/editor")}
-        >
-          <FileJsonIcon />
-          <span className="hidden sm:inline">{t("settings.openJson")}</span>
-        </Button>
+    <div className="relative flex h-full min-h-0 max-w-[1006px] flex-col gap-4 px-6 pt-4 pb-4">
+      <span
+        aria-hidden="true"
+        className="type-display glyph-dropped pointer-events-none absolute -top-6 left-[min(664px,calc(100%-140px))] -translate-x-full text-[180px] leading-none opacity-50 select-none"
+      >
+        04
+      </span>
+      <div className="relative flex shrink-0 items-start justify-between gap-6">
+        <div className="min-w-0">
+          <p className="tag text-[13px]">
+            <span className="shrink-0">DropOut</span>
+            <span aria-hidden="true" className="leader w-14" />
+            <span className="shrink-0">config.json</span>
+          </p>
+          <h1 className="type-display mt-3 text-[51px]">{t("nav.settings")}</h1>
+        </div>
+        <B64Block
+          data={DROPOUT_SOURCE}
+          width={36}
+          className="hidden max-h-32 overflow-hidden min-[980px]:block"
+        />
       </div>
 
       <Tabs
         value={activeTab}
         onValueChange={setActiveTab}
-        className="min-h-0 flex-1 flex flex-col gap-6"
+        className="min-h-0 flex-1 flex flex-col gap-3"
       >
-        <TabsList className="shrink-0">
-          <TabsTrigger value="general">
-            {t("settings.tabs.general")}
-          </TabsTrigger>
-          <TabsTrigger value="java">{t("settings.tabs.java")}</TabsTrigger>
-          <TabsTrigger value="appearance">
-            {t("settings.tabs.appearance")}
-          </TabsTrigger>
-          <TabsTrigger value="advanced">
-            {t("settings.tabs.advanced")}
-          </TabsTrigger>
-        </TabsList>
+        <div className="flex shrink-0 items-center justify-between gap-3">
+          <TabsList>
+            <TabsTrigger value="general">
+              {t("settings.tabs.general")}
+            </TabsTrigger>
+            <TabsTrigger value="java">{t("settings.tabs.java")}</TabsTrigger>
+            <TabsTrigger value="appearance">
+              {t("settings.tabs.appearance")}
+            </TabsTrigger>
+            <TabsTrigger value="advanced">
+              {t("settings.tabs.advanced")}
+            </TabsTrigger>
+          </TabsList>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/settings/editor")}
+          >
+            <FileJsonIcon />
+            <span className="hidden sm:inline">{t("settings.openJson")}</span>
+          </Button>
+        </div>
         {renderScrollArea()}
       </Tabs>
     </div>

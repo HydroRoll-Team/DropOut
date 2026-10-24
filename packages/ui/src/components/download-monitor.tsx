@@ -1,5 +1,6 @@
-import { Download, FileDown } from "lucide-react";
+import { FileDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { SegBar } from "@/components/deco/marks";
 import { cn } from "@/lib/utils";
 import { useDownloadStore } from "@/models/downloads";
 
@@ -28,57 +29,55 @@ export function DownloadMonitor({ className }: { className?: string }) {
       aria-labelledby="download-monitor-title"
       aria-live="polite"
       className={cn(
-        "border-border/80 bg-card/90 focus-visible:ring-ring overflow-hidden border shadow-sm backdrop-blur-xl focus-visible:ring-2 focus-visible:outline-none",
+        "win outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
         className,
       )}
       data-testid="download-monitor"
     >
-      <div className="border-border/70 flex items-center justify-between border-b px-3 py-2.5">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="bg-primary/10 text-primary flex size-7 shrink-0 items-center justify-center rounded-md">
-            <Download className="size-3.5" aria-hidden="true" />
-          </span>
-          <div className="min-w-0">
-            <h2 id="download-monitor-title" className="text-xs font-semibold">
-              {t("downloadMonitor.title")}
-            </h2>
-            <p className="text-muted-foreground truncate text-[10px]">
-              {download.kind === "java"
-                ? t("downloadMonitor.javaRuntime")
-                : t("downloadMonitor.gameFiles")}
-            </p>
-          </div>
+      <div aria-hidden="true" className="win-title">
+        <span>{download.kind === "java" ? "JAVA.PKG" : "FETCH.EXE"}</span>
+        <span className="opacity-70">{download.status}</span>
+      </div>
+      <div className="flex items-end justify-between gap-3 border-b border-rule px-2.5 py-1.5">
+        <div className="min-w-0">
+          <h2
+            id="download-monitor-title"
+            className="font-display text-[15px] font-semibold tracking-[-0.03em]"
+          >
+            {t("downloadMonitor.title")}
+          </h2>
+          <p className="type-pixel truncate text-[11px] text-ink/60">
+            {download.kind === "java"
+              ? t("downloadMonitor.javaRuntime")
+              : t("downloadMonitor.gameFiles")}
+          </p>
         </div>
-        <span className="text-primary font-mono text-xs font-bold">
+        <span className="type-display text-[34px] leading-none">
           {percentage}%
         </span>
       </div>
 
-      <div className="space-y-3 p-3">
+      <div className="space-y-2 px-2.5 py-2">
         <div
-          className="bg-muted h-1.5 overflow-hidden rounded-full"
           role="progressbar"
           aria-label={t("downloadMonitor.progress")}
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={percentage}
         >
-          <div
-            className="bg-primary h-full rounded-full transition-[width] duration-300 motion-reduce:transition-none"
-            style={{ width: `${percentage}%` }}
-          />
+          <SegBar value={percentage / 100} segments={20} className="h-3" />
         </div>
 
         <div className="flex items-start gap-2">
           <FileDown
-            className="text-muted-foreground mt-0.5 size-3.5 shrink-0"
+            className="mt-0.5 size-3.5 shrink-0 text-ink/60"
             aria-hidden="true"
           />
           <div className="min-w-0 flex-1">
-            <p className="truncate font-mono text-[11px]">
+            <p className="type-mono truncate text-[11px]">
               {download.currentFile ?? t("downloadMonitor.preparing")}
             </p>
-            <div className="text-muted-foreground mt-1 flex justify-between gap-2 text-[10px]">
+            <div className="type-pixel mt-1 flex justify-between gap-2 text-[11px] text-ink/60">
               <span>
                 {download.totalFiles > 0
                   ? t("downloadMonitor.files", {

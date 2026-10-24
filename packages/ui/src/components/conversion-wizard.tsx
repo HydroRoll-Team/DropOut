@@ -69,15 +69,15 @@ function statusIcon(disposition: ConversionDisposition) {
 
 function statusClass(disposition: ConversionDisposition) {
   if (disposition === "keep") {
-    return "border-emerald-600/30 bg-emerald-600/8 text-emerald-700 dark:text-emerald-300";
+    return "border-go bg-go/16 text-go-ink";
   }
   if (disposition === "replace") {
-    return "border-indigo-600/30 bg-indigo-600/8 text-indigo-700 dark:text-indigo-300";
+    return "border-rule bg-ink/16 text-ink";
   }
   if (disposition === "incompatible") {
-    return "border-red-600/30 bg-red-600/8 text-red-700 dark:text-red-300";
+    return "border-fault bg-fault/16 text-fault-ink";
   }
-  return "border-amber-600/30 bg-amber-600/8 text-amber-700 dark:text-amber-300";
+  return "border-warn bg-warn/16 text-warn-ink";
 }
 
 function ManifestRow({
@@ -131,7 +131,7 @@ function ManifestRow({
           )}
         </p>
         {item.replacement && (
-          <p className="mt-1 text-[10px] text-indigo-700 dark:text-indigo-300">
+          <p className="mt-1 text-[10px] text-ink">
             {t("conversion.manifest.replacement", {
               version: item.replacement.versionName,
             })}
@@ -360,12 +360,12 @@ export function ConversionWizard({
       onOpenChange={(next) => !applying && onOpenChange(next)}
     >
       <DialogContent
-        className="flex max-h-[90vh] max-w-[calc(100%-1rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl"
+        className="flex max-h-[90vh] max-w-[calc(100%-1rem)] flex-col gap-0 overflow-hidden p-0 pt-[18px] sm:max-w-5xl"
         showCloseButton={!applying}
       >
-        <div className="border-border/70 border-b bg-zinc-950 px-4 py-3 text-white sm:px-5">
+        <div className="border-border/70 border-b bg-[#1e1e1e] px-4 py-3 text-white sm:px-5">
           <DialogHeader className="pr-8">
-            <div className="mb-1 flex items-center gap-2 font-mono text-[9px] font-semibold uppercase tracking-[0.2em] text-indigo-300">
+            <div className="mb-1 flex items-center gap-2 font-mono text-[9px] font-semibold uppercase tracking-[0.2em] text-ink">
               <PackageSearchIcon className="size-3.5" aria-hidden="true" />
               {t("conversion.eyebrow")}
             </div>
@@ -374,7 +374,7 @@ export function ConversionWizard({
                 ? t("conversion.report.title")
                 : t("conversion.title", { name: instance?.name ?? "" })}
             </DialogTitle>
-            <DialogDescription className="text-zinc-400">
+            <DialogDescription className="text-[#a29f98]">
               {report
                 ? t("conversion.report.description")
                 : t("conversion.description")}
@@ -386,7 +386,7 @@ export function ConversionWizard({
           <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
             <div className="border-border bg-card mx-auto max-w-2xl border">
               <div className="border-border/70 flex items-start gap-3 border-b p-4">
-                <div className="flex size-9 shrink-0 items-center justify-center bg-emerald-600/10 text-emerald-600 dark:text-emerald-300">
+                <div className="flex size-9 shrink-0 items-center justify-center bg-go/20 text-go-ink">
                   <FileCheck2Icon className="size-5" />
                 </div>
                 <div>
@@ -420,14 +420,14 @@ export function ConversionWizard({
                   <dt className="text-muted-foreground uppercase tracking-[0.12em]">
                     {t("conversion.report.source")}
                   </dt>
-                  <dd className="mt-1 font-semibold text-emerald-700 dark:text-emerald-300">
+                  <dd className="mt-1 font-semibold text-go-ink">
                     {t("conversion.report.unchanged")}
                   </dd>
                 </div>
               </dl>
             </div>
 
-            <div className="mx-auto mt-3 max-w-2xl border border-emerald-600/25 bg-emerald-600/6 p-3 text-[11px] text-emerald-800 dark:text-emerald-200">
+            <div className="mx-auto mt-3 max-w-2xl border border-go bg-go/12 p-3 text-[11px] text-go-ink">
               <ShieldCheckIcon className="mr-2 inline size-4" />
               {rolledBack
                 ? t("conversion.report.rolledBack")
@@ -441,7 +441,7 @@ export function ConversionWizard({
                 className="p-4 sm:p-5"
                 aria-label={t("conversion.source.label")}
               >
-                <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">
+                <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-go-ink">
                   {t("conversion.source.label")}
                 </p>
                 <p className="mt-2 truncate text-sm font-semibold">
@@ -452,13 +452,13 @@ export function ConversionWizard({
                   {instance?.modLoader ?? "vanilla"}{" "}
                   {instance?.modLoaderVersion ?? ""}
                 </p>
-                <p className="mt-2 flex items-center gap-1.5 text-[10px] text-emerald-700 dark:text-emerald-300">
+                <p className="mt-2 flex items-center gap-1.5 text-[10px] text-go-ink">
                   <ShieldCheckIcon className="size-3.5" />
                   {t("conversion.source.protected")}
                 </p>
               </section>
 
-              <div className="border-border/70 hidden items-center border-x px-3 text-indigo-600 sm:flex">
+              <div className="border-border/70 hidden items-center border-x px-3 text-ink sm:flex">
                 <ArrowRightIcon className="size-5" aria-hidden="true" />
               </div>
 
@@ -466,7 +466,7 @@ export function ConversionWizard({
                 className="p-4 sm:p-5"
                 aria-label={t("conversion.target.label")}
               >
-                <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-indigo-700 dark:text-indigo-300">
+                <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-ink">
                   {t("conversion.target.label")}
                 </p>
                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
@@ -698,7 +698,7 @@ export function ConversionWizard({
               </Button>
               <div className="min-w-0 flex-1 text-right text-[10px]">
                 {preview && unresolvedCount > 0 && (
-                  <span className="text-amber-700 dark:text-amber-300">
+                  <span className="text-warn-ink">
                     {t("conversion.blocked", { count: unresolvedCount })}
                   </span>
                 )}

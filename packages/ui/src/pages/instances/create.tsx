@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { defineStepper } from "@stepperize/react";
 import { open } from "@tauri-apps/plugin-shell";
-import { ArrowLeftIcon, Link2Icon, XIcon } from "lucide-react";
+import { Link2Icon, XIcon } from "lucide-react";
 import React, {
   createContext,
   useCallback,
@@ -31,6 +31,7 @@ import {
   installVersion,
   updateInstance,
 } from "@/client";
+import { PageHeader } from "@/components/deco/page-header";
 import {
   Accordion,
   AccordionContent,
@@ -170,7 +171,7 @@ function VersionComponent() {
       </div>
       {errorMessage && (
         <div className="size-full flex flex-col items-center justify-center space-y-2">
-          <p className="text-red-500">{errorMessage}</p>
+          <p className="text-fault-ink">{errorMessage}</p>
           <Button variant="outline" onClick={loadVersions}>
             {t("common.retry")}
           </Button>
@@ -634,7 +635,7 @@ export function CreateInstancePage() {
     <FormProvider {...form}>
       <ol
         aria-label={t("create.title")}
-        className="w-full flex list-none flex-row items-center justify-center px-6 mb-6"
+        className="mb-4 flex w-full list-none flex-row items-center justify-center px-6"
       >
         {stepper.steps.map((step, idx) => {
           const currentIndex = stepper.index;
@@ -654,14 +655,14 @@ export function CreateInstancePage() {
                   void stepper.goTo(step.id);
                 }}
                 className={cn(
-                  "flex size-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  "flex size-8 shrink-0 items-center justify-center rounded-none border font-pixel text-[13px]",
+                  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                   canNavigate
                     ? "cursor-pointer"
                     : "cursor-not-allowed opacity-60",
                   isInactive
-                    ? "border-border bg-secondary text-secondary-foreground"
-                    : "border-primary bg-primary text-primary-foreground",
+                    ? "border-dashed border-rule bg-sheet text-foreground"
+                    : "border-rule bg-primary text-primary-foreground shadow-[3px_3px_0_0_var(--signal)]",
                 )}
               >
                 <span className="sr-only">{step.title}: </span>
@@ -671,9 +672,10 @@ export function CreateInstancePage() {
                 <span
                   aria-hidden="true"
                   className={cn(
-                    "mx-2 h-0.5 w-full bg-muted",
-                    idx < currentIndex && "bg-primary",
-                    "transition-all duration-300 ease-in-out",
+                    "mx-2 h-px w-full",
+                    idx < currentIndex
+                      ? "bg-ink"
+                      : "bg-[repeating-linear-gradient(90deg,var(--rule)_0_4px,transparent_4px_8px)]",
                   )}
                 />
               )}
@@ -732,30 +734,28 @@ function PageWrapper() {
   const [showCancelDialog, setShowCancelDialog] = useState(false);
 
   return (
-    <div className="flex size-full overflow-hidden px-6 py-8">
+    <div className="flex size-full overflow-hidden px-6 pt-4 pb-6">
       <Stepper.Root
         className="flex flex-col flex-1 space-y-4"
         orientation="horizontal"
       >
         {({ stepper }) => (
           <>
-            <div className="flex flex-row space-x-4">
-              <Button
-                aria-label={t("common.back")}
-                variant="secondary"
-                size="icon"
-                onClick={() => {
-                  if (stepper.isFirst) return navigate(-1);
-                  setShowCancelDialog(true);
-                }}
-              >
-                <ArrowLeftIcon />
-              </Button>
-              <h1 className="text-2xl font-bold">{t("create.title")}</h1>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {t("create.subtitle")}
-            </p>
+            <PageHeader
+              index="02"
+              title={t("create.title")}
+              backLabel={t("common.back")}
+              onBack={() => {
+                if (stepper.isFirst) return navigate(-1);
+                setShowCancelDialog(true);
+              }}
+              eyebrow={
+                <>
+                  <span className="type-pixel text-[11px]">02.1</span>
+                  <span className="truncate">{t("create.subtitle")}</span>
+                </>
+              }
+            />
             <CreateInstancePage />
           </>
         )}

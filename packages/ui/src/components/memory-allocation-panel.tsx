@@ -118,16 +118,16 @@ export function MemoryAllocationPanel({
       <div
         className={cn(
           "absolute inset-y-0 left-0 w-1",
-          pressure === "healthy" && "bg-emerald-500",
-          pressure === "constrained" && "bg-amber-500",
-          pressure === "critical" && "bg-red-500",
+          pressure === "healthy" && "bg-go",
+          pressure === "constrained" && "bg-warn",
+          pressure === "critical" && "bg-fault",
         )}
       />
 
       <div className="flex flex-col gap-4 p-4 pl-5">
         <div className="flex items-start justify-between gap-4">
           <div className="flex min-w-0 gap-3">
-            <span className="bg-primary/10 text-primary flex size-9 shrink-0 items-center justify-center rounded-full">
+            <span className="bg-primary/10 text-primary flex size-9 shrink-0 items-center justify-center rounded-none">
               <MemoryStick className="size-4" aria-hidden="true" />
             </span>
             <div className="min-w-0">
@@ -182,14 +182,14 @@ export function MemoryAllocationPanel({
         </div>
 
         {recommendation?.source === "instance-override" && (
-          <p className="border-amber-500/30 bg-amber-500/8 border px-3 py-2 text-[11px] text-amber-800 dark:text-amber-200">
+          <p className="border-warn bg-warn/16 border px-3 py-2 text-[11px] text-warn-ink">
             {t("settings.jvm.instanceOverrideNotice")}
           </p>
         )}
 
         {error ? (
-          <div role="alert" className="border-red-500/30 bg-red-500/8 p-3">
-            <p className="text-sm font-semibold text-red-700 dark:text-red-300">
+          <div role="alert" className="border-fault bg-fault/16 p-3">
+            <p className="text-sm font-semibold text-fault-ink">
               {t("settings.jvm.memoryUnavailable")}
             </p>
             <p className="text-muted-foreground mt-1 text-xs">{error}</p>
@@ -273,20 +273,18 @@ export function MemoryAllocationPanel({
               <div
                 className={cn(
                   "flex flex-col justify-between gap-2 border p-3 sm:flex-row sm:items-center",
-                  pressure === "healthy" &&
-                    "border-emerald-500/25 bg-emerald-500/6",
-                  pressure === "constrained" &&
-                    "border-amber-500/30 bg-amber-500/8",
-                  pressure === "critical" && "border-red-500/30 bg-red-500/8",
+                  pressure === "healthy" && "border-go bg-go/12",
+                  pressure === "constrained" && "border-warn bg-warn/16",
+                  pressure === "critical" && "border-fault bg-fault/16",
                 )}
               >
                 <div className="flex min-w-0 items-start gap-2">
                   <PressureIcon
                     className={cn(
                       "mt-0.5 size-4 shrink-0",
-                      pressure === "healthy" && "text-emerald-600",
-                      pressure === "constrained" && "text-amber-600",
-                      pressure === "critical" && "text-red-600",
+                      pressure === "healthy" && "text-go-ink",
+                      pressure === "constrained" && "text-warn-ink",
+                      pressure === "critical" && "text-fault-ink",
                     )}
                     aria-hidden="true"
                   />

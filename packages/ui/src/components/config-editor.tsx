@@ -203,7 +203,7 @@ export function ConfigEditor({ onOpenChange, ...props }: ConfigEditorProps) {
   return (
     <>
       <Dialog onOpenChange={handleOpenChange} {...props}>
-        <DialogContent className="grid h-[min(92vh,760px)] max-h-[calc(100vh-1.5rem)] w-[min(94vw,1120px)] max-w-none grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0 sm:max-w-[1120px]">
+        <DialogContent className="grid h-[min(92vh,760px)] max-h-[calc(100vh-1.5rem)] w-[min(94vw,1120px)] max-w-none grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0 pt-[18px] sm:max-w-[1120px]">
           <DialogHeader className="border-border/70 border-b px-4 py-3 text-left">
             <div className="flex items-start justify-between gap-4 pr-8">
               <div className="min-w-0">
@@ -238,7 +238,7 @@ export function ConfigEditor({ onOpenChange, ...props }: ConfigEditorProps) {
                 </span>
                 {isDirty && (
                   <span
-                    className="bg-amber-500 size-1.5 rounded-full"
+                    className="bg-warn size-1.5 rounded-none"
                     aria-hidden="true"
                   />
                 )}
@@ -299,7 +299,7 @@ export function ConfigEditor({ onOpenChange, ...props }: ConfigEditorProps) {
             >
               <div className="flex min-w-0 items-center gap-2">
                 {validation.valid ? (
-                  <CheckCircle2Icon className="size-3 shrink-0 text-emerald-600 dark:text-emerald-300" />
+                  <CheckCircle2Icon className="size-3 shrink-0 text-go-ink" />
                 ) : (
                   <CircleAlertIcon className="text-destructive size-3 shrink-0" />
                 )}
