@@ -4,6 +4,7 @@ import { Switch as SwitchPrimitive } from "@base-ui/react/switch";
 
 import { cn } from "@/lib/utils";
 
+/* 方形拨杆：关着是空槽，开了整条变绿，黑色滑块推到右端 */
 function Switch({
   className,
   size = "default",
@@ -16,14 +17,14 @@ function Switch({
       data-slot="switch"
       data-size={size}
       className={cn(
-        "data-checked:bg-primary data-unchecked:bg-input focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 dark:data-unchecked:bg-input/80 shrink-0 rounded-full border border-transparent focus-visible:ring-1 aria-invalid:ring-1 data-[size=default]:h-[18.4px] data-[size=default]:w-[32px] data-[size=sm]:h-[14px] data-[size=sm]:w-[24px] peer group/switch relative inline-flex items-center transition-all outline-none after:absolute after:-inset-x-3 after:-inset-y-2 data-disabled:cursor-not-allowed data-disabled:opacity-50",
+        "border-rule bg-sheet data-checked:bg-go focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-destructive peer group/switch relative inline-flex shrink-0 cursor-pointer items-center rounded-none border p-px transition-colors outline-none after:absolute after:-inset-x-3 after:-inset-y-2 data-[size=default]:h-[18px] data-[size=default]:w-[34px] data-[size=sm]:h-[14px] data-[size=sm]:w-[26px] data-disabled:cursor-not-allowed data-disabled:opacity-45",
         className,
       )}
       {...props}
     >
       <SwitchPrimitive.Thumb
         data-slot="switch-thumb"
-        className="bg-background dark:data-unchecked:bg-foreground dark:data-checked:bg-primary-foreground rounded-full group-data-[size=default]/switch:size-4 group-data-[size=sm]/switch:size-3 group-data-[size=default]/switch:data-checked:translate-x-[calc(100%-2px)] group-data-[size=sm]/switch:data-checked:translate-x-[calc(100%-2px)] group-data-[size=default]/switch:data-unchecked:translate-x-0 group-data-[size=sm]/switch:data-unchecked:translate-x-0 pointer-events-none block ring-0 transition-transform"
+        className="bg-ink pointer-events-none block rounded-none transition-transform duration-100 group-data-[size=default]/switch:size-[14px] group-data-[size=sm]/switch:size-[10px] data-unchecked:translate-x-0 group-data-[size=default]/switch:data-checked:translate-x-[16px] group-data-[size=sm]/switch:data-checked:translate-x-[12px] dark:group-data-checked/switch:bg-[#1e1e1e]"
       />
     </SwitchPrimitive.Root>
   );

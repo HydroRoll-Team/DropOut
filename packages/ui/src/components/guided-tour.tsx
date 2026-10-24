@@ -44,7 +44,7 @@ export function GuidedTour() {
         overlayColor: "black",
         overlayOpacity: 0.6,
         stagePadding: 8,
-        stageRadius: 8,
+        stageRadius: 0,
         popoverClass: "dropout-tour-popover",
         nextBtnText: t("tour.next"),
         prevBtnText: t("tour.back"),

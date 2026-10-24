@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { CREEPER_PNG } from "../src/lib/eggs";
 
 const themes = ["dark", "light"] as const;
 const screenshotTolerance = {
@@ -624,6 +625,41 @@ test("assistant keeps session evidence detached by default", async ({
   await expect(attachment).not.toBeChecked();
 });
 
+for (const theme of themes) {
+  for (const locale of ["en", "zh-CN"]) {
+    test(`assistant image egg is visible and copyable in ${theme} ${locale}`, async ({
+      page,
+    }) => {
+      await page.addInitScript(() => {
+        Object.defineProperty(navigator, "clipboard", {
+          configurable: true,
+          value: {
+            writeText: async (text: string) => {
+              document.documentElement.dataset.copiedEgg = text;
+            },
+          },
+        });
+      });
+      await page.goto(
+        `/?fixture=assistant-ready&theme=${theme}&locale=${locale}#/assistant`,
+      );
+      await page.evaluate(() => document.fonts.ready);
+      const egg = page.locator("aside button").filter({ hasText: "[B.64]" });
+      // 界面不随窗口缩放：最小窗口里它在折线以下，页面滚过去要能完整看到
+      await egg.evaluate((element) =>
+        element.scrollIntoView({ block: "center" }),
+      );
+      await expect(egg).toBeInViewport({ ratio: 1 });
+      await egg.click();
+      await expect(page.locator("html")).toHaveAttribute(
+        "data-copied-egg",
+        CREEPER_PNG,
+      );
+      await expect(page.getByText("[COPIED]", { exact: true })).toBeVisible();
+    });
+  }
+}
+
 test("assistant reports a redacted-evidence clipboard failure", async ({
   page,
 }) => {
@@ -1003,6 +1039,74 @@ test("migration cancellation stops the remaining queue", async ({ page }) => {
   ).toBeVisible();
   await expect(page.getByText("0 imported · 1 failed")).toBeVisible();
   await expect(page.getByText("Vanilla Lab", { exact: true })).toHaveCount(0);
+});
+
+test("interface keeps fixed pixel sizes at every window size", async ({
+  page,
+}) => {
+  // 照官方启动器：界面不随窗口缩放，窗口变大只多出网格、天空和留白
+  const windows = [
+    { width: 905, height: 575 },
+    { width: 1024, height: 768 },
+    { width: 1280, height: 720 },
+    { width: 1920, height: 1080 },
+    { width: 2560, height: 1440 },
+  ];
+  await page.goto("/?fixture=ready&theme=dark#/");
+  await expect(
+    page.getByRole("heading", { name: "Copper Valley is ready" }),
+  ).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+
+  const measure = () =>
+    page.evaluate(() => {
+      const box = (selector: string) => {
+        const element = document.querySelector(selector);
+        if (!(element instanceof HTMLElement)) return null;
+        const rect = element.getBoundingClientRect();
+        return {
+          fontSize: getComputedStyle(element).fontSize,
+          width: Math.round(rect.width),
+          height: Math.round(rect.height),
+          left: Math.round(rect.left),
+          right: Math.round(rect.right),
+        };
+      };
+      return {
+        title: box("h1"),
+        launch: box("[data-tour='launch-button']"),
+        nav: box("[data-tour='sidebar-nav']"),
+        column: box("[data-tour='bottom-bar'] > div"),
+        stack: box("[data-tour='bottom-bar'] > aside"),
+        overflowX:
+          document.documentElement.scrollWidth >
+          document.documentElement.clientWidth,
+      };
+    });
+
+  let reference: Awaited<ReturnType<typeof measure>> | null = null;
+  for (const size of windows) {
+    await page.setViewportSize(size);
+    await expect
+      .poll(() => page.evaluate(() => window.innerWidth))
+      .toBe(size.width);
+    const current = await measure();
+    const label = `${size.width}x${size.height}`;
+
+    expect(current.overflowX, label).toBe(false);
+    expect(current.column?.right ?? 0, label).toBeLessThanOrEqual(
+      current.stack?.left ?? 0,
+    );
+
+    reference ??= current;
+    for (const part of ["title", "launch", "nav"] as const) {
+      expect(current[part], `${part} at ${label}`).toMatchObject({
+        fontSize: reference[part]?.fontSize,
+        width: reference[part]?.width,
+        height: reference[part]?.height,
+      });
+    }
+  }
 });
 
 test("home supports Chinese and reduced motion", async ({ page }) => {

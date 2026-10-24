@@ -1,5 +1,4 @@
 import {
-  ArrowLeftIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   DownloadIcon,
@@ -15,6 +14,7 @@ import {
   getInstance,
   searchContent,
 } from "@/client";
+import { PageHeader } from "@/components/deco/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -196,19 +196,19 @@ export default function BrowsePage() {
   };
 
   return (
-    <div className="flex flex-col h-full p-6 space-y-4">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
-          <ArrowLeftIcon className="size-4" />
-        </Button>
-        <div>
-          <h1 className="text-xl font-bold">{t("browse.title")}</h1>
-          {instance && (
-            <p className="text-sm text-muted-foreground">{instance.name}</p>
-          )}
-        </div>
-      </div>
+    <div className="flex h-full flex-col space-y-4 px-6 pt-4 pb-6">
+      <PageHeader
+        index="02"
+        title={t("browse.title")}
+        backLabel={t("common.back")}
+        onBack={() => navigate(-1)}
+        eyebrow={
+          <>
+            <span className="type-pixel text-[11px]">02.3</span>
+            <span className="truncate">{instance?.name ?? "—"}</span>
+          </>
+        }
+      />
 
       {/* Filters */}
       <div className="flex flex-wrap gap-2 items-center">
@@ -305,22 +305,22 @@ export default function BrowsePage() {
         )}
 
         {!loading && result && result.hits.length > 0 && (
-          <div className="space-y-2 pr-2">
+          <div className="pt-px pr-2">
             {result.hits.map((project) => (
               <div
                 key={`${project.source}-${project.id}`}
-                className="flex items-start gap-3 p-3 rounded-lg bg-card/50 hover:bg-card/80 transition-colors"
+                className="flex items-start gap-3 p-3 -mt-px border border-rule bg-sheet transition-colors hover:bg-paper-2"
               >
                 {/* Icon */}
                 {project.iconUrl ? (
                   <img
                     src={project.iconUrl}
                     alt={project.title}
-                    className="w-12 h-12 rounded object-cover shrink-0"
+                    className="size-12 shrink-0 border border-rule object-cover [image-rendering:pixelated]"
                   />
                 ) : (
-                  <div className="w-12 h-12 rounded bg-muted flex items-center justify-center shrink-0">
-                    <span className="text-lg font-bold text-muted-foreground">
+                  <div className="flex size-12 shrink-0 items-center justify-center border border-rule bg-ink">
+                    <span className="font-pixel text-[22px] text-paper">
                       {project.title.charAt(0).toUpperCase()}
                     </span>
                   </div>
@@ -329,7 +329,9 @@ export default function BrowsePage() {
                 {/* Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <h3 className="font-semibold truncate">{project.title}</h3>
+                    <h3 className="truncate font-display text-[15px] font-semibold tracking-[-0.025em]">
+                      {project.title}
+                    </h3>
                     <Badge variant="outline" className="text-[10px] shrink-0">
                       {project.projectType}
                     </Badge>
@@ -431,11 +433,11 @@ export default function BrowsePage() {
             )}
 
             {!loadingVersions && versions.length > 0 && (
-              <div className="space-y-2 pr-2">
+              <div className="pt-px pr-2">
                 {versions.map((version) => (
                   <div
                     key={version.id}
-                    className="flex items-center gap-3 p-3 rounded-lg bg-card/50 hover:bg-card/80 transition-colors"
+                    className="flex items-center gap-3 p-3 -mt-px border border-rule bg-sheet transition-colors hover:bg-paper-2"
                   >
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm truncate">

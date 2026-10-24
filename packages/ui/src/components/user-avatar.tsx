@@ -1,6 +1,6 @@
 import { isLauncherFixtureMode } from "@/lib/launcher-runtime";
 import { useAuthStore } from "@/models/auth";
-import { Avatar, AvatarBadge, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 
 export function UserAvatar({
   className,
@@ -22,7 +22,6 @@ export function UserAvatar({
         />
       )}
       <AvatarFallback>{authStore.account.username.slice(0, 2)}</AvatarFallback>
-      <AvatarBadge />
     </Avatar>
   );
 }

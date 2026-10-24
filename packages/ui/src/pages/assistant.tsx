@@ -24,6 +24,8 @@ import {
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router";
 import { toast } from "sonner";
+import { DisplayTitle } from "@/components/deco/display-title";
+import { B64Block } from "@/components/deco/marks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -37,6 +39,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { CREEPER_PNG } from "@/lib/eggs";
 import { cn } from "@/lib/utils";
 import { useAssistantStore } from "@/models/assistant";
 import { useGameStore } from "@/models/game";
@@ -79,10 +82,10 @@ function ProviderStatus() {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 font-mono text-[9px] font-bold tracking-[0.12em] uppercase",
-        status === "online" && "text-emerald-600 dark:text-emerald-300",
-        status === "offline" && "text-red-600 dark:text-red-300",
-        (status === "idle" || status === "checking") && "text-muted-foreground",
+        "chip",
+        status === "online" && "chip-go",
+        status === "offline" && "chip-fault",
+        (status === "idle" || status === "checking") && "chip-ghost",
       )}
       role="status"
     >
@@ -148,26 +151,24 @@ function AssistantSetup() {
   const remote = draft.llmProvider === "openai";
 
   return (
-    <section
-      aria-labelledby="assistant-setup-title"
-      className="border-border/80 bg-card/88 border p-3 shadow-sm backdrop-blur-xl"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-muted-foreground font-mono text-[9px] font-bold tracking-[0.12em] uppercase">
-            {t("assistant.setup.eyebrow")}
-          </p>
-          <h2 id="assistant-setup-title" className="mt-0.5 text-sm font-bold">
-            {t("assistant.setup.title")}
-          </h2>
-        </div>
-        <Settings2Icon
-          className="text-muted-foreground size-4"
-          aria-hidden="true"
-        />
+    <section aria-labelledby="assistant-setup-title" className="win">
+      <div aria-hidden="true" className="win-title">
+        <span>PROVIDER.CFG</span>
+        <Settings2Icon className="size-3" />
+      </div>
+      <div className="border-b border-rule px-2.5 py-2">
+        <p className="type-pixel text-[11px] text-ink/60">
+          {t("assistant.setup.eyebrow")}
+        </p>
+        <h2
+          id="assistant-setup-title"
+          className="font-display text-[16px] font-semibold tracking-[-0.03em]"
+        >
+          {t("assistant.setup.title")}
+        </h2>
       </div>
 
-      <div className="mt-3 space-y-3">
+      <div className="space-y-3 p-2.5">
         <div className="flex items-center justify-between gap-3 text-xs font-medium">
           <span>{t("assistant.setup.enabled")}</span>
           <Switch
@@ -177,10 +178,8 @@ function AssistantSetup() {
           />
         </div>
 
-        <div className="block space-y-1.5 text-[10px] font-semibold tracking-wide uppercase">
-          <span className="text-muted-foreground">
-            {t("assistant.setup.provider")}
-          </span>
+        <div className="block space-y-1 font-pixel text-[11px] uppercase">
+          <span className="text-ink/65">{t("assistant.setup.provider")}</span>
           <Select
             value={draft.llmProvider}
             items={[
@@ -210,11 +209,9 @@ function AssistantSetup() {
 
         <label
           htmlFor="assistant-endpoint"
-          className="block space-y-1.5 text-[10px] font-semibold tracking-wide uppercase"
+          className="block space-y-1 font-pixel text-[11px] uppercase"
         >
-          <span className="text-muted-foreground">
-            {t("assistant.setup.endpoint")}
-          </span>
+          <span className="text-ink/65">{t("assistant.setup.endpoint")}</span>
           <Input
             id="assistant-endpoint"
             aria-label={t("assistant.setup.endpoint")}
@@ -232,11 +229,9 @@ function AssistantSetup() {
 
         <label
           htmlFor="assistant-model"
-          className="block space-y-1.5 text-[10px] font-semibold tracking-wide uppercase"
+          className="block space-y-1 font-pixel text-[11px] uppercase"
         >
-          <span className="text-muted-foreground">
-            {t("assistant.setup.model")}
-          </span>
+          <span className="text-ink/65">{t("assistant.setup.model")}</span>
           <Input
             id="assistant-model"
             aria-label={t("assistant.setup.model")}
@@ -256,11 +251,9 @@ function AssistantSetup() {
         {remote && (
           <label
             htmlFor="assistant-api-key"
-            className="block space-y-1.5 text-[10px] font-semibold tracking-wide uppercase"
+            className="block space-y-1 font-pixel text-[11px] uppercase"
           >
-            <span className="text-muted-foreground">
-              {t("assistant.setup.apiKey")}
-            </span>
+            <span className="text-ink/65">{t("assistant.setup.apiKey")}</span>
             <Input
               id="assistant-api-key"
               aria-label={t("assistant.setup.apiKey")}
@@ -275,7 +268,7 @@ function AssistantSetup() {
           </label>
         )}
 
-        <div className="bg-muted/60 text-muted-foreground flex gap-2 border p-2 text-[10px] leading-relaxed">
+        <div className="dots flex gap-2 border border-dashed border-rule p-2 text-[11px] leading-relaxed text-ink/75">
           <FileLock2Icon
             className="mt-0.5 size-3.5 shrink-0"
             aria-hidden="true"
@@ -287,12 +280,12 @@ function AssistantSetup() {
           </p>
         </div>
 
-        <div className="border-border/70 flex items-center justify-between gap-3 border p-2.5">
+        <div className="flex items-center justify-between gap-3 border border-rule bg-paper p-2.5">
           <span className="min-w-0">
             <span className="block text-xs font-semibold">
               {t("assistant.setup.tts")}
             </span>
-            <span className="text-muted-foreground mt-0.5 block text-[9px] leading-relaxed">
+            <span className="mt-0.5 block text-[10px] leading-relaxed text-ink/60">
               {t("assistant.setup.ttsDisclosure")}
             </span>
           </span>
@@ -447,57 +440,75 @@ export function AssistantPage() {
   );
 
   return (
-    <div className="relative z-10 h-full overflow-y-auto">
-      <div className="mx-auto flex min-h-full max-w-7xl flex-col gap-3 p-3 sm:p-4">
-        <header className="flex flex-wrap items-end justify-between gap-3 px-0.5">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="bg-primary size-1.5 rounded-full" />
-              <p className="text-primary font-mono text-[10px] font-bold tracking-[0.18em] uppercase">
-                {t("assistant.eyebrow")}
-              </p>
-            </div>
-            <h1 className="mt-1 text-2xl font-black tracking-[-0.04em] sm:text-3xl">
-              {t("assistant.title")}
-            </h1>
-            <p className="text-muted-foreground mt-1 max-w-2xl text-xs leading-relaxed">
+    <div className="relative h-full overflow-x-hidden overflow-y-auto">
+      <span
+        aria-hidden="true"
+        className="type-display glyph-dropped pointer-events-none absolute -top-6 left-[min(704px,calc(100%-220px))] -translate-x-full text-[180px] leading-none opacity-50 select-none"
+      >
+        03
+      </span>
+      <div className="relative flex min-h-full flex-col gap-4 px-6 pt-4 pb-6">
+        <header className="flex flex-wrap items-end justify-between gap-3">
+          <div className="min-w-0">
+            <p className="tag text-[13px]">
+              <span className="shrink-0">{t("assistant.eyebrow")}</span>
+              <span aria-hidden="true" className="leader w-14" />
+              <span className="max-w-48 truncate">{providerName}</span>
+            </p>
+            <DisplayTitle
+              text={t("assistant.title")}
+              stagger={false}
+              className="mt-3 text-[51px]"
+            />
+            <p className="mt-2 max-w-2xl text-[13px] leading-snug text-ink/70">
               {t("assistant.description")}
             </p>
           </div>
-          <div className="border-border/70 bg-card/70 flex items-center gap-3 border px-3 py-2 backdrop-blur-md">
-            <div className="min-w-0">
-              <p className="text-muted-foreground font-mono text-[8px] tracking-wider uppercase">
-                {providerName}
-              </p>
-              <p className="max-w-40 truncate text-[10px] font-semibold">
-                {modelName || t("assistant.noModel")}
-              </p>
+          <div className="win min-w-48">
+            <div aria-hidden="true" className="win-title">
+              <span>LLM.LINK</span>
+              <span className="opacity-60">∵ x</span>
             </div>
-            <ProviderStatus />
+            <div className="flex items-center gap-3 px-2.5 py-2">
+              <div className="min-w-0 flex-1">
+                <p className="type-pixel text-[11px] text-ink/60">
+                  {providerName}
+                </p>
+                <p className="max-w-40 truncate font-display text-[14px] font-semibold tracking-[-0.02em]">
+                  {modelName || t("assistant.noModel")}
+                </p>
+              </div>
+              <ProviderStatus />
+            </div>
           </div>
         </header>
 
-        <div className="grid flex-1 grid-cols-[minmax(0,1.45fr)_minmax(250px,0.65fr)] items-start gap-3 max-[760px]:grid-cols-1">
+        <div className="grid flex-1 grid-cols-[minmax(0,1fr)_292px] items-start gap-4 max-[760px]:grid-cols-1">
           <section
             aria-labelledby="assistant-transcript-title"
-            className="border-border/80 bg-card/88 flex h-[calc(100vh-150px)] min-h-[400px] max-h-[760px] min-w-0 flex-col border shadow-lg backdrop-blur-xl"
+            className="win flex h-[calc(100vh-250px)] min-h-[420px] max-h-[760px] min-w-0 flex-col"
           >
-            <div className="border-border/70 flex items-center justify-between gap-3 border-b px-3 py-2.5">
-              <div>
-                <p className="text-muted-foreground font-mono text-[9px] font-bold tracking-[0.12em] uppercase">
+            <div aria-hidden="true" className="win-title shrink-0">
+              <span>ASSISTANT.APP</span>
+              <span className="opacity-70">
+                {messages.length.toString().padStart(3, "0")} MSG
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3 border-b border-rule px-3 py-2">
+              <div className="min-w-0">
+                <p className="type-pixel text-[11px] text-ink/60">
                   {t("assistant.workspace")}
                 </p>
                 <h2
                   id="assistant-transcript-title"
-                  className="text-sm font-bold"
+                  className="truncate font-display text-[17px] font-semibold tracking-[-0.03em]"
                 >
                   {activeInstance?.name ?? t("assistant.noInstance")}
                 </h2>
               </div>
               <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 text-[10px]"
+                variant="outline"
+                size="xs"
                 disabled={messages.length === 0}
                 onClick={clearHistory}
               >
@@ -512,25 +523,29 @@ export function AssistantPage() {
                 data-testid="assistant-transcript"
               >
                 {messages.length === 0 ? (
-                  <div className="m-auto max-w-lg py-8 text-center">
-                    <span className="bg-primary/10 text-primary mx-auto flex size-12 items-center justify-center rounded-full">
-                      <SparklesIcon className="size-5" aria-hidden="true" />
-                    </span>
-                    <h3 className="mt-4 text-lg font-black tracking-tight">
+                  <div className="m-auto max-w-xl py-6">
+                    <SparklesIcon className="size-5" aria-hidden="true" />
+                    <h3 className="type-display mt-3 text-[32px]">
                       {t("assistant.empty.title")}
                     </h3>
-                    <p className="text-muted-foreground mx-auto mt-1.5 max-w-sm text-xs leading-relaxed">
+                    <p className="col-rule mt-3 max-w-md text-[13px] leading-relaxed text-ink/70">
                       {emptyCopy}
                     </p>
                     <div className="mt-5 grid gap-2 text-left sm:grid-cols-3">
-                      {promptKeys.map((key) => (
+                      {promptKeys.map((key, index) => (
                         <button
                           key={key}
                           type="button"
-                          className="border-border/80 bg-background/50 hover:border-primary/60 hover:bg-primary/5 focus-visible:ring-ring min-h-20 border p-2.5 text-left text-[10px] font-semibold leading-relaxed transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                          className="group/prompt relative min-h-24 cursor-pointer border border-dashed border-rule bg-sheet p-2.5 pt-6 text-left text-[11.5px] leading-snug font-medium transition-[background-color,color,box-shadow] outline-none hover:border-solid hover:shadow-[3px_3px_0_0_var(--signal)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-45"
                           disabled={!canSend}
                           onClick={() => setDraft(t(key))}
                         >
+                          <span
+                            aria-hidden="true"
+                            className="type-pixel absolute top-1 left-2 text-[11px] text-ink/50"
+                          >
+                            Q.{String(index + 1).padStart(2, "0")}
+                          </span>
                           {t(key)}
                         </button>
                       ))}
@@ -541,18 +556,18 @@ export function AssistantPage() {
                     <article
                       key={message.id}
                       className={cn(
-                        "flex max-w-[88%] gap-2.5",
+                        "flex max-w-[min(88%,720px)] gap-2.5",
                         message.role === "user" && "ml-auto flex-row-reverse",
                       )}
                     >
                       <span
                         className={cn(
-                          "flex size-7 shrink-0 items-center justify-center rounded-full",
+                          "flex size-7 shrink-0 items-center justify-center border border-rule",
                           message.role === "user"
-                            ? "bg-primary text-primary-foreground"
+                            ? "bg-ink text-paper"
                             : message.failed
-                              ? "bg-red-500/10 text-red-600 dark:text-red-300"
-                              : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+                              ? "bg-fault text-white"
+                              : "bg-go text-[#1e1e1e]",
                         )}
                       >
                         {message.role === "user" ? (
@@ -566,14 +581,20 @@ export function AssistantPage() {
                       </span>
                       <div
                         className={cn(
-                          "border-border/70 min-w-0 border px-3 py-2.5 text-xs leading-relaxed",
+                          "min-w-0 border border-rule px-3 py-2.5 text-[12.5px] leading-relaxed",
                           message.role === "user"
-                            ? "bg-primary/8"
+                            ? "bg-ink text-paper"
                             : message.failed
-                              ? "border-red-500/25 bg-red-500/5"
-                              : "bg-background/55",
+                              ? "border-l-4 border-l-fault bg-sheet"
+                              : "bg-sheet shadow-[3px_3px_0_0_var(--rule)]",
                         )}
                       >
+                        <p
+                          aria-hidden="true"
+                          className="type-pixel mb-1 text-[10px] opacity-55"
+                        >
+                          {message.role === "user" ? "▸ YOU" : "◂ DROPOUT"}
+                        </p>
                         {message.content ? (
                           <p className="whitespace-pre-wrap break-words">
                             {message.content}
@@ -585,7 +606,7 @@ export function AssistantPage() {
                           </span>
                         )}
                         {message.stats && (
-                          <p className="text-muted-foreground mt-2 font-mono text-[8px] uppercase">
+                          <p className="type-pixel mt-2 text-[10px] opacity-60">
                             {t("assistant.tokens", {
                               count: Number(message.stats.evalCount),
                             })}
@@ -608,7 +629,7 @@ export function AssistantPage() {
             </p>
 
             {!canSend && (
-              <div className="border-border/70 bg-amber-500/8 text-amber-900 dark:text-amber-100 mx-3 mt-3 flex items-center gap-2 border px-3 py-2 text-[10px]">
+              <div className="mx-3 mt-3 flex items-center gap-2 border border-rule border-l-8 border-l-warn bg-sheet px-3 py-2 text-[11px]">
                 <CircleAlertIcon
                   className="size-3.5 shrink-0"
                   aria-hidden="true"
@@ -620,9 +641,9 @@ export function AssistantPage() {
                 </span>
                 {isConfigured && (
                   <Button
-                    variant="ghost"
-                    size="sm"
-                    className="ml-auto h-6 text-[9px]"
+                    variant="outline"
+                    size="xs"
+                    className="ml-auto"
                     onClick={() => void checkHealth()}
                   >
                     <RefreshCwIcon aria-hidden="true" />
@@ -636,7 +657,7 @@ export function AssistantPage() {
               className="mt-auto p-3"
               onSubmit={(event) => void submit(event)}
             >
-              <div className="border-border/80 bg-background/55 focus-within:border-primary/60 border p-2 transition-colors">
+              <div className="border border-rule bg-sheet p-2 transition-shadow focus-within:shadow-[3px_3px_0_0_var(--signal)]">
                 <Textarea
                   aria-label={t("assistant.composerLabel")}
                   className="min-h-20 resize-none border-0 bg-transparent p-1.5 shadow-none focus-visible:ring-0"
@@ -652,7 +673,7 @@ export function AssistantPage() {
                   disabled={!canSend || isProcessing}
                 />
                 <div className="mt-2 flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground text-[9px]">
+                  <span className="type-pixel text-[11px] text-ink/55">
                     {t("assistant.composerHint")}
                   </span>
                   <Button
@@ -673,18 +694,21 @@ export function AssistantPage() {
           </section>
 
           <aside className="flex min-w-0 flex-col gap-3">
-            <section
-              aria-labelledby="assistant-context-title"
-              className="border-border/80 bg-card/88 border p-3 shadow-sm backdrop-blur-xl"
-            >
-              <div className="flex items-start justify-between gap-3">
+            <section aria-labelledby="assistant-context-title" className="win">
+              <div aria-hidden="true" className="win-title">
+                <span>PRIVACY.GATE</span>
+                <span className="opacity-70">
+                  {context.lineCount.toString().padStart(3, "0")} LN
+                </span>
+              </div>
+              <div className="flex items-start justify-between gap-3 border-b border-rule px-2.5 py-2">
                 <div>
-                  <p className="text-muted-foreground font-mono text-[9px] font-bold tracking-[0.12em] uppercase">
+                  <p className="type-pixel text-[11px] text-ink/60">
                     {t("assistant.context.eyebrow")}
                   </p>
                   <h2
                     id="assistant-context-title"
-                    className="mt-0.5 text-sm font-bold"
+                    className="font-display text-[16px] font-semibold tracking-[-0.03em]"
                   >
                     {t("assistant.context.title")}
                   </h2>
@@ -710,60 +734,66 @@ export function AssistantPage() {
                 </Button>
               </div>
 
-              <div className="border-border/70 mt-3 flex items-center justify-between gap-3 border p-2.5">
-                <span className="min-w-0">
-                  <span className="block text-xs font-semibold">
-                    {t("assistant.context.attach")}
+              <div className="space-y-2 p-2.5">
+                <div className="flex items-center justify-between gap-3 border border-rule bg-paper p-2.5">
+                  <span className="min-w-0">
+                    <span className="block text-xs font-semibold">
+                      {t("assistant.context.attach")}
+                    </span>
+                    <span className="type-pixel mt-0.5 block text-[11px] text-ink/60">
+                      {t("assistant.context.lines", {
+                        count: context.lineCount,
+                      })}
+                    </span>
                   </span>
-                  <span className="text-muted-foreground mt-0.5 block text-[9px]">
-                    {t("assistant.context.lines", { count: context.lineCount })}
-                  </span>
-                </span>
-                <Switch
-                  aria-label={t("assistant.context.attach")}
-                  checked={includeContext}
-                  disabled={context.lineCount === 0}
-                  onCheckedChange={setIncludeContext}
-                />
-              </div>
+                  <Switch
+                    aria-label={t("assistant.context.attach")}
+                    checked={includeContext}
+                    disabled={context.lineCount === 0}
+                    onCheckedChange={setIncludeContext}
+                  />
+                </div>
 
-              <div className="bg-zinc-950 text-zinc-300 mt-2 min-h-28 max-h-44 overflow-auto p-2.5 font-mono text-[8px] leading-relaxed">
-                {contextStatus === "loading" ? (
-                  <p className="text-zinc-500">
-                    {t("assistant.context.loading")}
-                  </p>
-                ) : contextError ? (
-                  <p className="text-red-300">{contextError}</p>
-                ) : context.content ? (
-                  <pre className="whitespace-pre-wrap break-words font-inherit">
-                    {context.content}
-                  </pre>
-                ) : (
-                  <p className="text-zinc-500">
-                    {t("assistant.context.empty")}
-                  </p>
-                )}
-              </div>
+                <div className="type-mono max-h-44 min-h-28 overflow-auto border border-rule bg-[#1e1e1e] p-2.5 text-[10px] leading-relaxed text-[#d9d6cf]">
+                  {contextStatus === "loading" ? (
+                    <p className="text-[#8a877f]">
+                      {t("assistant.context.loading")}
+                    </p>
+                  ) : contextError ? (
+                    <p className="text-[#ff8a8e]">{contextError}</p>
+                  ) : context.content ? (
+                    <pre className="whitespace-pre-wrap break-words font-inherit">
+                      {context.content}
+                    </pre>
+                  ) : (
+                    <p className="text-[#8a877f]">
+                      {t("assistant.context.empty")}
+                    </p>
+                  )}
+                </div>
 
-              <div className="text-muted-foreground mt-2 flex items-start gap-2 text-[9px] leading-relaxed">
-                <ShieldCheckIcon
-                  className="mt-0.5 size-3 shrink-0"
-                  aria-hidden="true"
-                />
-                <p>{t("assistant.context.privacy")}</p>
-              </div>
+                <div className="flex items-start gap-2 text-[11px] leading-relaxed text-ink/65">
+                  <ShieldCheckIcon
+                    className="mt-0.5 size-3 shrink-0"
+                    aria-hidden="true"
+                  />
+                  <p>{t("assistant.context.privacy")}</p>
+                </div>
 
-              <Button
-                variant="ghost"
-                size="sm"
-                className="mt-2 h-7 w-full text-[9px]"
-                disabled={!context.content}
-                onClick={() => void copyContext()}
-              >
-                <ClipboardIcon aria-hidden="true" />
-                {t("assistant.context.copy")}
-              </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  disabled={!context.content}
+                  onClick={() => void copyContext()}
+                >
+                  <ClipboardIcon aria-hidden="true" />
+                  {t("assistant.context.copy")}
+                </Button>
+              </div>
             </section>
+
+            <B64Block data={CREEPER_PNG} width={34} className="px-1 pt-2" />
 
             <AssistantSetup />
           </aside>

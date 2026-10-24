@@ -838,7 +838,7 @@
     "welcome": "Welcome to DropOut!",
     "welcomeDesc": "Let's take a quick tour of the launcher. You'll be up and running in no time.",
     "navigation": "Navigation",
-    "navigationDesc": "Use the sidebar to switch between Overview, Instances, and Settings.",
+    "navigationDesc": "Use the tags along the top to switch between Overview, Instances, Assistant and Settings.",
     "account": "Your Account",
     "accountDesc": "Manage your Minecraft account here. You can log in with a Microsoft account or play offline.",
     "launchBar": "Launch Bar",
@@ -850,5 +850,24 @@
     "next": "Next",
     "back": "Back",
     "done": "Get Started!"
+  },
+  "shell": {
+    "primaryNav": "Primary",
+    "accounts": "Accounts",
+    "minimize": "Minimize",
+    "maximize": "Maximize",
+    "restore": "Restore",
+    "closeWindow": "Close window"
+  },
+  "deco": {
+    "dropoutRate": "Dropout rate {{percent}}%. Click to change it.",
+    "kept": "kept {{kept}}/{{total}}",
+    "day": "Day {{day}}",
+    "gameTime": "In-game time {{time}}",
+    "xrayOn": "Every box is showing its edges.",
+    "xrayTitle": "Deconstruct mode",
+    "xrayEdges": "Edges",
+    "xrayLayers": "Layers",
+    "xrayClose": "Leave deconstruct mode"
   }
 }

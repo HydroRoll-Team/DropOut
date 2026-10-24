@@ -30,7 +30,7 @@ function DialogOverlay({
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
       className={cn(
-        "data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs fixed inset-0 isolate z-50",
+        "data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 dots bg-paper/55 duration-100 fixed inset-0 isolate z-50",
         className,
       )}
       {...props}
@@ -38,13 +38,19 @@ function DialogOverlay({
   );
 }
 
+/*
+ * 对话框是一扇系统窗口：顶上一条黑色标题栏（像素字），关闭按钮嵌在标题栏右端，
+ * 身后一道硬投影。`chrome` 是标题栏上的文件名，默认 DIALOG.SYS。
+ */
 function DialogContent({
   className,
   children,
   showCloseButton = true,
+  chrome = "DIALOG.SYS",
   ...props
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean;
+  chrome?: string;
 }) {
   return (
     <DialogPortal>
@@ -52,24 +58,25 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "bg-background data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 ring-foreground/10 grid max-w-[calc(100%-2rem)] gap-4 rounded-none p-4 text-xs/relaxed ring-1 duration-100 sm:max-w-sm fixed top-1/2 left-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2 outline-none",
+          "bg-sheet text-foreground border-rule data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-open:slide-in-from-top-1 grid max-w-[calc(100%-2rem)] gap-4 rounded-none border px-4 pt-[34px] pb-4 text-xs/relaxed shadow-[6px_6px_0_0_var(--rule)] dark:shadow-[6px_6px_0_0_#000] duration-100 sm:max-w-sm fixed top-1/2 left-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2 outline-none",
           className,
         )}
         {...props}
       >
+        <div
+          aria-hidden="true"
+          className="win-title absolute inset-x-0 top-0 h-[18px] pr-6"
+        >
+          <span>{chrome}</span>
+          <span className="opacity-60">∵ x</span>
+        </div>
         {children}
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
-            render={
-              <Button
-                variant="ghost"
-                className="absolute top-2 right-2"
-                size="icon-sm"
-              />
-            }
+            className="absolute top-0 right-0 flex h-[18px] w-6 cursor-pointer items-center justify-center bg-ink text-paper outline-none hover:bg-signal hover:text-[#1e1e1e] focus-visible:bg-signal focus-visible:text-[#1e1e1e]"
           >
-            <XIcon />
+            <XIcon className="size-3" strokeWidth={2.5} />
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>
         )}
@@ -119,7 +126,10 @@ function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
-      className={cn("text-sm font-medium", className)}
+      className={cn(
+        "font-display text-xl leading-tight font-semibold tracking-[-0.035em]",
+        className,
+      )}
       {...props}
     />
   );
