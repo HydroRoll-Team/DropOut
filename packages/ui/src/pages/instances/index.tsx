@@ -59,6 +59,7 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/models/auth";
 import { useGameStore } from "@/models/game";
@@ -128,35 +129,36 @@ function ReadinessMark({
 
   if (readiness?.status === "ready") {
     return (
-      <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-600 dark:text-emerald-300">
+      <span className="chip chip-go" title={label}>
         <CheckCircle2Icon className="size-3" aria-hidden="true" />
-        {!compact && label}
+        {compact ? <span className="sr-only">{label}</span> : label}
       </span>
     );
   }
 
   if (readiness?.status === "attention" || readiness?.status === "error") {
     return (
-      <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-600 dark:text-amber-300">
+      <span className="chip chip-warn" title={label}>
         <CircleAlertIcon className="size-3" aria-hidden="true" />
-        {!compact && label}
+        {compact ? <span className="sr-only">{label}</span> : label}
       </span>
     );
   }
 
   return (
-    <span className="text-muted-foreground inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em]">
+    <span className="chip chip-ghost" title={label}>
       <LoaderCircleIcon
         className="size-3 animate-spin motion-reduce:animate-none"
         aria-hidden="true"
       />
-      {!compact && label}
+      {compact ? <span className="sr-only">{label}</span> : label}
     </span>
   );
 }
 
 interface LibraryItemProps {
   instance: Instance;
+  index: number;
   active: boolean;
   view: ViewMode;
   readiness: ReadinessState | undefined;
@@ -180,6 +182,7 @@ interface LibraryItemProps {
 
 function LibraryItem({
   instance,
+  index,
   active,
   view,
   readiness,
@@ -232,93 +235,109 @@ function LibraryItem({
     name: instance.name,
   });
 
+  const number = String(index).padStart(3, "0");
+  const loader = loaderLabel(instance, t("instances.vanilla"));
+
   return (
     <li
       ref={itemRef}
       data-testid="instance-library-item"
       data-instance-name={instance.name}
       className={cn(
-        "border-border/80 bg-card/80 group min-w-0 border shadow-sm backdrop-blur-xl transition-colors",
-        "focus-within:border-primary/70 hover:border-primary/50",
-        active && "border-primary ring-primary/15 ring-1",
+        "group relative min-w-0 border border-rule bg-sheet transition-shadow",
+        active && "z-10 shadow-[5px_5px_0_0_var(--signal)]",
         view === "grid" ? "flex min-h-44 flex-col" : "flex items-stretch",
       )}
     >
+      {view === "grid" && (
+        <div aria-hidden="true" className="win-title">
+          <span>#{number}</span>
+          <span className="opacity-70">{instance.versionId ?? "—"}</span>
+        </div>
+      )}
       <button
         type="button"
         className={cn(
-          "focus-visible:ring-ring min-w-0 flex-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset",
+          "min-w-0 flex-1 cursor-pointer text-left outline-none hover:bg-paper-2 focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-ring",
           view === "grid"
-            ? "flex flex-col gap-3 p-3"
-            : "flex items-center gap-3 p-3",
+            ? "flex flex-col gap-3 p-2.5"
+            : "flex items-center gap-3 py-2 pr-3 pl-2",
         )}
         onClick={() => onSelect(instance)}
         aria-label={t("instances.select", { name: instance.name })}
         aria-current={active ? "true" : undefined}
       >
-        <div
+        {view === "list" && (
+          <span
+            aria-hidden="true"
+            className="type-pixel w-7 shrink-0 self-start pt-0.5 text-[11px] text-ink/45"
+          >
+            {number}
+          </span>
+        )}
+        <span
+          aria-hidden="true"
           className={cn(
-            "from-primary/80 to-primary/35 text-primary-foreground flex size-11 shrink-0 items-center justify-center overflow-hidden bg-linear-to-br text-base font-black shadow-sm",
-            view === "grid" && "size-12",
+            "flex size-10 shrink-0 items-center justify-center overflow-hidden border border-rule bg-ink font-pixel text-[22px] leading-none text-paper",
+            view === "grid" && "size-11",
           )}
         >
           {instance.iconPath ? (
             <img
               src={instance.iconPath}
               alt=""
-              className="size-full object-cover"
+              className="size-full object-cover [image-rendering:pixelated]"
             />
           ) : (
             instance.name.charAt(0).toUpperCase()
           )}
-        </div>
+        </span>
 
-        <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-start justify-between gap-2">
-            <div className="min-w-0">
-              <h2 className="truncate text-sm font-semibold">
-                {instance.name}
-              </h2>
-              <p className="text-muted-foreground mt-0.5 truncate text-[11px]">
-                {instance.versionId ?? t("instances.noVersion")} ·{" "}
-                {loaderLabel(instance, t("instances.vanilla"))}
-              </p>
-            </div>
+        <span className="block min-w-0 flex-1">
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="truncate font-display text-[17px] leading-tight font-semibold tracking-[-0.035em]">
+              {instance.name}
+            </span>
             {active && (
-              <span className="bg-primary/10 text-primary shrink-0 px-1.5 py-1 text-[9px] font-bold uppercase tracking-[0.14em]">
+              <span className="chip chip-signal shrink-0">
                 {t("instances.active")}
               </span>
             )}
-          </div>
+          </span>
+          <span className="type-mono mt-0.5 block truncate text-[10.5px] text-ink/60 uppercase">
+            {instance.versionId ?? t("instances.noVersion")} / {loader}
+          </span>
 
-          <div
+          <span
             className={cn(
-              "mt-3 flex items-center justify-between gap-2",
-              view === "list" && "mt-2",
+              "mt-2 flex items-center justify-between gap-2",
+              view === "list" && "mt-1.5",
             )}
           >
             <ReadinessMark readiness={readiness} />
-            <span className="text-muted-foreground truncate text-[10px]">
+            <span className="type-pixel truncate text-[11px] text-ink/55">
               {lastPlayed
                 ? view === "grid"
                   ? lastPlayed
                   : t("instances.lastPlayedValue", { date: lastPlayed })
                 : t("instances.neverPlayed")}
             </span>
-          </div>
-        </div>
+          </span>
+        </span>
       </button>
 
       <div
         className={cn(
-          "border-border/70 flex shrink-0 items-center gap-1 border-t p-2",
-          view === "list" && "border-t-0 border-l",
+          "flex shrink-0 items-center gap-1",
+          view === "grid"
+            ? "border-t border-rule bg-win p-1"
+            : "border-l border-dashed border-rule px-2",
         )}
       >
         <Button
           type="button"
           size={view === "grid" ? "sm" : "icon"}
-          variant={running ? "destructive" : active ? "default" : "outline"}
+          variant={running ? "destructive" : active ? "go" : "outline"}
           aria-label={launchLabel}
           title={launchLabel}
           className={cn(view === "grid" && "flex-1")}
@@ -461,241 +480,308 @@ function DetailWorkspace({
     }
   };
 
+  const label = (text: string) => (
+    <span className="type-pixel text-[11px] uppercase">{text}</span>
+  );
+
   return (
     <aside
       aria-labelledby="instance-detail-title"
-      className="border-border/80 bg-card/90 min-h-0 overflow-y-auto border shadow-sm backdrop-blur-xl"
+      className="win flex min-h-0 flex-col"
     >
-      <div className="border-border/70 border-b p-4">
-        <div className="flex items-start gap-3">
-          <div className="from-primary/85 to-primary/35 text-primary-foreground flex size-12 shrink-0 items-center justify-center bg-linear-to-br text-lg font-black">
+      <div aria-hidden="true" className="win-title shrink-0">
+        <span>INSTANCE.INFO</span>
+        <span className="opacity-70">{instance.versionId ?? "—"}</span>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="relative overflow-hidden border-b border-rule p-3">
+          <span
+            aria-hidden="true"
+            className="type-display glyph-dropped pointer-events-none absolute -top-3 -right-2 text-[92px] opacity-60 select-none"
+          >
             {instance.name.charAt(0).toUpperCase()}
+          </span>
+          <p className="type-pixel relative text-[11px] text-ink/60">
+            {t("instances.detail.activeWorkspace")}
+          </p>
+          <h2
+            id="instance-detail-title"
+            className="type-display relative mt-1 text-[30px] break-words"
+          >
+            {instance.name}
+          </h2>
+          <div className="relative mt-2.5">
+            <ReadinessMark readiness={readiness} />
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-primary text-[9px] font-bold uppercase tracking-[0.18em]">
-              {t("instances.detail.activeWorkspace")}
-            </p>
-            <h2
-              id="instance-detail-title"
-              className="mt-1 truncate text-base font-semibold"
-            >
-              {instance.name}
-            </h2>
-            <div className="mt-2">
-              <ReadinessMark readiness={readiness} />
-            </div>
-          </div>
+
+          <Button
+            type="button"
+            className="relative mt-3 w-full"
+            size="lg"
+            variant={running ? "destructive" : "go"}
+            onClick={() => onLaunch(instance)}
+            disabled={launching || stopping}
+          >
+            {launching || stopping ? (
+              <LoaderCircleIcon className="animate-spin motion-reduce:animate-none" />
+            ) : running ? (
+              <XIcon />
+            ) : (
+              <RocketIcon />
+            )}
+            {t(running ? "instances.stopShort" : "instances.launchActive")}
+          </Button>
         </div>
 
-        <Button
-          type="button"
-          className="mt-4 w-full"
-          variant={running ? "destructive" : "default"}
-          onClick={() => onLaunch(instance)}
-          disabled={launching || stopping}
-        >
-          {launching || stopping ? (
-            <LoaderCircleIcon className="animate-spin motion-reduce:animate-none" />
-          ) : running ? (
-            <XIcon />
-          ) : (
-            <RocketIcon />
-          )}
-          {t(running ? "instances.stopShort" : "instances.launchActive")}
-        </Button>
-      </div>
-
-      <div className="space-y-4 p-4">
-        <section aria-labelledby="readiness-detail-title">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <h3
-              id="readiness-detail-title"
-              className="text-[10px] font-bold uppercase tracking-[0.15em]"
-            >
-              {t("instances.detail.readiness")}
-            </h3>
-            <span className="text-muted-foreground font-mono text-[9px]">
-              {instance.versionId ?? "—"}
-            </span>
-          </div>
-          <dl className="divide-border/70 border-border/70 divide-y border text-[11px]">
-            <div className="flex justify-between gap-3 px-3 py-2">
-              <dt className="text-muted-foreground">
-                {t("instances.detail.gameFiles")}
-              </dt>
-              <dd className="truncate font-medium">
-                {probe
-                  ? t(
-                      probe.versionInstalled
-                        ? "instances.detail.available"
-                        : "instances.detail.missing",
-                    )
-                  : "—"}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-3 px-3 py-2">
-              <dt className="text-muted-foreground">Java</dt>
-              <dd className="truncate font-medium" title={probe?.java?.path}>
-                {probe?.java
-                  ? `${probe.java.version} · ${probe.java.vendor}`
-                  : probe
-                    ? t("instances.detail.missing")
-                    : "—"}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-3 px-3 py-2">
-              <dt className="text-muted-foreground">
-                {t("instances.detail.memory")}
-              </dt>
-              <dd className="font-medium">{memory}</dd>
-            </div>
-            <div className="flex justify-between gap-3 px-3 py-2">
-              <dt className="text-muted-foreground">
-                {t("instances.detail.mods")}
-              </dt>
-              <dd className="font-medium">
-                {modCountLoading ? "…" : (modCount ?? "—")}
-              </dd>
-            </div>
-          </dl>
-        </section>
-
-        <section aria-labelledby="instance-notes-title">
-          <h3
-            id="instance-notes-title"
-            className="text-[10px] font-bold uppercase tracking-[0.15em]"
-          >
-            {t("instances.detail.notes")}
-          </h3>
-          <p className="text-muted-foreground mt-2 text-xs leading-relaxed">
-            {instance.notes?.trim() || t("instances.detail.noNotes")}
-          </p>
-        </section>
-
-        <section aria-labelledby="instance-runtime-title">
-          <h3
-            id="instance-runtime-title"
-            className="text-[10px] font-bold uppercase tracking-[0.15em]"
-          >
-            {t("instances.detail.environment")}
-          </h3>
-          <dl className="mt-2 space-y-2 text-[11px]">
-            <div>
-              <dt className="text-muted-foreground">
-                {t("instances.detail.loader")}
-              </dt>
-              <dd className="mt-0.5 font-medium">
-                {loaderLabel(instance, t("instances.vanilla"))}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">
-                {t("instances.detail.javaOverride")}
-              </dt>
-              <dd
-                className="mt-0.5 truncate font-mono text-[10px]"
-                title={instance.javaPathOverride ?? undefined}
+        <div className="space-y-4 p-3">
+          <section aria-labelledby="readiness-detail-title">
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <h3
+                id="readiness-detail-title"
+                className="font-display text-[14px] font-semibold tracking-[-0.03em]"
               >
-                {instance.javaPathOverride ?? t("instances.detail.automatic")}
-              </dd>
+                {t("instances.detail.readiness")}
+              </h3>
+              <span className="chip">{instance.versionId ?? "—"}</span>
             </div>
-            <div>
-              <dt className="text-muted-foreground">
-                {t("instances.detail.created")}
-              </dt>
-              <dd className="mt-0.5 font-medium">{created}</dd>
-            </div>
-          </dl>
-        </section>
+            <dl className="space-y-1 text-[12px]">
+              <div className="flex min-w-0 items-baseline">
+                <dt className="shrink-0">
+                  {label(t("instances.detail.gameFiles"))}
+                </dt>
+                <span aria-hidden="true" className="leader" />
+                <dd className="truncate font-medium">
+                  {probe
+                    ? t(
+                        probe.versionInstalled
+                          ? "instances.detail.available"
+                          : "instances.detail.missing",
+                      )
+                    : "—"}
+                </dd>
+              </div>
+              <div className="flex min-w-0 items-baseline">
+                <dt className="shrink-0">{label("Java")}</dt>
+                <span aria-hidden="true" className="leader" />
+                <dd className="truncate font-medium" title={probe?.java?.path}>
+                  {probe?.java
+                    ? `${probe.java.version} · ${probe.java.vendor}`
+                    : probe
+                      ? t("instances.detail.missing")
+                      : "—"}
+                </dd>
+              </div>
+              <div className="flex min-w-0 items-baseline">
+                <dt className="shrink-0">
+                  {label(t("instances.detail.memory"))}
+                </dt>
+                <span aria-hidden="true" className="leader" />
+                <dd className="truncate font-medium">{memory}</dd>
+              </div>
+              <div className="flex min-w-0 items-baseline">
+                <dt className="shrink-0">
+                  {label(t("instances.detail.mods"))}
+                </dt>
+                <span aria-hidden="true" className="leader" />
+                <dd className="font-medium">
+                  {modCountLoading ? "…" : (modCount ?? "—")}
+                </dd>
+              </div>
+            </dl>
+          </section>
 
-        <section aria-labelledby="instance-path-title">
-          <div className="flex items-center justify-between gap-2">
+          <section aria-labelledby="instance-notes-title" className="col-rule">
             <h3
-              id="instance-path-title"
-              className="text-[10px] font-bold uppercase tracking-[0.15em]"
+              id="instance-notes-title"
+              className="type-pixel text-[11px] uppercase"
             >
-              {t("instances.detail.gameDirectory")}
+              {t("instances.detail.notes")}
             </h3>
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              onClick={copyPath}
-              aria-label={t("instances.detail.copyPath")}
-              className="size-6"
-            >
-              <CopyIcon className="size-3" />
-            </Button>
-          </div>
-          <p
-            className="bg-muted/70 mt-1 truncate px-2 py-2 font-mono text-[9px]"
-            title={instance.gameDir}
-          >
-            {instance.gameDir}
-          </p>
-        </section>
+            <p className="mt-1 text-[12px] leading-relaxed text-ink/75">
+              {instance.notes?.trim() || t("instances.detail.noNotes")}
+            </p>
+          </section>
 
-        <section aria-label={t("instances.detail.shortcuts")}>
-          <div className="grid grid-cols-2 gap-1.5">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => onOpen(instance)}
+          <section
+            aria-labelledby="instance-runtime-title"
+            className="col-rule-dashed"
+          >
+            <h3
+              id="instance-runtime-title"
+              className="type-pixel text-[11px] uppercase"
             >
-              <FolderOpenIcon />
-              {t("instances.actions.open")}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => onEdit(instance)}
+              {t("instances.detail.environment")}
+            </h3>
+            <dl className="mt-1.5 space-y-1.5 text-[12px]">
+              <div>
+                <dt className="text-ink/60">{t("instances.detail.loader")}</dt>
+                <dd className="font-medium">
+                  {loaderLabel(instance, t("instances.vanilla"))}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-ink/60">
+                  {t("instances.detail.javaOverride")}
+                </dt>
+                <dd
+                  className="type-mono truncate text-[10.5px]"
+                  title={instance.javaPathOverride ?? undefined}
+                >
+                  {instance.javaPathOverride ?? t("instances.detail.automatic")}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-ink/60">{t("instances.detail.created")}</dt>
+                <dd className="font-medium">{created}</dd>
+              </div>
+            </dl>
+          </section>
+
+          <section aria-labelledby="instance-path-title">
+            <div className="flex items-center justify-between gap-2">
+              <h3
+                id="instance-path-title"
+                className="type-pixel text-[11px] uppercase"
+              >
+                {t("instances.detail.gameDirectory")}
+              </h3>
+              <Button
+                type="button"
+                size="icon-xs"
+                variant="ghost"
+                onClick={copyPath}
+                aria-label={t("instances.detail.copyPath")}
+              >
+                <CopyIcon />
+              </Button>
+            </div>
+            <p
+              className="type-mono dots mt-1 truncate border border-dashed border-rule bg-paper px-2 py-1.5 text-[10px]"
+              title={instance.gameDir}
             >
-              <Edit3Icon />
-              {t("instances.actions.edit")}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => onDuplicate(instance)}
-            >
-              <CopyIcon />
-              {t("instances.actions.duplicate")}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => onExport(instance)}
-              disabled={exporting}
-            >
-              <ArchiveIcon />
-              {t("instances.actions.export")}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={() => onMods(instance)}
-            >
-              <PackageIcon />
-              {t("instances.actions.mods")}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={() => onBrowse(instance)}
-            >
-              <Gamepad2Icon />
-              {t("instances.actions.content")}
-            </Button>
-          </div>
-        </section>
+              {instance.gameDir}
+            </p>
+          </section>
+
+          <section aria-label={t("instances.detail.shortcuts")}>
+            <div className="grid grid-cols-2 gap-1">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => onOpen(instance)}
+              >
+                <FolderOpenIcon />
+                {t("instances.actions.open")}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => onEdit(instance)}
+              >
+                <Edit3Icon />
+                {t("instances.actions.edit")}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => onDuplicate(instance)}
+              >
+                <CopyIcon />
+                {t("instances.actions.duplicate")}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => onExport(instance)}
+                disabled={exporting}
+              >
+                <ArchiveIcon />
+                {t("instances.actions.export")}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() => onMods(instance)}
+              >
+                <PackageIcon />
+                {t("instances.actions.mods")}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() => onBrowse(instance)}
+              >
+                <Gamepad2Icon />
+                {t("instances.actions.content")}
+              </Button>
+            </div>
+          </section>
+        </div>
       </div>
     </aside>
+  );
+}
+
+/* 状态面板：一扇窗口，里面放图示、标题和下一步 */
+function StatePanel({
+  chrome,
+  tone,
+  compact = false,
+  children,
+}: {
+  chrome: string;
+  tone: "sheet" | "dots" | "fault";
+  compact?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className={cn(
+        "win mr-2 mb-2 flex flex-col",
+        compact ? "min-h-56" : "min-h-72",
+      )}
+    >
+      <div aria-hidden="true" className="win-title">
+        <span>{chrome}</span>
+        <span className="opacity-60">∵ x</span>
+      </div>
+      <div
+        className={cn(
+          "flex flex-1 flex-col items-center justify-center p-8 text-center",
+          tone === "dots" && "dots",
+          tone === "fault" && "border-l-8 border-fault",
+        )}
+      >
+        {tone === "dots" ? (
+          <div className="flex flex-col items-center border border-rule bg-sheet px-8 py-6">
+            {children}
+          </div>
+        ) : (
+          children
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* 一个 4×3 的格子，全部被丢掉了：还没有任何实例 */
+function DroppedGrid() {
+  return (
+    <div aria-hidden="true" className="grid grid-cols-4 gap-1.5 bg-sheet p-2">
+      {Array.from({ length: 12 }, (_, index) => (
+        <span
+          // biome-ignore lint/suspicious/noArrayIndexKey: 固定数量的格子
+          key={index}
+          className={cn("size-5", index === 5 ? "bg-signal" : "dropped")}
+        />
+      ))}
+    </div>
   );
 }
 
@@ -997,29 +1083,29 @@ export function InstancesPage() {
   const renderLibraryState = () => {
     if (instanceStatus === "loading" && instances.length === 0) {
       return (
-        <div className="border-border/80 bg-card/70 flex min-h-72 flex-col items-center justify-center border p-8 text-center">
-          <LoaderCircleIcon className="text-primary size-7 animate-spin motion-reduce:animate-none" />
-          <h2 className="mt-4 text-sm font-semibold">
+        <StatePanel chrome="LOADING.DIR" tone="sheet">
+          <Spinner className="size-6" />
+          <h2 className="mt-4 font-display text-[22px] font-semibold tracking-[-0.035em]">
             {t("instances.states.loadingTitle")}
           </h2>
-          <p className="text-muted-foreground mt-1 max-w-sm text-xs">
+          <p className="mt-1 max-w-sm text-[12px] text-ink/65">
             {t("instances.states.loadingDescription")}
           </p>
-        </div>
+        </StatePanel>
       );
     }
 
     if (instanceStatus === "error") {
       return (
-        <div className="border-destructive/40 bg-destructive/5 flex min-h-72 flex-col items-center justify-center border p-8 text-center">
-          <CircleAlertIcon className="text-destructive size-7" />
-          <h2 className="mt-4 text-sm font-semibold">
+        <StatePanel chrome="ERROR.LOG" tone="fault">
+          <CircleAlertIcon className="size-7 text-fault" />
+          <h2 className="mt-4 font-display text-[22px] font-semibold tracking-[-0.035em]">
             {t("instances.states.errorTitle")}
           </h2>
-          <p className="text-muted-foreground mt-1 max-w-sm text-xs">
+          <p className="type-mono mt-1 max-w-sm text-[11px] text-ink/70">
             {instanceError ?? t("instances.states.errorDescription")}
           </p>
-          <div className="mt-4 flex gap-2">
+          <div className="mt-4 flex gap-1.5">
             <Button
               type="button"
               size="sm"
@@ -1039,24 +1125,24 @@ export function InstancesPage() {
               {t("instances.repairIndex")}
             </Button>
           </div>
-        </div>
+        </StatePanel>
       );
     }
 
     if (instances.length === 0) {
       return (
-        <div className="border-border/80 bg-card/70 flex min-h-72 flex-col items-center justify-center border p-8 text-center">
-          <Gamepad2Icon className="text-primary size-8" />
-          <h2 className="mt-4 text-base font-semibold">
+        <StatePanel chrome="EMPTY.DIR" tone="dots">
+          <DroppedGrid />
+          <h2 className="type-display mt-5 text-[34px]">
             {t("instances.states.emptyTitle")}
           </h2>
-          <p className="text-muted-foreground mt-1 max-w-sm text-xs">
+          <p className="mt-2 max-w-sm text-[13px] text-ink/70">
             {t("instances.states.emptyDescription")}
           </p>
-          <div className="mt-4 flex gap-2">
+          <div className="mt-5 flex gap-1.5">
             <Button
               type="button"
-              size="sm"
+              size="lg"
               onClick={() => navigate("/instances/create")}
             >
               <PlusIcon />
@@ -1064,7 +1150,7 @@ export function InstancesPage() {
             </Button>
             <Button
               type="button"
-              size="sm"
+              size="lg"
               variant="outline"
               onClick={() => navigate("/instances/import")}
             >
@@ -1072,30 +1158,30 @@ export function InstancesPage() {
               {t("instances.fromLauncher")}
             </Button>
           </div>
-        </div>
+        </StatePanel>
       );
     }
 
     if (visibleInstances.length === 0) {
       return (
-        <div className="border-border/80 bg-card/70 flex min-h-56 flex-col items-center justify-center border p-8 text-center">
-          <SearchIcon className="text-muted-foreground size-7" />
-          <h2 className="mt-4 text-sm font-semibold">
+        <StatePanel chrome="SEARCH.EXE" tone="sheet" compact>
+          <SearchIcon className="size-6 text-ink/60" />
+          <h2 className="mt-3 font-display text-[20px] font-semibold tracking-[-0.035em]">
             {t("instances.states.noResultsTitle")}
           </h2>
-          <p className="text-muted-foreground mt-1 text-xs">
+          <p className="mt-1 text-[12px] text-ink/65">
             {t("instances.states.noResultsDescription", { query })}
           </p>
           <Button
             type="button"
-            variant="ghost"
+            variant="link"
             size="sm"
-            className="mt-3"
+            className="mt-2"
             onClick={() => setQuery("")}
           >
             {t("instances.states.clearSearch")}
           </Button>
-        </div>
+        </StatePanel>
       );
     }
 
@@ -1103,17 +1189,18 @@ export function InstancesPage() {
       <ul
         aria-label={t("instances.libraryTitle")}
         className={cn(
-          "min-h-0",
+          "min-h-0 pr-2 pb-2",
           viewMode === "grid"
-            ? "grid grid-cols-1 gap-2 min-[980px]:grid-cols-2"
-            : "space-y-2",
+            ? "grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3"
+            : "flex flex-col [&>li+li]:-mt-px",
         )}
       >
-        {visibleInstances.map((instance) => {
+        {visibleInstances.map((instance, index) => {
           const running = runningInstanceId === instance.id;
           return (
             <LibraryItem
               key={instance.id}
+              index={index + 1}
               instance={instance}
               active={activeInstance?.id === instance.id}
               view={viewMode}
@@ -1144,21 +1231,29 @@ export function InstancesPage() {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden p-4">
-      <header className="flex shrink-0 items-start justify-between gap-3">
-        <div>
-          <p className="text-primary text-[9px] font-bold uppercase tracking-[0.2em]">
-            {t("instances.libraryEyebrow")}
+    <div className="relative flex h-full min-h-0 flex-col gap-3 overflow-hidden px-6 pt-4 pb-4">
+      <span
+        aria-hidden="true"
+        className="type-display glyph-dropped pointer-events-none absolute -top-6 left-[min(724px,calc(100%-200px))] -translate-x-full text-[180px] leading-none opacity-50 select-none"
+      >
+        02
+      </span>
+
+      <header className="relative flex shrink-0 items-end justify-between gap-3">
+        <div className="min-w-0">
+          <p className="tag text-[13px]">
+            <span className="shrink-0">{t("instances.libraryEyebrow")}</span>
+            <span aria-hidden="true" className="leader w-14" />
+            <span className="shrink-0">
+              {t("instances.librarySubtitle", { count: instances.length })}
+            </span>
           </p>
-          <h1 className="mt-1 text-xl font-bold tracking-tight">
+          <h1 className="type-display mt-3 text-[51px]">
             {t("instances.libraryTitle")}
           </h1>
-          <p className="text-muted-foreground mt-1 text-[11px]">
-            {t("instances.librarySubtitle", { count: instances.length })}
-          </p>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1.5 pb-1">
           <DropdownMenu>
             <DropdownMenuTrigger
               nativeButton={false}
@@ -1204,21 +1299,20 @@ export function InstancesPage() {
               </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => navigate("/instances/create")}
-          >
+          <Button type="button" onClick={() => navigate("/instances/create")}>
             <PlusIcon />
             {t("instances.create")}
           </Button>
         </div>
       </header>
 
-      <div className="border-border/70 bg-card/65 flex shrink-0 flex-wrap items-center gap-2 border p-2 backdrop-blur-xl">
+      <div className="relative flex shrink-0 flex-wrap items-center gap-1.5 border border-rule bg-win p-1.5">
+        <span aria-hidden="true" className="chip">
+          FILTER
+        </span>
         <div className="relative min-w-44 flex-1">
           <SearchIcon
-            className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2"
+            className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-ink/60"
             aria-hidden="true"
           />
           <Input
@@ -1227,7 +1321,7 @@ export function InstancesPage() {
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t("instances.searchPlaceholder")}
             aria-label={t("instances.searchLabel")}
-            className="h-8 pl-8 text-xs"
+            className="h-7 pl-8 text-xs"
           />
         </div>
 
@@ -1262,13 +1356,13 @@ export function InstancesPage() {
           </SelectContent>
         </Select>
 
-        <fieldset className="border-border flex border">
+        <fieldset className="flex border border-rule bg-sheet">
           <legend className="sr-only">{t("instances.viewLabel")}</legend>
           <Button
             type="button"
             size="icon"
             variant="ghost"
-            className="size-7"
+            className="size-[26px] data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
             aria-label={t("instances.view.list")}
             aria-pressed={viewMode === "list"}
             data-active={viewMode === "list"}
@@ -1280,7 +1374,7 @@ export function InstancesPage() {
             type="button"
             size="icon"
             variant="ghost"
-            className="border-border size-7 border-l"
+            className="size-[26px] border-l border-rule data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
             aria-label={t("instances.view.grid")}
             aria-pressed={viewMode === "grid"}
             data-active={viewMode === "grid"}
@@ -1290,7 +1384,7 @@ export function InstancesPage() {
           </Button>
         </fieldset>
 
-        <span className="text-muted-foreground min-w-20 text-right font-mono text-[9px]">
+        <span className="type-pixel min-w-20 text-right text-[11px]">
           {t("instances.resultCount", {
             visible: visibleInstances.length,
             total: instances.length,
@@ -1298,11 +1392,11 @@ export function InstancesPage() {
         </span>
       </div>
 
-      <div className="grid min-h-0 flex-1 gap-3 min-[840px]:grid-cols-[minmax(0,1fr)_minmax(270px,0.72fr)]">
+      <div className="relative grid min-h-0 flex-1 gap-4 min-[840px]:grid-cols-[minmax(0,1fr)_394px]">
         <section
           aria-label={t("instances.libraryTitle")}
           className={cn(
-            "min-h-0 overflow-y-auto pr-1",
+            "min-h-0 overflow-y-auto pt-px pl-px",
             !activeInstance && "min-[840px]:col-span-2",
           )}
         >
@@ -1330,8 +1424,10 @@ export function InstancesPage() {
         ) : (
           instances.length > 0 &&
           instanceStatus !== "error" && (
-            <aside className="border-border/80 bg-card/80 text-muted-foreground flex items-center justify-center border p-6 text-center text-xs">
-              {t("instances.detail.selectHint")}
+            <aside className="dropped flex items-center justify-center p-6 text-center text-[12px] opacity-100">
+              <span className="max-w-48 text-ink/65">
+                {t("instances.detail.selectHint")}
+              </span>
             </aside>
           )
         )}

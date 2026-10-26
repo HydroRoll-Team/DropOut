@@ -372,7 +372,7 @@ export function ImportWizard({
       }}
     >
       <DialogContent
-        className="flex max-h-[88vh] max-w-[calc(100%-1rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl"
+        className="flex max-h-[88vh] max-w-[calc(100%-1rem)] flex-col gap-0 overflow-hidden p-0 pt-[18px] sm:max-w-4xl"
         showCloseButton={!transferring}
       >
         <div className="border-border/70 border-b bg-muted/20 px-4 py-3 sm:px-5">
@@ -390,7 +390,7 @@ export function ImportWizard({
           </DialogHeader>
 
           <ol
-            className="mt-4 grid grid-cols-4 gap-px bg-border"
+            className="mt-4 grid grid-cols-4 gap-px border border-rule bg-rule"
             aria-label={t("migration.track.label")}
           >
             {TRACK_STEPS.map((item, index) => {
@@ -401,8 +401,9 @@ export function ImportWizard({
                   key={item}
                   aria-current={active ? "step" : undefined}
                   className={cn(
-                    "bg-background min-w-0 px-2 py-2",
-                    active && "bg-primary/8",
+                    "bg-sheet min-w-0 px-2 py-2",
+                    active &&
+                      "bg-paper-2 shadow-[inset_0_-3px_0_0_var(--signal)]",
                   )}
                 >
                   <div className="flex items-center gap-1.5">
@@ -947,18 +948,18 @@ export function ImportWizard({
                 className={cn(
                   "flex items-start gap-3 border p-3",
                   failures.length === 0
-                    ? "border-emerald-500/25 bg-emerald-500/5"
-                    : "border-amber-500/25 bg-amber-500/5",
+                    ? "border-go bg-go/10"
+                    : "border-warn bg-warn/10",
                 )}
               >
                 {failures.length === 0 ? (
                   <CheckCircle2Icon
-                    className="mt-0.5 size-4 shrink-0 text-emerald-500"
+                    className="mt-0.5 size-4 shrink-0 text-go-ink"
                     aria-hidden="true"
                   />
                 ) : (
                   <AlertTriangleIcon
-                    className="mt-0.5 size-4 shrink-0 text-amber-500"
+                    className="mt-0.5 size-4 shrink-0 text-warn-ink"
                     aria-hidden="true"
                   />
                 )}
@@ -991,7 +992,7 @@ export function ImportWizard({
                     {undone ? (
                       <RotateCcwIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                     ) : (
-                      <CheckCircle2Icon className="mt-0.5 size-4 shrink-0 text-emerald-500" />
+                      <CheckCircle2Icon className="mt-0.5 size-4 shrink-0 text-go-ink" />
                     )}
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
@@ -1028,7 +1029,7 @@ export function ImportWizard({
                           >
                             {check.status === "ready" ? (
                               <CheckCircle2Icon
-                                className="mt-0.5 size-3 shrink-0 text-emerald-500"
+                                className="mt-0.5 size-3 shrink-0 text-go-ink"
                                 aria-hidden="true"
                               />
                             ) : (
@@ -1037,7 +1038,7 @@ export function ImportWizard({
                                   "mt-0.5 size-3 shrink-0",
                                   check.status === "action-required"
                                     ? "text-destructive"
-                                    : "text-amber-500",
+                                    : "text-warn-ink",
                                 )}
                                 aria-hidden="true"
                               />
@@ -1065,7 +1066,7 @@ export function ImportWizard({
                       {report.warnings.map((warning) => (
                         <p
                           key={warning}
-                          className="mt-1 text-[10px] text-amber-600 dark:text-amber-400"
+                          className="mt-1 text-[10px] text-warn-ink"
                         >
                           {warning}
                         </p>

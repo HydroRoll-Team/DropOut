@@ -99,10 +99,7 @@ export function BottomBar() {
 
     return (
       <Button
-        className={cn(
-          "px-4 py-2 shadow-xl",
-          "bg-emerald-700! hover:bg-emerald-800!",
-        )}
+        className={cn("px-4 py-2 shadow-xl", "bg-go! hover:bg-go!")}
         size="lg"
         onClick={handleStartGame}
         disabled={launchingInstanceId === activeInstance?.id}

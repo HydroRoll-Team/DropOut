@@ -838,7 +838,7 @@
     "welcome": "欢迎使用 DropOut！",
     "welcomeDesc": "让我们快速了解一下启动器。很快就能开始游戏了。",
     "navigation": "导航栏",
-    "navigationDesc": "使用侧边栏在概览、实例和设置之间切换。",
+    "navigationDesc": "用顶部这一排标签在总览、实例、助手和设置之间切换。",
     "account": "你的账户",
     "accountDesc": "在这里管理你的 Minecraft 账户。你可以使用微软账户登录或离线游玩。",
     "launchBar": "启动栏",
@@ -850,5 +850,24 @@
     "next": "下一步",
     "back": "返回",
     "done": "开始使用！"
+  },
+  "shell": {
+    "primaryNav": "主导航",
+    "accounts": "账号",
+    "minimize": "最小化",
+    "maximize": "最大化",
+    "restore": "还原",
+    "closeWindow": "关闭窗口"
+  },
+  "deco": {
+    "dropoutRate": "丢弃率 {{percent}}%，点一下换一个",
+    "kept": "保留 {{kept}}/{{total}}",
+    "day": "第 {{day}} 天",
+    "gameTime": "游戏内时间 {{time}}",
+    "xrayOn": "所有盒子的边界都露出来了。",
+    "xrayTitle": "解构模式",
+    "xrayEdges": "边界",
+    "xrayLayers": "图层",
+    "xrayClose": "退出解构模式"
   }
 }

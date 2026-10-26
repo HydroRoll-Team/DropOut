@@ -251,7 +251,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                 type="button"
                 onClick={() => onOpenChange(false)}
                 disabled={saving}
-                className="p-2 rounded hover:bg-zinc-800 text-zinc-400"
+                className="p-2 hover:bg-foreground/8 text-ink/70"
                 aria-label="Close"
               >
                 <X />
@@ -261,7 +261,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
         </DialogHeader>
 
         {/* Tab Navigation */}
-        <div className="flex gap-1 px-6 pt-2 border-b border-zinc-700">
+        <div className="flex gap-0 px-6 pt-2 border-b border-rule [&>button+button]:-ml-px">
           {[
             { id: "info", label: t("editor.tabs.info") },
             { id: "version", label: t("editor.tabs.version") },
@@ -276,10 +276,10 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                   tab.id as "info" | "version" | "files" | "settings",
                 )
               }
-              className={`px-4 py-2 text-sm font-medium transition-colors rounded-t-lg ${
+              className={`-mb-px border border-rule px-3 py-1 font-display text-[13px] font-medium tracking-[-0.02em] transition-colors ${
                 activeTab === tab.id
-                  ? "bg-indigo-600 text-white"
-                  : "bg-zinc-800 text-zinc-400 hover:text-white"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-sheet text-ink hover:bg-paper-2"
               }`}
             >
               {tab.label}
@@ -323,24 +323,30 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
               </div>
 
               <div className="grid grid-cols-2 gap-4 text-sm">
-                <div className="p-3 bg-zinc-800 rounded-lg">
-                  <p className="text-zinc-400">{t("editor.created")}</p>
-                  <p className="text-white font-medium">
+                <div className="border border-rule bg-sheet p-3">
+                  <p className="type-pixel text-[11px] text-ink/60 uppercase">
+                    {t("editor.created")}
+                  </p>
+                  <p className="text-ink font-medium">
                     {instance?.createdAt ? formatDate(instance.createdAt) : "-"}
                   </p>
                 </div>
-                <div className="p-3 bg-zinc-800 rounded-lg">
-                  <p className="text-zinc-400">{t("editor.lastPlayed")}</p>
-                  <p className="text-white font-medium">
+                <div className="border border-rule bg-sheet p-3">
+                  <p className="type-pixel text-[11px] text-ink/60 uppercase">
+                    {t("editor.lastPlayed")}
+                  </p>
+                  <p className="text-ink font-medium">
                     {instance?.lastPlayed
                       ? formatDate(instance.lastPlayed)
                       : t("editor.never")}
                   </p>
                 </div>
-                <div className="p-3 bg-zinc-800 rounded-lg">
-                  <p className="text-zinc-400">{t("editor.gameDirectory")}</p>
+                <div className="border border-rule bg-sheet p-3">
+                  <p className="type-pixel text-[11px] text-ink/60 uppercase">
+                    {t("editor.gameDirectory")}
+                  </p>
                   <p
-                    className="text-white font-medium text-xs truncate"
+                    className="text-ink font-medium text-xs truncate"
                     title={instance?.gameDir ?? ""}
                   >
                     {instance?.gameDir
@@ -348,9 +354,11 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                       : ""}
                   </p>
                 </div>
-                <div className="p-3 bg-zinc-800 rounded-lg">
-                  <p className="text-zinc-400">{t("editor.currentVersion")}</p>
-                  <p className="text-white font-medium">
+                <div className="border border-rule bg-sheet p-3">
+                  <p className="type-pixel text-[11px] text-ink/60 uppercase">
+                    {t("editor.currentVersion")}
+                  </p>
+                  <p className="text-ink font-medium">
                     {instance?.versionId ?? t("common.none")}
                   </p>
                 </div>
@@ -361,8 +369,8 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
           {activeTab === "version" && (
             <div className="space-y-4">
               {instance?.versionId ? (
-                <div className="p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-lg">
-                  <p className="text-sm text-indigo-400">
+                <div className="dots border border-rule p-4">
+                  <p className="text-sm text-ink">
                     Currently playing:{" "}
                     <span className="font-medium">{instance.versionId}</span>
                     {instance.modLoader && (
@@ -378,7 +386,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                   </p>
                 </div>
               ) : (
-                <div className="text-sm text-zinc-400">
+                <div className="text-sm text-ink/60">
                   No version selected for this instance
                 </div>
               )}
@@ -387,7 +395,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                 <p className="text-sm font-medium mb-2">
                   Change Version / Mod Loader
                 </p>
-                <p className="text-xs text-zinc-400">
+                <p className="text-xs text-ink/60">
                   Use the Versions page to install new game versions or mod
                   loaders, then set them here.
                 </p>
@@ -411,10 +419,10 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                     type="button"
                     key={folder}
                     onClick={() => changeFolder(folder)}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    className={`px-3 py-1.5 rounded-none text-sm font-medium transition-colors ${
                       selectedFileFolder === folder
-                        ? "bg-indigo-600 text-white"
-                        : "bg-zinc-800 text-zinc-400 hover:text-white"
+                        ? "bg-primary text-primary-foreground border border-rule"
+                        : "bg-sheet text-ink border border-dashed border-rule hover:border-solid"
                     }`}
                   >
                     {folder}
@@ -423,12 +431,12 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
               </div>
 
               {loadingFiles ? (
-                <div className="flex items-center gap-2 text-zinc-400 py-8 justify-center">
+                <div className="flex items-center gap-2 text-ink/60 py-8 justify-center">
                   <Loader2 className="animate-spin" />
                   Loading files...
                 </div>
               ) : fileList.length === 0 ? (
-                <div className="text-center py-8 text-zinc-500">
+                <div className="text-center py-8 text-ink/60">
                   No files in this folder
                 </div>
               ) : (
@@ -436,13 +444,13 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                   {fileList.map((file) => (
                     <div
                       key={file.path}
-                      className="flex items-center justify-between p-3 bg-zinc-800 rounded-lg hover:bg-zinc-700 transition-colors"
+                      className="-mt-px flex items-center justify-between border border-rule bg-sheet p-3 transition-colors hover:bg-paper-2"
                     >
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-white truncate">
+                        <p className="font-medium text-ink truncate">
                           {file.name}
                         </p>
-                        <p className="text-xs text-zinc-400">
+                        <p className="text-xs text-ink/60">
                           {file.isDirectory
                             ? "Folder"
                             : formatFileSize(file.size)}{" "}
@@ -454,7 +462,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                           type="button"
                           onClick={() => openInExplorer(file.path)}
                           title="Open in explorer"
-                          className="p-2 rounded-lg hover:bg-zinc-600 text-zinc-400 hover:text-white transition-colors"
+                          className="p-2 rounded-none hover:bg-foreground/8 text-ink/70 hover:text-ink transition-colors"
                         >
                           <Folder />
                         </button>
@@ -463,7 +471,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                           onClick={() => deleteFile(file.path)}
                           disabled={deletingPath === file.path}
                           title="Delete"
-                          className="p-2 rounded-lg hover:bg-red-600/20 text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
+                          className="p-2 rounded-none hover:bg-fault/25 text-fault-ink hover:text-fault-ink transition-colors disabled:opacity-50"
                         >
                           {deletingPath === file.path ? (
                             <Loader2 className="animate-spin" />
@@ -515,7 +523,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                     <Folder />
                   </Button>
                 </div>
-                <p className="text-xs text-zinc-400 mt-1">
+                <p className="text-xs text-ink/60 mt-1">
                   {t("editor.javaPathHint")}
                 </p>
               </div>
@@ -534,7 +542,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                   placeholder={t("editor.serverAddressPlaceholder")}
                   disabled={saving}
                 />
-                <p className="text-xs text-zinc-400 mt-1">
+                <p className="text-xs text-ink/60 mt-1">
                   {t("editor.serverAddressHint")}
                 </p>
               </div>
@@ -572,12 +580,12 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                     <Folder />
                   </Button>
                 </div>
-                <p className="text-xs text-zinc-400 mt-1">
+                <p className="text-xs text-ink/60 mt-1">
                   {t("editor.skinPathHint")}
                 </p>
               </div>
 
-              <div className="border-border/70 bg-card/50 flex items-center justify-between gap-4 border p-3">
+              <div className="flex items-center justify-between gap-4 border border-rule bg-paper p-3">
                 <div>
                   <label
                     htmlFor="instance-memory-override"
@@ -615,7 +623,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                   onChange={(e) => setEditMemoryMin(Number(e.target.value))}
                   disabled={saving || !useMemoryOverride}
                 />
-                <p className="text-xs text-zinc-400 mt-1">
+                <p className="text-xs text-ink/60 mt-1">
                   Default: {config?.minMemory} MB
                 </p>
               </div>
@@ -636,7 +644,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                   onChange={(e) => setEditMemoryMax(Number(e.target.value))}
                   disabled={saving || !useMemoryOverride}
                 />
-                <p className="text-xs text-zinc-400 mt-1">
+                <p className="text-xs text-ink/60 mt-1">
                   Default: {config?.maxMemory} MB
                 </p>
               </div>
@@ -661,7 +669,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
         </div>
 
         {errorMessage && (
-          <div className="px-6 text-sm text-red-400">{errorMessage}</div>
+          <div className="px-6 text-sm text-fault-ink">{errorMessage}</div>
         )}
 
         <DialogFooter>
