@@ -64,7 +64,7 @@ export function TopNav() {
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: 标题栏空白处是窗口拖动区，键盘用户不需要拖窗口
     <header
-      className="relative z-30 col-span-2 flex items-start justify-between gap-3 pr-1 pl-[18px]"
+      className="relative z-30 col-span-2 flex items-start justify-between gap-3 pl-[18px]"
       onMouseDown={onTitlebarMouseDown}
     >
       <button
