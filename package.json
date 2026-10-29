@@ -25,16 +25,16 @@
   "packageManager": "pnpm@12.0.0-rc.6",
   "dependencies": {
     "consola": "^3.4.2",
-    "toml": "^5.0.0"
+    "toml": "^5.0.1"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.14",
-    "@j178/prek": "^0.5.3",
-    "@tauri-apps/cli": "^2.11.5",
-    "@types/node": "^26.6.2",
-    "js-yaml": "^5.4.2",
-    "smol-toml": "^1.8.0",
+    "@biomejs/biome": "^2.6.3",
+    "@j178/prek": "^0.5.7",
+    "@tauri-apps/cli": "^2.12.4",
+    "@types/node": "^26.6.5",
+    "js-yaml": "^5.5.0",
+    "smol-toml": "^1.9.1",
     "tsx": "^4.23.15",
-    "wrangler": "^4.135.0"
+    "wrangler": "^4.152.0"
   }
 }
